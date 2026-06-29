@@ -2,71 +2,43 @@
 
 Painel administrativo do Merlin.
 
-Este projeto ? a interface web usada para gerenciar:
+O Merlin Admin é a interface usada para acompanhar e gerenciar a operação do ecossistema Merlin em um só lugar.
 
-- licen?as
-- atividade e auditoria
-- overrides de manifests e fixes
-- publica??o de updates do Merlin
-- configura??es b?sicas de seguran?a
+Com ele, é possível:
+
+- criar, atualizar, renovar, revogar e reativar licenças
+- visualizar atividade de usuários e eventos administrativos
+- consultar dispositivos vinculados e redefinir HWIDs
+- gerenciar overrides de manifests e fixes por App ID
+- publicar e acompanhar updates do Merlin
+- revisar bloqueios e ajustes básicos de segurança
+
+## Objetivo
+
+O foco do projeto é dar uma visão clara e prática da operação do Merlin, com ferramentas simples para suporte, manutenção e administração.
 
 ## Stack
 
 - React
 - Vite
 
-## Requisitos
+## Estrutura
 
-- Node.js 22+
-- npm
+- `src/components` — componentes reutilizáveis da interface
+- `src/pages` — páginas principais do painel
+- `src/lib` — helpers, utilitários e regras de apoio à UI
+- `public` — arquivos públicos estáticos
 
-## Instala??o
+## Scripts
 
 ```bash
 npm install
-```
-
-## Desenvolvimento
-
-Inicia o painel localmente com Vite:
-
-```bash
 npm run dev
-```
-
-## Build
-
-Gera a build de produ??o:
-
-```bash
 npm run build
-```
-
-## Preview local
-
-Serve a build localmente:
-
-```bash
 npm run preview
 ```
 
-## Integra??o com a API
+## Observações
 
-O merlin-admin ? um front-end separado, mas o deploy em produ??o ? feito junto com o projeto merlin-api, que publica os assets est?ticos do painel.
-
-Ou seja:
-
-- este reposit?rio cuida da interface
-- o deploy final do painel ? acionado a partir do merlin-api
-
-## Estrutura
-
-- `src/components` ? componentes reutiliz?veis
-- `src/pages` ? telas principais do painel
-- `src/lib` ? helpers e utilit?rios
-- `public` ? arquivos p?blicos est?ticos
-
-## Observa??es
-
-- `package-lock.json` ? versionado para manter instala??es mais previs?veis
-- `dist/`, `node_modules/` e arquivos tempor?rios n?o devem ser commitados
+- `package-lock.json` é versionado para manter instalações mais previsíveis
+- `dist/`, `node_modules/` e arquivos temporários não devem ser commitados
