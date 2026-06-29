@@ -30,5 +30,3 @@ pnpm-debug.log*
 
 # coverage
 coverage/
-# lockfile
-package-lock.json
