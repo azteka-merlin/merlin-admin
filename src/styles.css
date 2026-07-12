@@ -2675,6 +2675,46 @@ h3 {
   height: 20px;
 }
 
+.split-inputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.poll-result-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.poll-result-row {
+  display: grid;
+  gap: 7px;
+}
+
+.poll-result-row span,
+.poll-result-row strong {
+  font-size: 0.88rem;
+}
+
+.poll-result-row strong {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.poll-result-bar {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.poll-result-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #facc15, #22c55e);
+}
+
 @media (max-width: 900px) {
   .premium-card__head {
     flex-direction: column;

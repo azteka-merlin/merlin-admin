@@ -8,6 +8,7 @@ import AuditPage from "./pages/AuditPage";
 import LicensesPage from "./pages/LicensesPage";
 import OverviewPage from "./pages/OverviewPage";
 import OverridesPage from "./pages/OverridesPage";
+import PollsPage from "./pages/PollsPage";
 import PremiumPage from "./pages/PremiumPage";
 import SettingsPage from "./pages/SettingsPage";
 import { PAGE_SIZE, VIEW_PATHS, getViewFromPath } from "./lib/navigation";
@@ -118,6 +119,7 @@ function App() {
   const [blockedIps, setBlockedIps] = useState([]);
   const [overrides, setOverrides] = useState([]);
   const [premiumGames, setPremiumGames] = useState([]);
+  const [polls, setPolls] = useState([]);
   const [merlinUpdate, setMerlinUpdate] = useState(null);
   const [loadingLicenses, setLoadingLicenses] = useState(false);
   const [loadingAuditLogs, setLoadingAuditLogs] = useState(false);
@@ -125,6 +127,7 @@ function App() {
   const [loadingBlockedIps, setLoadingBlockedIps] = useState(false);
   const [loadingOverrides, setLoadingOverrides] = useState(false);
   const [loadingPremiumGames, setLoadingPremiumGames] = useState(false);
+  const [loadingPolls, setLoadingPolls] = useState(false);
   const [loadingMerlinUpdate, setLoadingMerlinUpdate] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
   const [search, setSearch] = useState("");
@@ -138,6 +141,7 @@ function App() {
   const [activityStatusFilter, setActivityStatusFilter] = useState("all");
   const [overrideSearch, setOverrideSearch] = useState("");
   const [premiumSearch, setPremiumSearch] = useState("");
+  const [pollSearch, setPollSearch] = useState("");
   const [page, setPage] = useState(1);
   const [toast, setToast] = useState("");
   const [overrideUploadProgress, setOverrideUploadProgress] = useState(null);
@@ -313,6 +317,7 @@ function App() {
       setBlockedIps([]);
       setOverrides([]);
       setPremiumGames([]);
+      setPolls([]);
       setMerlinUpdate(null);
       setSelectedId(null);
       setDetailOpen(false);
@@ -412,6 +417,7 @@ function App() {
       setBlockedIps([]);
       setOverrides([]);
       setPremiumGames([]);
+      setPolls([]);
       setMerlinUpdate(null);
       setSelectedId(null);
       setDetailOpen(false);
@@ -899,6 +905,18 @@ function App() {
     }
   }
 
+  async function loadPolls() {
+    setLoadingPolls(true);
+    try {
+      const payload = await apiRequest("/panel-api/polls");
+      setPolls(payload.polls || []);
+    } catch (error) {
+      setToast(error.message);
+    } finally {
+      setLoadingPolls(false);
+    }
+  }
+
   async function loadMerlinUpdate() {
     setLoadingMerlinUpdate(true);
     try {
@@ -947,6 +965,9 @@ function App() {
     }
     if (auth && view === "premium") {
       loadPremiumGames();
+    }
+    if (auth && view === "polls") {
+      loadPolls();
     }
   }, [auth, view]);
 
@@ -1397,6 +1418,49 @@ function App() {
     });
   }
 
+  async function handleSavePoll(mode, pollId, payload) {
+    return runBusyAction("save-poll", async () => {
+      const response = mode === "edit"
+        ? await apiRequest(`/panel-api/polls/${pollId}`, {
+            method: "PUT",
+            mutate: true,
+            body: payload
+          })
+        : await apiRequest("/panel-api/polls", {
+            method: "POST",
+            mutate: true,
+            body: payload
+          });
+
+      await loadPolls();
+      return response?.poll || null;
+    });
+  }
+
+  async function handleSetPollStatus(pollId, status) {
+    return runBusyAction("poll-status", async () => {
+      const action = status === "open" ? "open" : "close";
+      const response = await apiRequest(`/panel-api/polls/${pollId}/${action}`, {
+        method: "POST",
+        mutate: true
+      });
+
+      await loadPolls();
+      return response?.poll || null;
+    });
+  }
+
+  async function handleDeletePoll(pollId) {
+    return runBusyAction("delete-poll", async () => {
+      await apiRequest(`/panel-api/polls/${pollId}`, {
+        method: "DELETE",
+        mutate: true
+      });
+
+      await loadPolls();
+    });
+  }
+
   async function handlePublishMerlinUpdate() {
     const version = String(merlinUpdateDraft.version || "").trim();
     const file = merlinUpdateDraft.file;
@@ -1536,6 +1600,20 @@ function App() {
             savePremiumGame={handleSavePremiumGame}
             deletePremiumGame={handleDeletePremiumGame}
             uploadPremiumArchive={handlePremiumArchiveUpload}
+            busyAction={busyAction}
+            notify={setToast}
+          />
+        )}
+        {view === "polls" && (
+          <PollsPage
+            polls={polls}
+            loadingPolls={loadingPolls}
+            pollSearch={pollSearch}
+            setPollSearch={setPollSearch}
+            loadPolls={loadPolls}
+            savePoll={handleSavePoll}
+            setPollStatus={handleSetPollStatus}
+            deletePoll={handleDeletePoll}
             busyAction={busyAction}
             notify={setToast}
           />

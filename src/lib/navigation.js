@@ -7,7 +7,8 @@ export const VIEW_PATHS = {
   audit: "/audit",
   settings: "/settings",
   overrides: "/overrides",
-  premium: "/premium"
+  premium: "/premium",
+  polls: "/polls"
 };
 
 export function getViewFromPath(pathname) {
@@ -17,5 +18,6 @@ export function getViewFromPath(pathname) {
   if (pathname === "/settings") return "settings";
   if (pathname === "/overrides") return "overrides";
   if (pathname === "/premium") return "premium";
+  if (pathname === "/polls") return "polls";
   return "overview";
 }
