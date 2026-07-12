@@ -8,6 +8,7 @@ import AuditPage from "./pages/AuditPage";
 import LicensesPage from "./pages/LicensesPage";
 import OverviewPage from "./pages/OverviewPage";
 import OverridesPage from "./pages/OverridesPage";
+import PremiumPage from "./pages/PremiumPage";
 import SettingsPage from "./pages/SettingsPage";
 import { PAGE_SIZE, VIEW_PATHS, getViewFromPath } from "./lib/navigation";
 import { formatBrazilPhone, formatBrazilPhoneInput, getStatus, normalizeBrazilPhone } from "./lib/admin-ui";
@@ -116,12 +117,14 @@ function App() {
   const [userActivityLogs, setUserActivityLogs] = useState([]);
   const [blockedIps, setBlockedIps] = useState([]);
   const [overrides, setOverrides] = useState([]);
+  const [premiumGames, setPremiumGames] = useState([]);
   const [merlinUpdate, setMerlinUpdate] = useState(null);
   const [loadingLicenses, setLoadingLicenses] = useState(false);
   const [loadingAuditLogs, setLoadingAuditLogs] = useState(false);
   const [loadingUserActivityLogs, setLoadingUserActivityLogs] = useState(false);
   const [loadingBlockedIps, setLoadingBlockedIps] = useState(false);
   const [loadingOverrides, setLoadingOverrides] = useState(false);
+  const [loadingPremiumGames, setLoadingPremiumGames] = useState(false);
   const [loadingMerlinUpdate, setLoadingMerlinUpdate] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
   const [search, setSearch] = useState("");
@@ -134,6 +137,7 @@ function App() {
   const [activityActionFilter, setActivityActionFilter] = useState("all");
   const [activityStatusFilter, setActivityStatusFilter] = useState("all");
   const [overrideSearch, setOverrideSearch] = useState("");
+  const [premiumSearch, setPremiumSearch] = useState("");
   const [page, setPage] = useState(1);
   const [toast, setToast] = useState("");
   const [overrideUploadProgress, setOverrideUploadProgress] = useState(null);
@@ -308,6 +312,7 @@ function App() {
       setUserActivityLogs([]);
       setBlockedIps([]);
       setOverrides([]);
+      setPremiumGames([]);
       setMerlinUpdate(null);
       setSelectedId(null);
       setDetailOpen(false);
@@ -406,6 +411,7 @@ function App() {
       setUserActivityLogs([]);
       setBlockedIps([]);
       setOverrides([]);
+      setPremiumGames([]);
       setMerlinUpdate(null);
       setSelectedId(null);
       setDetailOpen(false);
@@ -881,6 +887,18 @@ function App() {
     }
   }
 
+  async function loadPremiumGames() {
+    setLoadingPremiumGames(true);
+    try {
+      const payload = await apiRequest("/panel-api/premium/games");
+      setPremiumGames(payload.games || []);
+    } catch (error) {
+      setToast(error.message);
+    } finally {
+      setLoadingPremiumGames(false);
+    }
+  }
+
   async function loadMerlinUpdate() {
     setLoadingMerlinUpdate(true);
     try {
@@ -926,6 +944,9 @@ function App() {
     }
     if (auth && view === "overrides") {
       loadOverrides();
+    }
+    if (auth && view === "premium") {
+      loadPremiumGames();
     }
   }, [auth, view]);
 
@@ -1324,6 +1345,58 @@ function App() {
     });
   }
 
+  async function handleSavePremiumGame(mode, payload) {
+    return runBusyAction("save-premium-game", async () => {
+      const response = mode === "edit"
+        ? await apiRequest(`/panel-api/premium/games/${payload.appId}`, {
+            method: "PUT",
+            mutate: true,
+            body: {
+              ...(payload.name !== undefined ? { name: payload.name } : {}),
+              ...(payload.coverUrl !== undefined ? { coverUrl: payload.coverUrl } : {}),
+              ...(payload.archiveKey !== undefined ? { archiveKey: payload.archiveKey } : {}),
+              ...(payload.installSubpath !== undefined ? { installSubpath: payload.installSubpath } : {}),
+              ...(payload.activationType !== undefined ? { activationType: payload.activationType } : {}),
+              ...(payload.launchExecutablePath !== undefined ? { launchExecutablePath: payload.launchExecutablePath } : {}),
+              activationLimit: payload.activationLimit,
+              enabled: payload.enabled,
+            }
+          })
+        : await apiRequest("/panel-api/premium/games", {
+            method: "POST",
+            mutate: true,
+            body: payload
+          });
+
+      await loadPremiumGames();
+      return response?.game || null;
+    });
+  }
+
+  async function handleDeletePremiumGame(appId) {
+    return runBusyAction("delete-premium-game", async () => {
+      await apiRequest(`/panel-api/premium/games/${appId}`, {
+        method: "DELETE",
+        mutate: true
+      });
+
+      await loadPremiumGames();
+    });
+  }
+
+  async function handlePremiumArchiveUpload(appId, file) {
+    return runBusyAction("upload-premium-game-archive", async () => {
+      const formData = new FormData();
+      formData.append("appId", appId);
+      formData.append("file", file);
+
+      return apiUpload("/panel-api/premium/games/upload", formData, {
+        method: "POST",
+        mutate: true
+      });
+    });
+  }
+
   async function handlePublishMerlinUpdate() {
     const version = String(merlinUpdateDraft.version || "").trim();
     const file = merlinUpdateDraft.file;
@@ -1451,6 +1524,20 @@ function App() {
             openOverrideCreateModal={openOverrideCreateModal}
             openOverrideEditModal={openOverrideEditModal}
             openOverrideDeleteModal={openOverrideDeleteModal}
+          />
+        )}
+        {view === "premium" && (
+          <PremiumPage
+            premiumGames={premiumGames}
+            loadingPremiumGames={loadingPremiumGames}
+            premiumSearch={premiumSearch}
+            setPremiumSearch={setPremiumSearch}
+            loadPremiumGames={loadPremiumGames}
+            savePremiumGame={handleSavePremiumGame}
+            deletePremiumGame={handleDeletePremiumGame}
+            uploadPremiumArchive={handlePremiumArchiveUpload}
+            busyAction={busyAction}
+            notify={setToast}
           />
         )}
         {view === "activity" && (

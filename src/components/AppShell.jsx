@@ -45,6 +45,9 @@ export default function AppShell({
             <button className={`nav-button ${view === "overrides" ? "is-active" : ""}`} onClick={() => navigate("overrides")}>
               Overrides
             </button>
+            <button className={`nav-button ${view === "premium" ? "is-active" : ""}`} onClick={() => navigate("premium")}>
+              Premium
+            </button>
             <button className={`nav-button ${view === "activity" ? "is-active" : ""}`} onClick={() => navigate("activity")}>
               Atividade
             </button>

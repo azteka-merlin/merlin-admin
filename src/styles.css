@@ -2574,3 +2574,266 @@ h3 {
     bottom: 14px;
   }
 }
+
+
+.premium-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.premium-card {
+  overflow: hidden;
+}
+
+.premium-card__head {
+  align-items: stretch;
+}
+
+.premium-card__cover-wrap {
+  width: 118px;
+  min-width: 118px;
+}
+
+.premium-card__cover {
+  width: 118px;
+  height: 158px;
+  border-radius: 18px;
+  object-fit: cover;
+  background: linear-gradient(180deg, rgba(159, 89, 255, 0.18), rgba(14, 18, 35, 0.9));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.premium-card__cover--fallback {
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.92rem;
+  text-align: center;
+}
+
+.premium-card__summary {
+  flex: 1;
+}
+
+.premium-card__title {
+  margin: 8px 0 0;
+  font-size: 1.05rem;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.premium-card__actions {
+  align-self: flex-start;
+}
+
+.premium-card__value {
+  max-width: 100%;
+}
+
+.premium-card__value--wrap {
+  white-space: normal;
+  word-break: break-word;
+}
+
+.premium-upload-box {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  margin-top: 18px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.premium-upload-box p {
+  margin: 6px 0 0;
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.premium-upload-box code {
+  word-break: break-word;
+}
+
+.premium-upload-box__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.field--toggle {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.field--toggle input {
+  width: 20px;
+  height: 20px;
+}
+
+@media (max-width: 900px) {
+  .premium-card__head {
+    flex-direction: column;
+  }
+
+  .premium-card__cover-wrap,
+  .premium-card__cover {
+    width: 100%;
+    min-width: 0;
+    height: 190px;
+  }
+
+  .premium-card__actions,
+  .premium-upload-box,
+  .premium-upload-box__actions {
+    width: 100%;
+  }
+
+  .premium-upload-box {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+
+.page--premium .page__header {
+  gap: 18px;
+}
+
+.page--premium .page__header h1 {
+  max-width: 14ch;
+}
+
+.page--premium .page__header .page__actions {
+  align-self: flex-start;
+}
+
+.premium-card__head {
+  align-items: center;
+  gap: 18px;
+}
+
+.premium-card__summary {
+  min-width: 0;
+  flex: 1;
+}
+
+.premium-card__summary h2 {
+  margin-bottom: 6px;
+}
+
+.premium-card__title {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.premium-card__meta--single {
+  grid-template-columns: 1fr;
+}
+
+@media (max-width: 900px) {
+  .page--premium .page__header {
+    gap: 16px;
+  }
+
+  .page--premium .page__header h1 {
+    max-width: none;
+    font-size: 2.2rem;
+    line-height: 1.04;
+  }
+
+  .page--premium .page__actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .page--premium .page__actions .button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .premium-card {
+    padding: 16px;
+    gap: 14px;
+  }
+
+  .premium-card__title {
+    font-size: 0.98rem;
+    line-height: 1.35;
+  }
+
+  .premium-card__actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .premium-card__actions .button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .premium-upload-box {
+    padding: 14px;
+  }
+}
+
+@media (max-width: 640px) {
+  .page--premium .page__header h1 {
+    font-size: 1.85rem;
+    line-height: 1.06;
+    letter-spacing: -0.03em;
+  }
+
+  .page--premium .page__actions {
+    grid-template-columns: 1fr;
+  }
+
+  .page--premium .panel--audit {
+    gap: 16px;
+  }
+
+  .premium-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .premium-card {
+    border-radius: 20px;
+  }
+
+  .premium-card__summary {
+    width: 100%;
+  }
+
+  .premium-card__title {
+    margin-top: 4px;
+  }
+
+  .premium-card__head {
+    align-items: flex-start;
+  }
+
+  .premium-upload-box__actions {
+    width: 100%;
+  }
+
+  .premium-upload-box__actions .button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .page--premium .page__header h1 {
+    font-size: 1.68rem;
+  }
+
+  .premium-card__actions {
+    grid-template-columns: 1fr;
+  }
+}
