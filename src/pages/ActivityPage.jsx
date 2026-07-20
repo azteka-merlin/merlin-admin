@@ -42,6 +42,8 @@ export default function ActivityPage({
               <option value="user_login_success">Login do usuário</option>
               <option value="game_activation_success">Ativação liberada</option>
               <option value="game_activation_denied">Ativação negada</option>
+              <option value="premium_activation_success">Ativação premium liberada</option>
+              <option value="premium_activation_failed">Ativação premium falhou</option>
             </select>
           </label>
 

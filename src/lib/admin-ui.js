@@ -150,7 +150,9 @@ export function userActivityLabel(action) {
   const labels = {
     user_login_success: "Login do usuário",
     game_activation_success: "Ativação liberada",
-    game_activation_denied: "Ativação negada"
+    game_activation_denied: "Ativação negada",
+    premium_activation_success: "Ativação premium liberada",
+    premium_activation_failed: "Ativação premium falhou"
   };
 
   return labels[action] || action.replaceAll("_", " ");
