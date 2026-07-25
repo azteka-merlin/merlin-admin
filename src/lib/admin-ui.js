@@ -40,6 +40,25 @@ export function formatBrazilPhoneInput(value) {
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
 }
 
+export function getLicenseContact(license) {
+  return license?.contact || license?.phone || "";
+}
+
+export function getLicenseContactType(license) {
+  return license?.contactType || "phone";
+}
+
+export function formatContact(value, contactType = "phone") {
+  if (!value) return "--";
+  if (contactType === "phone") return formatBrazilPhone(value);
+  return String(value);
+}
+
+export function normalizeContactInput(value, contactType = "phone") {
+  if (contactType === "phone") return normalizeBrazilPhone(value);
+  return String(value || "").trim().toLowerCase();
+}
+
 export function initials(name) {
   return (name || "Sistema")
     .split(" ")

@@ -59,7 +59,7 @@ export default function LicenseModals({
       {activeModal === "create" && (
         <Modal
           title="Nova licença"
-          subtitle="Cadastre o usuário, telefone e validade. A chave será gerada automaticamente."
+          subtitle="Cadastre o usuário, contato e validade. A chave será gerada automaticamente."
           onClose={() => setActiveModal(null)}
           closeDisabled={createBusy}
           actions={
@@ -85,12 +85,27 @@ export default function LicenseModals({
             </label>
 
             <label className="field">
-              <span>Telefone</span>
+              <span>Tipo de contato</span>
+              <select
+                value={formState.createContactType}
+                onChange={(event) => setFormState((current) => ({ ...current, createContactType: event.target.value, createContact: "" }))}
+              >
+                <option value="phone">Telefone</option>
+                <option value="email">E-mail</option>
+                <option value="discord">Discord</option>
+              </select>
+            </label>
+
+            <label className="field">
+              <span>Contato</span>
               <input
-                value={formState.createPhone}
-                onChange={(event) => setFormState((current) => ({ ...current, createPhone: formatBrazilPhoneInput(event.target.value) }))}
-                placeholder="(11) 99999-9999"
-                inputMode="numeric"
+                value={formState.createContact}
+                onChange={(event) => setFormState((current) => ({
+                  ...current,
+                  createContact: current.createContactType === "phone" ? formatBrazilPhoneInput(event.target.value) : event.target.value
+                }))}
+                placeholder={formState.createContactType === "phone" ? "(11) 99999-9999" : formState.createContactType === "email" ? "usuario@email.com" : "usuario"}
+                inputMode={formState.createContactType === "phone" ? "numeric" : "text"}
               />
             </label>
 
@@ -110,7 +125,7 @@ export default function LicenseModals({
       {activeModal === "edit" && selectedLicense && (
         <Modal
           title="Atualizar licença"
-          subtitle="Edite nome, telefone, vencimento e HWID. ID e chave permanecem fixos."
+          subtitle="Edite nome, contato, vencimento e HWID. ID e chave permanecem fixos."
           onClose={() => setActiveModal(null)}
           closeDisabled={updateBusy}
           actions={
@@ -130,8 +145,26 @@ export default function LicenseModals({
               <input value={formState.editName} onChange={(event) => setFormState((current) => ({ ...current, editName: event.target.value }))} />
             </label>
             <label className="field">
-              <span>Telefone</span>
-              <input value={formState.editPhone} onChange={(event) => setFormState((current) => ({ ...current, editPhone: formatBrazilPhoneInput(event.target.value) }))} inputMode="numeric" />
+              <span>Tipo de contato</span>
+              <select
+                value={formState.editContactType}
+                onChange={(event) => setFormState((current) => ({ ...current, editContactType: event.target.value, editContact: "" }))}
+              >
+                <option value="phone">Telefone</option>
+                <option value="email">E-mail</option>
+                <option value="discord">Discord</option>
+              </select>
+            </label>
+            <label className="field">
+              <span>Contato</span>
+              <input
+                value={formState.editContact}
+                onChange={(event) => setFormState((current) => ({
+                  ...current,
+                  editContact: current.editContactType === "phone" ? formatBrazilPhoneInput(event.target.value) : event.target.value
+                }))}
+                inputMode={formState.editContactType === "phone" ? "numeric" : "text"}
+              />
             </label>
             <label className="field">
               <span>Data de vencimento</span>

@@ -1,7 +1,7 @@
 import React from "react";
 import CopyIcon from "./CopyIcon";
 import DetailField from "./DetailField";
-import { formatBrazilPhone, formatDate, formatDateTime, getStatus, initials, maskTechnicalValue } from "../lib/admin-ui";
+import { formatContact, formatDate, formatDateTime, getLicenseContact, getLicenseContactType, getStatus, initials, maskTechnicalValue } from "../lib/admin-ui";
 
 export default function LicenseDetail({ license, onCopy, onEdit, onRenew, onReset, onRevoke, onReactivate, onClose, mobile }) {
   if (!license) {
@@ -14,6 +14,9 @@ export default function LicenseDetail({ license, onCopy, onEdit, onRenew, onRese
   }
 
   const status = getStatus(license);
+  const contact = getLicenseContact(license);
+  const contactType = getLicenseContactType(license);
+  const sourceLabel = license.source === "public_signup" ? "Cadastro público" : "Admin";
 
   return (
     <div className={`detail ${mobile ? "detail--mobile" : ""}`}>
@@ -45,7 +48,8 @@ export default function LicenseDetail({ license, onCopy, onEdit, onRenew, onRese
         <DetailField label="Licença" value={`#${license.id}`} />
         <DetailField label="Status" value={status.label} />
         <DetailField label="Vencimento" value={formatDate(license.expiresAt)} />
-        <DetailField label="Telefone" value={formatBrazilPhone(license.phone)} />
+        <DetailField label="Contato" value={formatContact(contact, contactType)} />
+        <DetailField label="Origem" value={sourceLabel} />
         <DetailField label="Criada em" value={formatDateTime(license.createdAt)} />
         <DetailField label="Atualizada em" value={formatDateTime(license.updatedAt)} />
         <DetailField

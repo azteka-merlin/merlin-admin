@@ -10,9 +10,10 @@ import OverviewPage from "./pages/OverviewPage";
 import OverridesPage from "./pages/OverridesPage";
 import PollsPage from "./pages/PollsPage";
 import PremiumPage from "./pages/PremiumPage";
+import PublicSignupPage from "./pages/PublicSignupPage";
 import SettingsPage from "./pages/SettingsPage";
 import { PAGE_SIZE, VIEW_PATHS, getViewFromPath } from "./lib/navigation";
-import { formatBrazilPhone, formatBrazilPhoneInput, getStatus, normalizeBrazilPhone } from "./lib/admin-ui";
+import { formatContact, getLicenseContact, getLicenseContactType, getStatus, normalizeContactInput } from "./lib/admin-ui";
 
 function createEmptyOverrideForm() {
   return {
@@ -102,6 +103,18 @@ function buildOverridePayload(formState) {
   return payload;
 }
 
+function isValidContact(contact, contactType) {
+  if (contactType === "phone") return /^\d{11}$/.test(contact);
+  if (contactType === "email") return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact);
+  return contact.length >= 2;
+}
+
+function contactValidationMessage(contactType) {
+  if (contactType === "phone") return "Informe um celular brasileiro válido com DDD.";
+  if (contactType === "email") return "Informe um e-mail válido.";
+  return "Informe um contato do Discord válido.";
+}
+
 function App() {
   const OVERRIDE_UPLOAD_TIMEOUT_MS = 45000;
   const OVERRIDE_UPLOAD_MAX_RETRIES = 2;
@@ -121,6 +134,10 @@ function App() {
   const [premiumGames, setPremiumGames] = useState([]);
   const [polls, setPolls] = useState([]);
   const [merlinUpdate, setMerlinUpdate] = useState(null);
+  const [publicSignup, setPublicSignup] = useState({
+    settings: { enabled: false, durationAmount: 30, durationUnit: "days", isLifetime: false, description: "" },
+    metrics: { total: 0, active: 0, expired: 0, latestCreatedAt: null }
+  });
   const [loadingLicenses, setLoadingLicenses] = useState(false);
   const [loadingAuditLogs, setLoadingAuditLogs] = useState(false);
   const [loadingUserActivityLogs, setLoadingUserActivityLogs] = useState(false);
@@ -133,6 +150,7 @@ function App() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [deviceFilter, setDeviceFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
   const [auditSearch, setAuditSearch] = useState("");
   const [auditActionFilter, setAuditActionFilter] = useState("all");
   const [auditAdminFilter, setAuditAdminFilter] = useState("all");
@@ -153,10 +171,12 @@ function App() {
   const [loginState, setLoginState] = useState({ username: "", password: "", rememberMe: false, error: "", submitting: false });
   const [formState, setFormState] = useState({
     createName: "",
-    createPhone: "",
+    createContact: "",
+    createContactType: "phone",
     createExpiry: "",
     editName: "",
-    editPhone: "",
+    editContact: "",
+    editContactType: "phone",
     editExpiry: "",
     editHwid: "",
     renewExpiry: "",
@@ -172,29 +192,32 @@ function App() {
 
   const filteredLicenses = useMemo(() => {
     const query = search.trim().toLowerCase();
-    const phoneQuery = normalizeBrazilPhone(search);
     return licenses.filter((license) => {
       const status = getStatus(license);
-      const normalizedPhone = normalizeBrazilPhone(license.phone);
+      const contact = getLicenseContact(license);
+      const contactType = getLicenseContactType(license);
+      const normalizedContact = normalizeContactInput(search, contactType);
       const matchesSearch =
         !query ||
         license.name.toLowerCase().includes(query) ||
-        (phoneQuery && normalizedPhone.includes(phoneQuery)) ||
-        formatBrazilPhone(license.phone).toLowerCase().includes(query) ||
+        (normalizedContact && contact.includes(normalizedContact)) ||
+        formatContact(contact, contactType).toLowerCase().includes(query) ||
         license.licenseKey.toLowerCase().includes(query) ||
         String(license.id).includes(query) ||
         (license.hwid || "").toLowerCase().includes(query);
 
       const matchesStatus = statusFilter === "all" || status.key === statusFilter;
+      const source = license.source || "admin";
+      const matchesSource = sourceFilter === "all" || source === sourceFilter;
       const hasDevice = Boolean(license.hwid);
       const matchesDevice =
         deviceFilter === "all" ||
         (deviceFilter === "with" && hasDevice) ||
         (deviceFilter === "without" && !hasDevice);
 
-      return matchesSearch && matchesStatus && matchesDevice;
+      return matchesSearch && matchesStatus && matchesSource && matchesDevice;
     });
-  }, [deviceFilter, licenses, search, statusFilter]);
+  }, [deviceFilter, licenses, search, sourceFilter, statusFilter]);
 
   const auditAdminOptions = useMemo(
     () =>
@@ -279,7 +302,7 @@ function App() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter, deviceFilter]);
+  }, [search, statusFilter, sourceFilter, deviceFilter]);
 
   useEffect(() => {
     if (safePage !== page) setPage(safePage);
@@ -319,6 +342,10 @@ function App() {
       setPremiumGames([]);
       setPolls([]);
       setMerlinUpdate(null);
+      setPublicSignup({
+        settings: { enabled: false, durationAmount: 30, durationUnit: "days", isLifetime: false, description: "" },
+        metrics: { total: 0, active: 0, expired: 0, latestCreatedAt: null }
+      });
       setSelectedId(null);
       setDetailOpen(false);
       setActiveModal(null);
@@ -401,7 +428,7 @@ function App() {
       throw new Error(
         message === "Failed to fetch"
           ? "Falha no envio do arquivo. Se ele for muito grande, o limite da borda pode ter interrompido o upload."
-          : "Nao foi possivel enviar o arquivo agora."
+          : "Não foi possível enviar o arquivo agora."
       );
     }
 
@@ -604,7 +631,7 @@ function App() {
         }
 
         if (!uploadedPart) {
-          throw lastError || new Error("Nao foi possivel enviar o arquivo.");
+          throw lastError || new Error("Não foi possível enviar o arquivo.");
         }
 
         uploadedParts.push(uploadedPart);
@@ -746,7 +773,7 @@ function App() {
         }
 
         if (!uploadedPart) {
-          throw lastError || new Error("Nao foi possivel enviar a atualizacao do Merlin.");
+          throw lastError || new Error("Não foi possível enviar a atualização do Merlin.");
         }
 
         uploadedParts.push(uploadedPart);
@@ -929,6 +956,34 @@ function App() {
     }
   }
 
+  async function loadPublicSignup() {
+    const payload = await apiRequest("/panel-api/public-signup");
+    setPublicSignup({
+      settings: payload.settings || { enabled: false, durationAmount: 30, durationUnit: "days", isLifetime: false, description: "" },
+      metrics: payload.metrics || { total: 0, active: 0, expired: 0, latestCreatedAt: null }
+    });
+  }
+
+  async function handleSavePublicSignupSettings(settings) {
+    setBusyAction("save-public-signup");
+    try {
+      const payload = await apiRequest("/panel-api/public-signup", {
+        method: "PUT",
+        mutate: true,
+        body: settings
+      });
+      setPublicSignup({
+        settings: payload.settings || settings,
+        metrics: payload.metrics || publicSignup.metrics
+      });
+      setToast("Configurações do cadastro público salvas.");
+    } catch (error) {
+      setToast(error.message);
+    } finally {
+      setBusyAction("");
+    }
+  }
+
   async function runBusyAction(actionKey, callback) {
     if (busyAction) return undefined;
     setBusyAction(actionKey);
@@ -968,6 +1023,9 @@ function App() {
     }
     if (auth && view === "polls") {
       loadPolls();
+    }
+    if (auth && view === "public-signup") {
+      loadPublicSignup();
     }
   }, [auth, view]);
 
@@ -1019,7 +1077,8 @@ function App() {
       setFormState((current) => ({
         ...current,
         editName: selectedLicense.name,
-        editPhone: formatBrazilPhoneInput(selectedLicense.phone),
+        editContact: getLicenseContact(selectedLicense),
+        editContactType: getLicenseContactType(selectedLicense),
         editExpiry: selectedLicense.expiresAt,
         editHwid: selectedLicense.hwid || "",
         renewExpiry: selectedLicense.expiresAt,
@@ -1063,7 +1122,7 @@ function App() {
     await abortMerlinUpdateUploadSession(merlinUpdateUploadProgress);
     setMerlinUpdateUploadProgress(null);
     setBusyAction("");
-    setToast("Upload da atualizacao cancelado.");
+    setToast("Upload da atualização cancelado.");
   }
 
   async function handleLogin(event) {
@@ -1117,11 +1176,11 @@ function App() {
 
   async function handleCreateLicense(event) {
     event?.preventDefault();
-    const { createName, createPhone, createExpiry } = formState;
-    const normalizedPhone = normalizeBrazilPhone(createPhone);
+    const { createName, createContact, createContactType, createExpiry } = formState;
+    const normalizedContact = normalizeContactInput(createContact, createContactType);
 
-    if (normalizedPhone.length !== 11) {
-      setToast("Informe um celular brasileiro valido com DDD.");
+    if (!isValidContact(normalizedContact, createContactType)) {
+      setToast(contactValidationMessage(createContactType));
       return;
     }
 
@@ -1130,10 +1189,10 @@ function App() {
         const created = await apiRequest("/panel-api/licenses", {
           method: "POST",
           mutate: true,
-          body: { name: createName, phone: normalizedPhone, expiresAt: createExpiry }
+          body: { name: createName, contact: normalizedContact, contactType: createContactType, expiresAt: createExpiry }
         });
 
-        setFormState((current) => ({ ...current, createName: "", createPhone: "", createExpiry: "" }));
+        setFormState((current) => ({ ...current, createName: "", createContact: "", createContactType: "phone", createExpiry: "" }));
         setActiveModal(null);
         setSelectedId(created.id);
         await Promise.all([loadLicenses(), loadAuditLogs()]);
@@ -1148,9 +1207,9 @@ function App() {
   async function handleUpdateLicense() {
     if (!selectedLicense) return;
 
-    const normalizedPhone = normalizeBrazilPhone(formState.editPhone);
-    if (normalizedPhone.length !== 11) {
-      setToast("Informe um celular brasileiro valido com DDD.");
+    const normalizedContact = normalizeContactInput(formState.editContact, formState.editContactType);
+    if (!isValidContact(normalizedContact, formState.editContactType)) {
+      setToast(contactValidationMessage(formState.editContactType));
       return;
     }
 
@@ -1161,7 +1220,8 @@ function App() {
           mutate: true,
           body: {
             name: formState.editName,
-            phone: normalizedPhone,
+            contact: normalizedContact,
+            contactType: formState.editContactType,
             expiresAt: formState.editExpiry,
             hwid: formState.editHwid || null
           }
@@ -1562,6 +1622,8 @@ function App() {
             setSearch={setSearch}
             statusFilter={statusFilter}
             setStatusFilter={setStatusFilter}
+            sourceFilter={sourceFilter}
+            setSourceFilter={setSourceFilter}
             deviceFilter={deviceFilter}
             setDeviceFilter={setDeviceFilter}
             loadingLicenses={loadingLicenses}
@@ -1661,6 +1723,14 @@ function App() {
             handlePublishMerlinUpdate={handlePublishMerlinUpdate}
             merlinUpdateUploadProgress={merlinUpdateUploadProgress}
             handleCancelMerlinUpdateUpload={handleCancelMerlinUpdateUpload}
+          />
+        )}
+        {view === "public-signup" && (
+          <PublicSignupPage
+            publicSignup={publicSignup}
+            onSave={handleSavePublicSignupSettings}
+            saving={busyAction === "save-public-signup"}
+            onRefresh={loadPublicSignup}
           />
         )}
       </AppShell>

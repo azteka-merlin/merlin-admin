@@ -1,6 +1,6 @@
 import React from "react";
 import LicenseDetail from "../components/LicenseDetail";
-import { formatBrazilPhone, formatDate, getStatus, initials, maskKey, maskTechnicalValue } from "../lib/admin-ui";
+import { formatContact, formatDate, getLicenseContact, getLicenseContactType, getStatus, initials, maskKey, maskTechnicalValue } from "../lib/admin-ui";
 import { PAGE_SIZE } from "../lib/navigation";
 
 export default function LicensesPage({
@@ -8,6 +8,8 @@ export default function LicensesPage({
   setSearch,
   statusFilter,
   setStatusFilter,
+  sourceFilter,
+  setSourceFilter,
   deviceFilter,
   setDeviceFilter,
   loadingLicenses,
@@ -43,7 +45,7 @@ export default function LicensesPage({
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Buscar por nome, telefone, chave, ID ou HWID..."
+                placeholder="Buscar por nome, contato, chave, ID ou HWID..."
               />
             </label>
 
@@ -55,6 +57,15 @@ export default function LicensesPage({
                 <option value="soon">Expiram em breve</option>
                 <option value="expired">Expiradas</option>
                 <option value="revoked">Revogadas</option>
+              </select>
+            </label>
+
+            <label className="field-shell">
+              <span>Origem</span>
+              <select value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value)}>
+                <option value="all">Todas as origens</option>
+                <option value="admin">Admin</option>
+                <option value="public_signup">Cadastro público</option>
               </select>
             </label>
 
@@ -93,7 +104,7 @@ export default function LicensesPage({
                   <thead>
                     <tr>
                       <th>Usuário</th>
-                      <th>Telefone</th>
+                      <th>Contato</th>
                       <th>Chave</th>
                       <th>Vencimento</th>
                       <th>Dispositivo</th>
@@ -114,7 +125,7 @@ export default function LicensesPage({
                               </div>
                             </div>
                           </td>
-                          <td className="cell-phone">{formatBrazilPhone(license.phone)}</td>
+                          <td className="cell-phone">{formatContact(getLicenseContact(license), getLicenseContactType(license))}</td>
                           <td className="cell-key" title={license.licenseKey}>{maskKey(license.licenseKey)}</td>
                           <td className="cell-date">{formatDate(license.expiresAt)}</td>
                           <td className="cell-device" title={license.hwid || "Sem dispositivo"}>
@@ -140,7 +151,7 @@ export default function LicensesPage({
                           <span className="avatar">{initials(license.name)}</span>
                           <div>
                             <strong>{license.name}</strong>
-                            <p>{formatBrazilPhone(license.phone)}</p>
+                            <p>{formatContact(getLicenseContact(license), getLicenseContactType(license))}</p>
                           </div>
                         </div>
                         <span className={`badge badge--${status.tone}`}>{status.shortLabel}</span>
