@@ -110,6 +110,17 @@ export default function LicenseModals({
             </label>
 
             <label className="field">
+              <span>PIN de recuperacao opcional</span>
+              <input
+                value={formState.createRecoveryPin}
+                onChange={(event) => setFormState((current) => ({ ...current, createRecoveryPin: event.target.value.replace(/\D/g, "").slice(0, 8) }))}
+                placeholder="4 a 8 digitos"
+                inputMode="numeric"
+                maxLength={8}
+              />
+            </label>
+
+            <label className="field">
               <span>Data de vencimento</span>
               <input
                 className="date-input"
@@ -173,6 +184,16 @@ export default function LicenseModals({
             <label className="field">
               <span>HWID</span>
               <input value={formState.editHwid} onChange={(event) => setFormState((current) => ({ ...current, editHwid: event.target.value }))} placeholder="Sem dispositivo vinculado" />
+            </label>
+            <label className="field">
+              <span>Novo PIN de recuperacao</span>
+              <input
+                value={formState.editRecoveryPin}
+                onChange={(event) => setFormState((current) => ({ ...current, editRecoveryPin: event.target.value.replace(/\D/g, "").slice(0, 8) }))}
+                placeholder={selectedLicense.hasRecoveryPin ? "Deixe vazio para manter" : "4 a 8 digitos"}
+                inputMode="numeric"
+                maxLength={8}
+              />
             </label>
             <label className="field">
               <span>Chave da licença</span>

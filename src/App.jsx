@@ -173,10 +173,12 @@ function App() {
     createName: "",
     createContact: "",
     createContactType: "phone",
+    createRecoveryPin: "",
     createExpiry: "",
     editName: "",
     editContact: "",
     editContactType: "phone",
+    editRecoveryPin: "",
     editExpiry: "",
     editHwid: "",
     renewExpiry: "",
@@ -1079,6 +1081,7 @@ function App() {
         editName: selectedLicense.name,
         editContact: getLicenseContact(selectedLicense),
         editContactType: getLicenseContactType(selectedLicense),
+        editRecoveryPin: "",
         editExpiry: selectedLicense.expiresAt,
         editHwid: selectedLicense.hwid || "",
         renewExpiry: selectedLicense.expiresAt,
@@ -1176,11 +1179,16 @@ function App() {
 
   async function handleCreateLicense(event) {
     event?.preventDefault();
-    const { createName, createContact, createContactType, createExpiry } = formState;
+    const { createName, createContact, createContactType, createRecoveryPin, createExpiry } = formState;
     const normalizedContact = normalizeContactInput(createContact, createContactType);
+    const normalizedRecoveryPin = String(createRecoveryPin || "").trim();
 
     if (!isValidContact(normalizedContact, createContactType)) {
       setToast(contactValidationMessage(createContactType));
+      return;
+    }
+    if (normalizedRecoveryPin && !/^\d{4,8}$/.test(normalizedRecoveryPin)) {
+      setToast("O PIN deve ter de 4 a 8 digitos.");
       return;
     }
 
@@ -1189,15 +1197,21 @@ function App() {
         const created = await apiRequest("/panel-api/licenses", {
           method: "POST",
           mutate: true,
-          body: { name: createName, contact: normalizedContact, contactType: createContactType, expiresAt: createExpiry }
+          body: {
+            name: createName,
+            contact: normalizedContact,
+            contactType: createContactType,
+            ...(normalizedRecoveryPin ? { recoveryPin: normalizedRecoveryPin } : {}),
+            expiresAt: createExpiry
+          }
         });
 
-        setFormState((current) => ({ ...current, createName: "", createContact: "", createContactType: "phone", createExpiry: "" }));
+        setFormState((current) => ({ ...current, createName: "", createContact: "", createContactType: "phone", createRecoveryPin: "", createExpiry: "" }));
         setActiveModal(null);
         setSelectedId(created.id);
         await Promise.all([loadLicenses(), loadAuditLogs()]);
         navigate("licenses");
-        setToast("Licença criada com sucesso.");
+        setToast(createContactType === "email" ? "Licenca criada. E-mail de boas-vindas enviado em segundo plano." : "Licenca criada com sucesso.");
       } catch (error) {
         setToast(error.message);
       }
@@ -1208,8 +1222,13 @@ function App() {
     if (!selectedLicense) return;
 
     const normalizedContact = normalizeContactInput(formState.editContact, formState.editContactType);
+    const normalizedRecoveryPin = String(formState.editRecoveryPin || "").trim();
     if (!isValidContact(normalizedContact, formState.editContactType)) {
       setToast(contactValidationMessage(formState.editContactType));
+      return;
+    }
+    if (normalizedRecoveryPin && !/^\d{4,8}$/.test(normalizedRecoveryPin)) {
+      setToast("O PIN deve ter de 4 a 8 digitos.");
       return;
     }
 
@@ -1222,15 +1241,34 @@ function App() {
             name: formState.editName,
             contact: normalizedContact,
             contactType: formState.editContactType,
+            ...(normalizedRecoveryPin ? { recoveryPin: normalizedRecoveryPin } : {}),
             expiresAt: formState.editExpiry,
             hwid: formState.editHwid || null
           }
         });
 
         setActiveModal(null);
+        setFormState((current) => ({ ...current, editRecoveryPin: "" }));
         setSelectedId(updated.id);
         await Promise.all([loadLicenses(), loadAuditLogs()]);
         setToast("Licença atualizada com sucesso.");
+      } catch (error) {
+        setToast(error.message);
+      }
+    });
+  }
+
+  async function handleSendWelcomeEmail() {
+    if (!selectedLicense) return;
+
+    await runBusyAction("send-welcome-email", async () => {
+      try {
+        await apiRequest(`/panel-api/licenses/${selectedLicense.id}/send-welcome-email`, {
+          method: "POST",
+          mutate: true
+        });
+        await loadAuditLogs();
+        setToast("E-mail de boas-vindas reenviado.");
       } catch (error) {
         setToast(error.message);
       }
@@ -1601,6 +1639,7 @@ function App() {
         selectedLicense={selectedLicense}
         copyLicenseKey={copyLicenseKey}
         openModal={openModal}
+        onSendWelcomeEmail={handleSendWelcomeEmail}
         setDetailOpen={setDetailOpen}
         handleLogout={handleLogout}
         loggingOut={busyAction === "logout"}
@@ -1638,6 +1677,7 @@ function App() {
             selectedLicense={selectedLicense}
             copyLicenseKey={copyLicenseKey}
             openModal={openModal}
+            onSendWelcomeEmail={handleSendWelcomeEmail}
           />
         )}
         {view === "overrides" && (

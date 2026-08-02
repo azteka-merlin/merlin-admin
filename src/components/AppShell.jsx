@@ -14,6 +14,7 @@ export default function AppShell({
   selectedLicense,
   copyLicenseKey,
   openModal,
+  onSendWelcomeEmail,
   setDetailOpen,
   handleLogout,
   loggingOut,
@@ -107,6 +108,7 @@ export default function AppShell({
             onReset={() => openModal("reset")}
             onRevoke={() => openModal("revoke")}
             onReactivate={() => openModal("reactivate")}
+            onSendWelcomeEmail={onSendWelcomeEmail}
             onClose={() => setDetailOpen(false)}
             mobile
           />

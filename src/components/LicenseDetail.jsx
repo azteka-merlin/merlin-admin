@@ -3,7 +3,7 @@ import CopyIcon from "./CopyIcon";
 import DetailField from "./DetailField";
 import { formatContact, formatDate, formatDateTime, getLicenseContact, getLicenseContactType, getStatus, initials, maskTechnicalValue } from "../lib/admin-ui";
 
-export default function LicenseDetail({ license, onCopy, onEdit, onRenew, onReset, onRevoke, onReactivate, onClose, mobile }) {
+export default function LicenseDetail({ license, onCopy, onEdit, onRenew, onReset, onRevoke, onReactivate, onSendWelcomeEmail, onClose, mobile }) {
   if (!license) {
     return (
       <div className="detail-empty">
@@ -49,6 +49,7 @@ export default function LicenseDetail({ license, onCopy, onEdit, onRenew, onRese
         <DetailField label="Status" value={status.label} />
         <DetailField label="Vencimento" value={formatDate(license.expiresAt)} />
         <DetailField label="Contato" value={formatContact(contact, contactType)} />
+        <DetailField label="Recuperacao" value={license.hasRecoveryPin ? "PIN configurado" : "Sem PIN"} />
         <DetailField label="Origem" value={sourceLabel} />
         <DetailField label="Criada em" value={formatDateTime(license.createdAt)} />
         <DetailField label="Atualizada em" value={formatDateTime(license.updatedAt)} />
@@ -91,6 +92,11 @@ export default function LicenseDetail({ license, onCopy, onEdit, onRenew, onRese
         <button className="button button--ghost" onClick={onReset} disabled={!license.hwid}>
           Redefinir dispositivo
         </button>
+        {contactType === "email" && (
+          <button className="button button--ghost" onClick={onSendWelcomeEmail}>
+            Reenviar boas-vindas
+          </button>
+        )}
         <button className="button button--danger button--soft" onClick={onRevoke}>
           Revogar licença
         </button>

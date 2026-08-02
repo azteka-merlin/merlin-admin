@@ -23,7 +23,8 @@ export default function LicensesPage({
   setPage,
   selectedLicense,
   copyLicenseKey,
-  openModal
+  openModal,
+  onSendWelcomeEmail
 }) {
   return (
     <section className="page">
@@ -204,6 +205,7 @@ export default function LicensesPage({
             onReset={() => openModal("reset")}
             onRevoke={() => openModal("revoke")}
             onReactivate={() => openModal("reactivate")}
+            onSendWelcomeEmail={onSendWelcomeEmail}
             mobile={false}
           />
         </aside>

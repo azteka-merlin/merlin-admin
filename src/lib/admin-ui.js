@@ -117,6 +117,7 @@ export function actionLabel(action) {
     license_created: "Licença criada",
     license_updated: "Licença atualizada",
     license_renewed: "Licença renovada",
+    license_welcome_email_sent: "E-mail de boas-vindas enviado",
     license_reactivated: "Licença reativada",
     license_revoked: "Licença revogada",
     license_hwid_reset: "HWID redefinido"
@@ -146,6 +147,7 @@ export function describeAuditLog(log) {
 
   if (log.action === "license_created") return `Criou a licença #${log.entityId || "--"}`;
   if (log.action === "license_updated") return `Atualizou a licença #${log.entityId || "--"}`;
+  if (log.action === "license_welcome_email_sent") return `Reenviou boas-vindas da licença #${log.entityId || "--"}`;
   if (log.action === "license_renewed") return `Renovou a licença #${log.entityId || "--"}`;
   if (log.action === "license_reactivated") return `Reativou a licença #${log.entityId || "--"}`;
   if (log.action === "license_hwid_reset") return `Redefiniu o HWID da licença #${log.entityId || "--"}`;
