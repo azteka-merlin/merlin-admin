@@ -17,6 +17,7 @@ export default function OverridesPage({
       entry.appId,
       entry.name || "",
       entry.adminNote || "",
+      entry.hidden ? "oculto" : "exibido",
       entry.manifestOverride?.file || "",
       entry.fixOverride?.file || "",
       entry.fixOverride?.filename || ""

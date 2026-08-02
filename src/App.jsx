@@ -20,6 +20,7 @@ function createEmptyOverrideForm() {
     overrideMode: "create",
     overrideAppId: "",
     overrideName: "",
+    overrideHidden: false,
     overrideManifestEnabled: false,
     overrideManifestFile: "",
     overrideFixEnabled: false,
@@ -36,6 +37,7 @@ function mapOverridesDocument(overridesMap) {
       appId,
       name: entry.name || entry.fixOverride?.gameName || "",
       adminNote: entry.adminNote || "",
+      hidden: Boolean(entry.hidden),
       manifestOverride: entry.manifestOverride || null,
       fixOverride: entry.fixOverride || null
     }))
@@ -51,9 +53,10 @@ function createOverrideForm(entry) {
     overrideMode: "edit",
     overrideAppId: entry.appId,
     overrideName: entry.name || entry.fixOverride?.gameName || "",
-    overrideManifestEnabled: Boolean(entry.manifestOverride),
+    overrideHidden: Boolean(entry.hidden),
+    overrideManifestEnabled: Boolean(entry.manifestOverride?.enabled),
     overrideManifestFile: entry.manifestOverride?.file || "",
-    overrideFixEnabled: Boolean(entry.fixOverride),
+    overrideFixEnabled: Boolean(entry.fixOverride?.enabled),
     overrideFixFile: entry.fixOverride?.file || "",
     overrideFilename: entry.fixOverride?.filename || "",
     overrideSize: entry.fixOverride?.size || "",
@@ -75,29 +78,30 @@ function buildOverridePayload(formState) {
   const payload = {
     appId,
     name,
+    hidden: Boolean(formState.overrideHidden),
     ...(formState.overrideAdminNote.trim() ? { adminNote: formState.overrideAdminNote.trim() } : {})
   };
 
-  if (formState.overrideManifestEnabled) {
+  if (formState.overrideManifestEnabled || formState.overrideManifestFile.trim()) {
     const file = formState.overrideManifestFile.trim();
     if (!file) throw new Error("Informe o caminho do manifest override.");
-    payload.manifestOverride = { enabled: true, file };
+    payload.manifestOverride = { enabled: !formState.overrideHidden && Boolean(formState.overrideManifestEnabled), file };
   }
 
-  if (formState.overrideFixEnabled) {
+  if (formState.overrideFixEnabled || formState.overrideFixFile.trim()) {
     const file = formState.overrideFixFile.trim();
     if (!file) throw new Error("Informe o caminho do fix override.");
 
     payload.fixOverride = {
-      enabled: true,
+      enabled: !formState.overrideHidden && Boolean(formState.overrideFixEnabled),
       file,
       ...(formState.overrideFilename.trim() ? { filename: formState.overrideFilename.trim() } : {}),
       ...(formState.overrideSize.trim() ? { size: formState.overrideSize.trim() } : {})
     };
   }
 
-  if (!payload.manifestOverride && !payload.fixOverride && !payload.adminNote) {
-    throw new Error("Adicione ao menos uma nota ou ative um override antes de salvar.");
+  if (!payload.manifestOverride && !payload.fixOverride && !payload.adminNote && !payload.hidden) {
+    throw new Error("Adicione uma nota, arquivo ou desmarque a exibicao antes de salvar.");
   }
 
   return payload;

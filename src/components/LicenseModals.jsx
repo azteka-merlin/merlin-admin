@@ -45,6 +45,10 @@ export default function LicenseModals({
   const deleteOverrideBusy = busyAction === "delete-override";
   const manifestCurrentFile = String(formState.overrideManifestFile || "").split("/").filter(Boolean).pop() || "";
   const fixCurrentFile = String(formState.overrideFixFile || "").split("/").filter(Boolean).pop() || "";
+  const hasManifestOverrideFile = Boolean(String(formState.overrideManifestFile || "").trim());
+  const hasFixOverrideFile = Boolean(String(formState.overrideFixFile || "").trim());
+  const showManifestOverrideFields = formState.overrideManifestEnabled || hasManifestOverrideFile;
+  const showFixOverrideFields = formState.overrideFixEnabled || hasFixOverrideFile;
   const manifestUploadProgress = overrideUploadProgress?.kind === "manifest" ? overrideUploadProgress : null;
   const fixUploadProgress = overrideUploadProgress?.kind === "fix" ? overrideUploadProgress : null;
   const closeOverrideModal = async () => {
@@ -340,6 +344,23 @@ export default function LicenseModals({
               />
             </label>
 
+            <label className="field field--toggle">
+              <span>Exibir na aba Correções</span>
+              <input
+                type="checkbox"
+                checked={!formState.overrideHidden}
+                onChange={(event) => {
+                  const visible = event.target.checked;
+                  setFormState((current) => ({
+                    ...current,
+                    overrideHidden: !visible,
+                    overrideManifestEnabled: visible ? (current.overrideManifestEnabled || Boolean(current.overrideManifestFile)) : false,
+                    overrideFixEnabled: visible ? (current.overrideFixEnabled || Boolean(current.overrideFixFile)) : false
+                  }));
+                }}
+              />
+            </label>
+
             <label className="field">
               <span>Admin note</span>
               <textarea
@@ -356,6 +377,7 @@ export default function LicenseModals({
                   type="checkbox"
                   checked={formState.overrideManifestEnabled}
                   onChange={(event) => setFormState((current) => ({ ...current, overrideManifestEnabled: event.target.checked }))}
+                  disabled={formState.overrideHidden}
                 />
                 <div>
                   <strong>Manifest override</strong>
@@ -368,6 +390,7 @@ export default function LicenseModals({
                   type="checkbox"
                   checked={formState.overrideFixEnabled}
                   onChange={(event) => setFormState((current) => ({ ...current, overrideFixEnabled: event.target.checked }))}
+                  disabled={formState.overrideHidden}
                 />
                 <div>
                   <strong>Fix override</strong>
@@ -376,7 +399,7 @@ export default function LicenseModals({
               </label>
             </div>
 
-            {formState.overrideManifestEnabled && (
+            {showManifestOverrideFields && (
               <>
                 <label className="field">
                   <span>Manifest file</span>
@@ -454,7 +477,7 @@ export default function LicenseModals({
               </>
             )}
 
-            {formState.overrideFixEnabled && (
+            {showFixOverrideFields && (
               <>
                 <label className="field">
                   <span>Fix file</span>
