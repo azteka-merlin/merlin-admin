@@ -18,10 +18,10 @@ import { formatContact, getBillingStatus, getLicenseContact, getLicenseContactTy
 
 function isValidRecoverySecret(value) {
   const secret = String(value || "").trim();
-  return /^\d{4,8}$/.test(secret) || /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z0-9]{6,8}$/.test(secret);
+  return /^\d{4,8}$/.test(secret) || /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z0-9]{4,8}$/.test(secret);
 }
 
-const RECOVERY_SECRET_MESSAGE = "Use 4 a 8 numeros ou uma senha de 6 a 8 caracteres com letras e numeros.";
+const RECOVERY_SECRET_MESSAGE = "Use 4 a 8 numeros ou uma senha de 4 a 8 caracteres com letras e numeros.";
 function createEmptyOverrideForm() {
   return {
     overrideMode: "create",
