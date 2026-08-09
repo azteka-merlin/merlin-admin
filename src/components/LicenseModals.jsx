@@ -12,7 +12,7 @@ function formatProgressBytes(bytes) {
 }
 
 function sanitizeRecoverySecret(value) {
-  return String(value || "").replace(/[^A-Za-z0-9]/g, "").slice(0, 8);
+  return String(value || "").replace(/\s/g, "").slice(0, 8);
 }
 
 export default function LicenseModals({
