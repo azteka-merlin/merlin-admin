@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React from "react";
 import AppShell from "./components/AppShell";
 import LicenseModals from "./components/LicenseModals";
 import LoadingScreen from "./components/LoadingScreen";
@@ -8,12 +8,13 @@ import AuditPage from "./pages/AuditPage";
 import LicensesPage from "./pages/LicensesPage";
 import OverviewPage from "./pages/OverviewPage";
 import OverridesPage from "./pages/OverridesPage";
+import PaymentsPage from "./pages/PaymentsPage";
 import PollsPage from "./pages/PollsPage";
 import PremiumPage from "./pages/PremiumPage";
 import PublicSignupPage from "./pages/PublicSignupPage";
 import SettingsPage from "./pages/SettingsPage";
 import { PAGE_SIZE, VIEW_PATHS, getViewFromPath } from "./lib/navigation";
-import { formatContact, getLicenseContact, getLicenseContactType, getStatus, normalizeContactInput } from "./lib/admin-ui";
+import { formatContact, getBillingStatus, getLicenseContact, getLicenseContactType, getStatus, normalizeContactInput } from "./lib/admin-ui";
 
 function createEmptyOverrideForm() {
   return {
@@ -124,56 +125,69 @@ function App() {
   const OVERRIDE_UPLOAD_MAX_RETRIES = 2;
   const MERLIN_UPDATE_UPLOAD_TIMEOUT_MS = 60000;
   const MERLIN_UPDATE_UPLOAD_MAX_RETRIES = 2;
-  const [booting, setBooting] = useState(true);
-  const [auth, setAuth] = useState(null);
-  const [csrfToken, setCsrfToken] = useState("");
-  const [view, setView] = useState(getViewFromPath(window.location.pathname));
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [licenses, setLicenses] = useState([]);
-  const [auditLogs, setAuditLogs] = useState([]);
-  const [userActivityLogs, setUserActivityLogs] = useState([]);
-  const [blockedIps, setBlockedIps] = useState([]);
-  const [overrides, setOverrides] = useState([]);
-  const [premiumGames, setPremiumGames] = useState([]);
-  const [polls, setPolls] = useState([]);
-  const [merlinUpdate, setMerlinUpdate] = useState(null);
-  const [publicSignup, setPublicSignup] = useState({
+  const [booting, setBooting] = React.useState(true);
+  const [auth, setAuth] = React.useState(null);
+  const [csrfToken, setCsrfToken] = React.useState("");
+  const [view, setView] = React.useState(getViewFromPath(window.location.pathname));
+  const [menuOpen, setMenuOpen] = React.useState(false);
+  const [detailOpen, setDetailOpen] = React.useState(false);
+  const [licenses, setLicenses] = React.useState([]);
+  const [auditLogs, setAuditLogs] = React.useState([]);
+  const [userActivityLogs, setUserActivityLogs] = React.useState([]);
+  const [blockedIps, setBlockedIps] = React.useState([]);
+  const [overrides, setOverrides] = React.useState([]);
+  const [premiumGames, setPremiumGames] = React.useState([]);
+  const [polls, setPolls] = React.useState([]);
+  const [paymentLogs, setPaymentLogs] = React.useState([]);
+  const [paymentEvents, setPaymentEvents] = React.useState([]);
+  const [merlinUpdate, setMerlinUpdate] = React.useState(null);
+  const [publicSignup, setPublicSignup] = React.useState({
     settings: { enabled: false, durationAmount: 30, durationUnit: "days", isLifetime: false, description: "" },
+    billing: {
+      billingEnabled: false,
+      monthlyEnabled: true,
+      lifetimeEnabled: true,
+      monthlyPriceId: "",
+      lifetimePriceId: "",
+      prices: { monthly: null, lifetime: null }
+    },
     metrics: { total: 0, active: 0, expired: 0, latestCreatedAt: null }
   });
-  const [loadingLicenses, setLoadingLicenses] = useState(false);
-  const [loadingAuditLogs, setLoadingAuditLogs] = useState(false);
-  const [loadingUserActivityLogs, setLoadingUserActivityLogs] = useState(false);
-  const [loadingBlockedIps, setLoadingBlockedIps] = useState(false);
-  const [loadingOverrides, setLoadingOverrides] = useState(false);
-  const [loadingPremiumGames, setLoadingPremiumGames] = useState(false);
-  const [loadingPolls, setLoadingPolls] = useState(false);
-  const [loadingMerlinUpdate, setLoadingMerlinUpdate] = useState(false);
-  const [selectedId, setSelectedId] = useState(null);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [deviceFilter, setDeviceFilter] = useState("all");
-  const [sourceFilter, setSourceFilter] = useState("all");
-  const [auditSearch, setAuditSearch] = useState("");
-  const [auditActionFilter, setAuditActionFilter] = useState("all");
-  const [auditAdminFilter, setAuditAdminFilter] = useState("all");
-  const [activitySearch, setActivitySearch] = useState("");
-  const [activityActionFilter, setActivityActionFilter] = useState("all");
-  const [activityStatusFilter, setActivityStatusFilter] = useState("all");
-  const [overrideSearch, setOverrideSearch] = useState("");
-  const [premiumSearch, setPremiumSearch] = useState("");
-  const [pollSearch, setPollSearch] = useState("");
-  const [page, setPage] = useState(1);
-  const [toast, setToast] = useState("");
-  const [overrideUploadProgress, setOverrideUploadProgress] = useState(null);
-  const [merlinUpdateUploadProgress, setMerlinUpdateUploadProgress] = useState(null);
-  const [activeModal, setActiveModal] = useState(null);
-  const [showPassword, setShowPassword] = useState(false);
-  const [overrideDeleteTarget, setOverrideDeleteTarget] = useState("");
-  const [busyAction, setBusyAction] = useState("");
-  const [loginState, setLoginState] = useState({ username: "", password: "", rememberMe: false, error: "", submitting: false });
-  const [formState, setFormState] = useState({
+  const [loadingLicenses, setLoadingLicenses] = React.useState(false);
+  const [loadingAuditLogs, setLoadingAuditLogs] = React.useState(false);
+  const [loadingUserActivityLogs, setLoadingUserActivityLogs] = React.useState(false);
+  const [loadingBlockedIps, setLoadingBlockedIps] = React.useState(false);
+  const [loadingOverrides, setLoadingOverrides] = React.useState(false);
+  const [loadingPremiumGames, setLoadingPremiumGames] = React.useState(false);
+  const [loadingPolls, setLoadingPolls] = React.useState(false);
+  const [loadingPaymentLogs, setLoadingPaymentLogs] = React.useState(false);
+  const [loadingMerlinUpdate, setLoadingMerlinUpdate] = React.useState(false);
+  const [selectedId, setSelectedId] = React.useState(null);
+  const [search, setSearch] = React.useState("");
+  const [statusFilter, setStatusFilter] = React.useState("all");
+  const [deviceFilter, setDeviceFilter] = React.useState("all");
+  const [sourceFilter, setSourceFilter] = React.useState("all");
+  const [billingFilter, setBillingFilter] = React.useState("all");
+  const [auditSearch, setAuditSearch] = React.useState("");
+  const [auditActionFilter, setAuditActionFilter] = React.useState("all");
+  const [auditAdminFilter, setAuditAdminFilter] = React.useState("all");
+  const [activitySearch, setActivitySearch] = React.useState("");
+  const [activityActionFilter, setActivityActionFilter] = React.useState("all");
+  const [activityStatusFilter, setActivityStatusFilter] = React.useState("all");
+  const [overrideSearch, setOverrideSearch] = React.useState("");
+  const [premiumSearch, setPremiumSearch] = React.useState("");
+  const [pollSearch, setPollSearch] = React.useState("");
+  const [paymentSearch, setPaymentSearch] = React.useState("");
+  const [page, setPage] = React.useState(1);
+  const [toast, setToast] = React.useState("");
+  const [overrideUploadProgress, setOverrideUploadProgress] = React.useState(null);
+  const [merlinUpdateUploadProgress, setMerlinUpdateUploadProgress] = React.useState(null);
+  const [activeModal, setActiveModal] = React.useState(null);
+  const [showPassword, setShowPassword] = React.useState(false);
+  const [overrideDeleteTarget, setOverrideDeleteTarget] = React.useState("");
+  const [busyAction, setBusyAction] = React.useState("");
+  const [loginState, setLoginState] = React.useState({ username: "", password: "", rememberMe: false, error: "", submitting: false });
+  const [formState, setFormState] = React.useState({
     createName: "",
     createContact: "",
     createContactType: "phone",
@@ -189,14 +203,14 @@ function App() {
     revokeReason: "",
     ...createEmptyOverrideForm()
   });
-  const [merlinUpdateDraft, setMerlinUpdateDraft] = useState({
+  const [merlinUpdateDraft, setMerlinUpdateDraft] = React.useState({
     version: "",
     file: null
   });
 
-  const selectedLicense = useMemo(() => licenses.find((item) => item.id === selectedId) ?? null, [licenses, selectedId]);
+  const selectedLicense = React.useMemo(() => licenses.find((item) => item.id === selectedId) ?? null, [licenses, selectedId]);
 
-  const filteredLicenses = useMemo(() => {
+  const filteredLicenses = React.useMemo(() => {
     const query = search.trim().toLowerCase();
     return licenses.filter((license) => {
       const status = getStatus(license);
@@ -215,17 +229,19 @@ function App() {
       const matchesStatus = statusFilter === "all" || status.key === statusFilter;
       const source = license.source || "admin";
       const matchesSource = sourceFilter === "all" || source === sourceFilter;
+      const billingStatus = getBillingStatus(license);
+      const matchesBilling = billingFilter === "all" || billingStatus.key === billingFilter;
       const hasDevice = Boolean(license.hwid);
       const matchesDevice =
         deviceFilter === "all" ||
         (deviceFilter === "with" && hasDevice) ||
         (deviceFilter === "without" && !hasDevice);
 
-      return matchesSearch && matchesStatus && matchesSource && matchesDevice;
+      return matchesSearch && matchesStatus && matchesSource && matchesBilling && matchesDevice;
     });
-  }, [deviceFilter, licenses, search, sourceFilter, statusFilter]);
+  }, [billingFilter, deviceFilter, licenses, search, sourceFilter, statusFilter]);
 
-  const auditAdminOptions = useMemo(
+  const auditAdminOptions = React.useMemo(
     () =>
       Array.from(
         new Map(
@@ -237,7 +253,7 @@ function App() {
     [auditLogs]
   );
 
-  const filteredAuditLogs = useMemo(() => {
+  const filteredAuditLogs = React.useMemo(() => {
     const query = auditSearch.trim().toLowerCase();
 
     return auditLogs.filter((log) => {
@@ -253,7 +269,7 @@ function App() {
     });
   }, [auditActionFilter, auditAdminFilter, auditLogs, auditSearch]);
 
-  const filteredUserActivityLogs = useMemo(() => {
+  const filteredUserActivityLogs = React.useMemo(() => {
     const query = activitySearch.trim().toLowerCase();
 
     return userActivityLogs.filter((log) => {
@@ -272,11 +288,38 @@ function App() {
     });
   }, [activityActionFilter, activitySearch, activityStatusFilter, userActivityLogs]);
 
+  const filteredPaymentLogs = React.useMemo(() => {
+    const query = paymentSearch.trim().toLowerCase();
+    if (!query) return paymentLogs;
+
+    return paymentLogs.filter((payment) => {
+      const haystack = [
+        payment.email,
+        payment.providerSessionId,
+        payment.providerPaymentId,
+        payment.providerSubscriptionId,
+        payment.providerPriceId,
+        payment.licenseKey,
+        payment.licenseName,
+        payment.checkoutIp,
+        payment.checkoutCountry,
+        payment.checkoutStatus,
+        payment.paymentStatus,
+        payment.paymentRecordStatus,
+        payment.billingStatus,
+        payment.accessType,
+        payment.licenseId ? String(payment.licenseId) : ""
+      ].filter(Boolean).join(" ").toLowerCase();
+
+      return haystack.includes(query);
+    });
+  }, [paymentLogs, paymentSearch]);
+
   const totalPages = Math.max(1, Math.ceil(filteredLicenses.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const pagedLicenses = filteredLicenses.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-  useEffect(() => {
+  React.useEffect(() => {
     const onPopState = () => {
       if (window.location.pathname === "/login") {
         if (auth) navigate("overview", true);
@@ -290,13 +333,13 @@ function App() {
     return () => window.removeEventListener("popstate", onPopState);
   }, [auth]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!toast) return undefined;
     const timeout = window.setTimeout(() => setToast(""), 2600);
     return () => window.clearTimeout(timeout);
   }, [toast]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!menuOpen && !detailOpen && !activeModal) {
       document.body.classList.remove("is-locked");
       return;
@@ -306,15 +349,15 @@ function App() {
     return () => document.body.classList.remove("is-locked");
   }, [menuOpen, detailOpen, activeModal]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     setPage(1);
-  }, [search, statusFilter, sourceFilter, deviceFilter]);
+  }, [search, statusFilter, sourceFilter, billingFilter, deviceFilter]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (safePage !== page) setPage(safePage);
   }, [page, safePage]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!selectedLicense && licenses.length) {
       setSelectedId(licenses[0].id);
     }
@@ -347,9 +390,19 @@ function App() {
       setOverrides([]);
       setPremiumGames([]);
       setPolls([]);
+      setPaymentLogs([]);
+      setPaymentEvents([]);
       setMerlinUpdate(null);
       setPublicSignup({
         settings: { enabled: false, durationAmount: 30, durationUnit: "days", isLifetime: false, description: "" },
+        billing: {
+          billingEnabled: false,
+          monthlyEnabled: true,
+          lifetimeEnabled: true,
+          monthlyPriceId: "",
+          lifetimePriceId: "",
+          prices: { monthly: null, lifetime: null }
+        },
         metrics: { total: 0, active: 0, expired: 0, latestCreatedAt: null }
       });
       setSelectedId(null);
@@ -451,6 +504,8 @@ function App() {
       setOverrides([]);
       setPremiumGames([]);
       setPolls([]);
+      setPaymentLogs([]);
+      setPaymentEvents([]);
       setMerlinUpdate(null);
       setSelectedId(null);
       setDetailOpen(false);
@@ -950,6 +1005,19 @@ function App() {
     }
   }
 
+  async function loadPaymentLogs() {
+    setLoadingPaymentLogs(true);
+    try {
+      const payload = await apiRequest("/panel-api/payments?limit=140");
+      setPaymentLogs(payload.payments || []);
+      setPaymentEvents(payload.events || []);
+    } catch (error) {
+      setToast(error.message);
+    } finally {
+      setLoadingPaymentLogs(false);
+    }
+  }
+
   async function loadMerlinUpdate() {
     setLoadingMerlinUpdate(true);
     try {
@@ -966,6 +1034,14 @@ function App() {
     const payload = await apiRequest("/panel-api/public-signup");
     setPublicSignup({
       settings: payload.settings || { enabled: false, durationAmount: 30, durationUnit: "days", isLifetime: false, description: "" },
+      billing: payload.billing || {
+        billingEnabled: false,
+        monthlyEnabled: true,
+        lifetimeEnabled: true,
+        monthlyPriceId: "",
+        lifetimePriceId: "",
+        prices: { monthly: null, lifetime: null }
+      },
       metrics: payload.metrics || { total: 0, active: 0, expired: 0, latestCreatedAt: null }
     });
   }
@@ -980,6 +1056,7 @@ function App() {
       });
       setPublicSignup({
         settings: payload.settings || settings,
+        billing: payload.billing || settings.billing || publicSignup.billing,
         metrics: payload.metrics || publicSignup.metrics
       });
       setToast("Configurações do cadastro público salvas.");
@@ -1000,7 +1077,31 @@ function App() {
     }
   }
 
-  useEffect(() => {
+  async function handleSyncPaymentCheckout(sessionId) {
+    if (!sessionId) return;
+    await runBusyAction(`sync-checkout-${sessionId}`, async () => {
+      await apiRequest(`/panel-api/payments/checkouts/${encodeURIComponent(sessionId)}/sync-stripe`, {
+        method: "POST",
+        mutate: true
+      });
+      await Promise.all([loadPaymentLogs(), loadLicenses(), loadAuditLogs()]);
+      setToast("Checkout sincronizado com a Stripe.");
+    });
+  }
+
+  async function handleSyncPaymentLicense(licenseId) {
+    if (!licenseId) return;
+    await runBusyAction(`sync-license-${licenseId}`, async () => {
+      await apiRequest(`/panel-api/licenses/${licenseId}/sync-stripe`, {
+        method: "POST",
+        mutate: true
+      });
+      await Promise.all([loadPaymentLogs(), loadLicenses(), loadAuditLogs()]);
+      setToast("Licenca sincronizada com a Stripe.");
+    });
+  }
+
+  React.useEffect(() => {
     let mounted = true;
 
     (async () => {
@@ -1016,7 +1117,7 @@ function App() {
     };
   }, []);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (auth && view === "settings") {
       loadBlockedIps();
       loadMerlinUpdate();
@@ -1030,12 +1131,15 @@ function App() {
     if (auth && view === "polls") {
       loadPolls();
     }
+    if (auth && view === "payments") {
+      loadPaymentLogs();
+    }
     if (auth && view === "public-signup") {
       loadPublicSignup();
     }
   }, [auth, view]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!overrideUploadProgress?.uploadId) return undefined;
 
     const handleBeforeUnload = () => {
@@ -1050,7 +1154,7 @@ function App() {
     };
   }, [overrideUploadProgress, csrfToken]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!merlinUpdateUploadProgress?.uploadId) return undefined;
 
     const handleBeforeUnload = () => {
@@ -1667,6 +1771,8 @@ function App() {
             setStatusFilter={setStatusFilter}
             sourceFilter={sourceFilter}
             setSourceFilter={setSourceFilter}
+            billingFilter={billingFilter}
+            setBillingFilter={setBillingFilter}
             deviceFilter={deviceFilter}
             setDeviceFilter={setDeviceFilter}
             loadingLicenses={loadingLicenses}
@@ -1722,6 +1828,20 @@ function App() {
             deletePoll={handleDeletePoll}
             busyAction={busyAction}
             notify={setToast}
+          />
+        )}
+        {view === "payments" && (
+          <PaymentsPage
+            paymentSearch={paymentSearch}
+            setPaymentSearch={setPaymentSearch}
+            paymentLogs={paymentLogs}
+            paymentEvents={paymentEvents}
+            filteredPaymentLogs={filteredPaymentLogs}
+            loadingPaymentLogs={loadingPaymentLogs}
+            loadPaymentLogs={loadPaymentLogs}
+            onSyncCheckout={handleSyncPaymentCheckout}
+            onSyncLicense={handleSyncPaymentLicense}
+            busyAction={busyAction}
           />
         )}
         {view === "activity" && (

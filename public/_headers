@@ -1,0 +1,11 @@
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/favicon.jpg
+  Cache-Control: public, max-age=0, must-revalidate
+
+/merlin-download-hero.png
+  Cache-Control: public, max-age=0, must-revalidate
+
+/index.html
+  Cache-Control: no-store

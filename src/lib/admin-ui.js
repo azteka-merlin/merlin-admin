@@ -92,6 +92,59 @@ export function getStatus(license) {
   return { key: "active", label: "Ativa", shortLabel: "Ativa", tone: "success" };
 }
 
+export function getBillingStatus(license) {
+  const value = license?.billingStatus || "none";
+  if (value === "active" && license?.billingCancelAtPeriodEnd) {
+    return { key: "cancel_at_period_end", label: "Cancela no fim do período", shortLabel: "Cancela no fim", tone: "warning" };
+  }
+  const labels = {
+    none: { label: "Sem cobrança", shortLabel: "Sem cobrança", tone: "muted" },
+    active: { label: "Pagamento ativo", shortLabel: "Ativo", tone: "success" },
+    dispute_open: { label: "Em contestação", shortLabel: "Contestação", tone: "warning" },
+    disputed: { label: "Contestada", shortLabel: "Contestada", tone: "danger" },
+    refunded: { label: "Reembolsada", shortLabel: "Reembolso", tone: "danger" },
+    action_required: { label: "Ação necessária", shortLabel: "Ação necessária", tone: "warning" },
+    past_due: { label: "Pagamento pendente", shortLabel: "Pendente", tone: "warning" },
+    canceled: { label: "Assinatura cancelada", shortLabel: "Cancelada", tone: "expired" },
+    expired: { label: "Pagamento expirado", shortLabel: "Expirado", tone: "expired" }
+  };
+  return { key: value, ...(labels[value] || { label: value.replaceAll("_", " "), shortLabel: value.replaceAll("_", " "), tone: "muted" }) };
+}
+
+export function getAccessType(license) {
+  const value = license?.accessType || "free";
+  const labels = {
+    free: "Grátis",
+    legacy_lifetime: "Legada vitalícia",
+    paid_lifetime: "Vitalícia paga",
+    monthly_subscription: "Assinatura mensal"
+  };
+  return labels[value] || value.replaceAll("_", " ");
+}
+
+export function getSourceLabel(source) {
+  const labels = {
+    admin: "Admin",
+    public_signup: "Cadastro público",
+    stripe: "Stripe",
+    purchase: "Compra",
+    gift: "Presente",
+    manual_import: "Importação"
+  };
+  return labels[source || "admin"] || source || "Admin";
+}
+
+export function getRevokedOriginLabel(origin) {
+  const labels = {
+    admin: "Admin",
+    stripe_refund: "Reembolso Stripe",
+    stripe_dispute: "Contestação Stripe",
+    stripe_subscription: "Assinatura Stripe",
+    system: "Sistema"
+  };
+  return labels[origin] || (origin ? origin.replaceAll("_", " ") : "--");
+}
+
 export function maskKey(key) {
   const parts = (key || "").split("-");
   if (parts.length !== 4) return key;
@@ -120,7 +173,9 @@ export function actionLabel(action) {
     license_welcome_email_sent: "E-mail de boas-vindas enviado",
     license_reactivated: "Licença reativada",
     license_revoked: "Licença revogada",
-    license_hwid_reset: "HWID redefinido"
+    license_hwid_reset: "HWID redefinido",
+    payment_checkout_synced: "Checkout sincronizado",
+    payment_license_synced: "Licenca sincronizada"
   };
 
   return labels[action] || action.replaceAll("_", " ");
@@ -135,7 +190,7 @@ export function actionTone(action) {
     return "warning";
   }
 
-  if (action.includes("created") || action.includes("updated") || action.includes("renewed") || action.includes("reset")) {
+  if (action.includes("created") || action.includes("updated") || action.includes("renewed") || action.includes("reset") || action.includes("synced")) {
     return "info";
   }
 
@@ -151,6 +206,8 @@ export function describeAuditLog(log) {
   if (log.action === "license_renewed") return `Renovou a licença #${log.entityId || "--"}`;
   if (log.action === "license_reactivated") return `Reativou a licença #${log.entityId || "--"}`;
   if (log.action === "license_hwid_reset") return `Redefiniu o HWID da licença #${log.entityId || "--"}`;
+  if (log.action === "payment_checkout_synced") return `Sincronizou o checkout ${log.entityId || "--"} com a Stripe`;
+  if (log.action === "payment_license_synced") return `Sincronizou a licenca #${log.entityId || "--"} com a Stripe`;
   if (log.action === "license_revoked") {
     return `Revogou a licença #${log.entityId || "--"}${metadata.reason ? ` · ${metadata.reason}` : ""}`;
   }

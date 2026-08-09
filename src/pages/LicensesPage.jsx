@@ -1,6 +1,6 @@
 import React from "react";
 import LicenseDetail from "../components/LicenseDetail";
-import { formatContact, formatDate, getLicenseContact, getLicenseContactType, getStatus, initials, maskKey, maskTechnicalValue } from "../lib/admin-ui";
+import { formatContact, formatDate, getBillingStatus, getLicenseContact, getLicenseContactType, getStatus, initials, maskKey, maskTechnicalValue } from "../lib/admin-ui";
 import { PAGE_SIZE } from "../lib/navigation";
 
 export default function LicensesPage({
@@ -10,6 +10,8 @@ export default function LicensesPage({
   setStatusFilter,
   sourceFilter,
   setSourceFilter,
+  billingFilter,
+  setBillingFilter,
   deviceFilter,
   setDeviceFilter,
   loadingLicenses,
@@ -66,7 +68,23 @@ export default function LicensesPage({
               <select value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value)}>
                 <option value="all">Todas as origens</option>
                 <option value="admin">Admin</option>
+                <option value="stripe">Stripe</option>
                 <option value="public_signup">Cadastro público</option>
+              </select>
+            </label>
+
+            <label className="field-shell">
+              <span>Cobrança</span>
+              <select value={billingFilter} onChange={(event) => setBillingFilter(event.target.value)}>
+                <option value="all">Todos</option>
+                <option value="none">Sem cobrança</option>
+                <option value="active">Pagamento ativo</option>
+                <option value="dispute_open">Em contestação</option>
+                <option value="disputed">Contestada</option>
+                <option value="refunded">Reembolsada</option>
+                <option value="action_required">Ação necessária</option>
+                <option value="past_due">Pagamento pendente</option>
+                <option value="canceled">Assinatura cancelada</option>
               </select>
             </label>
 
@@ -115,6 +133,7 @@ export default function LicensesPage({
                   <tbody>
                     {pagedLicenses.map((license) => {
                       const status = getStatus(license);
+                      const billingStatus = getBillingStatus(license);
                       return (
                         <tr key={license.id} className={selectedId === license.id ? "is-active" : ""} onClick={() => openLicense(license.id)}>
                           <td>
@@ -133,7 +152,12 @@ export default function LicensesPage({
                             {license.hwid ? maskTechnicalValue(license.hwid, 10, 4) : "Sem dispositivo"}
                           </td>
                           <td className="cell-status">
-                            <span className={`badge badge--${status.tone}`}>{status.shortLabel}</span>
+                            <div className="status-stack">
+                              <span className={`badge badge--${status.tone}`}>{status.shortLabel}</span>
+                              {billingStatus.key !== "none" && (
+                                <span className={`badge badge--${billingStatus.tone}`}>{billingStatus.shortLabel}</span>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -145,6 +169,7 @@ export default function LicensesPage({
               <div className="license-cards">
                 {pagedLicenses.map((license) => {
                   const status = getStatus(license);
+                  const billingStatus = getBillingStatus(license);
                   return (
                     <button key={license.id} className={`license-card ${selectedId === license.id ? "is-active" : ""}`} onClick={() => openLicense(license.id)}>
                       <div className="license-card__top">
@@ -155,7 +180,12 @@ export default function LicensesPage({
                             <p>{formatContact(getLicenseContact(license), getLicenseContactType(license))}</p>
                           </div>
                         </div>
-                        <span className={`badge badge--${status.tone}`}>{status.shortLabel}</span>
+                        <div className="status-stack status-stack--card">
+                          <span className={`badge badge--${status.tone}`}>{status.shortLabel}</span>
+                          {billingStatus.key !== "none" && (
+                            <span className={`badge badge--${billingStatus.tone}`}>{billingStatus.shortLabel}</span>
+                          )}
+                        </div>
                       </div>
                       <dl className="license-card__meta">
                         <div>

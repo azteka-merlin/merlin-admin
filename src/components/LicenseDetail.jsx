@@ -1,7 +1,7 @@
 import React from "react";
 import CopyIcon from "./CopyIcon";
 import DetailField from "./DetailField";
-import { formatContact, formatDate, formatDateTime, getLicenseContact, getLicenseContactType, getStatus, initials, maskTechnicalValue } from "../lib/admin-ui";
+import { formatContact, formatDate, formatDateTime, getAccessType, getBillingStatus, getLicenseContact, getLicenseContactType, getRevokedOriginLabel, getSourceLabel, getStatus, initials, maskTechnicalValue } from "../lib/admin-ui";
 
 export default function LicenseDetail({ license, onCopy, onEdit, onRenew, onReset, onRevoke, onReactivate, onSendWelcomeEmail, onClose, mobile }) {
   if (!license) {
@@ -14,9 +14,11 @@ export default function LicenseDetail({ license, onCopy, onEdit, onRenew, onRese
   }
 
   const status = getStatus(license);
+  const billingStatus = getBillingStatus(license);
   const contact = getLicenseContact(license);
   const contactType = getLicenseContactType(license);
-  const sourceLabel = license.source === "public_signup" ? "Cadastro público" : "Admin";
+  const sourceLabel = getSourceLabel(license.source);
+  const hasBilling = billingStatus.key !== "none" || license.stripeCustomerId || license.stripeSubscriptionId || license.stripeCheckoutSessionId;
 
   return (
     <div className={`detail ${mobile ? "detail--mobile" : ""}`}>
@@ -40,7 +42,12 @@ export default function LicenseDetail({ license, onCopy, onEdit, onRenew, onRese
         <span className="avatar avatar--large">{initials(license.name)}</span>
         <div>
           <strong>{license.name}</strong>
-          <span className={`badge badge--${status.tone}`}>{status.label}</span>
+          <div className="status-stack status-stack--inline">
+            <span className={`badge badge--${status.tone}`}>{status.label}</span>
+            {billingStatus.key !== "none" && (
+              <span className={`badge badge--${billingStatus.tone}`}>{billingStatus.label}</span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -51,6 +58,10 @@ export default function LicenseDetail({ license, onCopy, onEdit, onRenew, onRese
         <DetailField label="Contato" value={formatContact(contact, contactType)} />
         <DetailField label="Recuperacao" value={license.hasRecoveryPin ? "PIN configurado" : "Sem PIN"} />
         <DetailField label="Origem" value={sourceLabel} />
+        <DetailField label="Plano" value={getAccessType(license)} />
+        <DetailField label="Cobrança" value={billingStatus.label} />
+        {hasBilling && <DetailField label="Fim do período" value={license.billingCurrentPeriodEnd ? formatDate(license.billingCurrentPeriodEnd) : "--"} />}
+        {hasBilling && <DetailField label="Renovação" value={license.billingCancelAtPeriodEnd ? "Cancelada ao fim do período" : "Automática"} />}
         <DetailField label="Criada em" value={formatDateTime(license.createdAt)} />
         <DetailField label="Atualizada em" value={formatDateTime(license.updatedAt)} />
         <DetailField
@@ -73,7 +84,23 @@ export default function LicenseDetail({ license, onCopy, onEdit, onRenew, onRese
           </div>
         </div>
 
+        {license.status === "revoked" && <DetailField label="Origem da revogação" value={getRevokedOriginLabel(license.revokedOrigin)} />}
+        {license.revokedEventId && <DetailField label="Evento da revogação" value={maskTechnicalValue(license.revokedEventId, 10, 4)} title={license.revokedEventId} />}
         {license.revokedReason && <DetailField label="Motivo da revogação" value={license.revokedReason} wide />}
+        {hasBilling && (
+          <>
+            <DetailField
+              label="Stripe customer"
+              value={license.stripeCustomerId ? maskTechnicalValue(license.stripeCustomerId, 10, 4) : "--"}
+              title={license.stripeCustomerId || "--"}
+            />
+            <DetailField
+              label="Stripe assinatura"
+              value={license.stripeSubscriptionId ? maskTechnicalValue(license.stripeSubscriptionId, 10, 4) : "--"}
+              title={license.stripeSubscriptionId || "--"}
+            />
+          </>
+        )}
       </div>
 
       <div className="detail__actions">
