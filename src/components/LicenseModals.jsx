@@ -11,6 +11,10 @@ function formatProgressBytes(bytes) {
   return `${amount >= 100 || index === 0 ? Math.round(amount) : amount.toFixed(1)} ${units[index]}`;
 }
 
+function sanitizeRecoverySecret(value) {
+  return String(value || "").replace(/[^A-Za-z0-9]/g, "").slice(0, 8);
+}
+
 export default function LicenseModals({
   activeModal,
   setActiveModal,
@@ -114,12 +118,12 @@ export default function LicenseModals({
             </label>
 
             <label className="field">
-              <span>PIN de recuperacao opcional</span>
+              <span>Senha de recuperacao opcional</span>
               <input
                 value={formState.createRecoveryPin}
-                onChange={(event) => setFormState((current) => ({ ...current, createRecoveryPin: event.target.value.replace(/\D/g, "").slice(0, 8) }))}
-                placeholder="4 a 8 digitos"
-                inputMode="numeric"
+                onChange={(event) => setFormState((current) => ({ ...current, createRecoveryPin: sanitizeRecoverySecret(event.target.value) }))}
+                placeholder="PIN ou A1B2C3"
+                inputMode="text"
                 maxLength={8}
               />
             </label>
@@ -190,12 +194,12 @@ export default function LicenseModals({
               <input value={formState.editHwid} onChange={(event) => setFormState((current) => ({ ...current, editHwid: event.target.value }))} placeholder="Sem dispositivo vinculado" />
             </label>
             <label className="field">
-              <span>Novo PIN de recuperacao</span>
+              <span>Nova senha de recuperacao</span>
               <input
                 value={formState.editRecoveryPin}
-                onChange={(event) => setFormState((current) => ({ ...current, editRecoveryPin: event.target.value.replace(/\D/g, "").slice(0, 8) }))}
-                placeholder={selectedLicense.hasRecoveryPin ? "Deixe vazio para manter" : "4 a 8 digitos"}
-                inputMode="numeric"
+                onChange={(event) => setFormState((current) => ({ ...current, editRecoveryPin: sanitizeRecoverySecret(event.target.value) }))}
+                placeholder={selectedLicense.hasRecoveryPin ? "Deixe vazio para manter" : "PIN ou A1B2C3"}
+                inputMode="text"
                 maxLength={8}
               />
             </label>

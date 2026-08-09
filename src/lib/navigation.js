@@ -1,7 +1,7 @@
 export const PAGE_SIZE = 7;
 
 export const VIEW_PATHS = {
-  overview: "/",
+  overview: "/overview",
   licenses: "/licenses",
   activity: "/activity",
   audit: "/audit",
@@ -14,6 +14,7 @@ export const VIEW_PATHS = {
 };
 
 export function getViewFromPath(pathname) {
+  if (pathname === "/overview") return "overview";
   if (pathname === "/licenses") return "licenses";
   if (pathname === "/activity") return "activity";
   if (pathname === "/audit") return "audit";

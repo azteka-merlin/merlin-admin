@@ -16,6 +16,12 @@ import SettingsPage from "./pages/SettingsPage";
 import { PAGE_SIZE, VIEW_PATHS, getViewFromPath } from "./lib/navigation";
 import { formatContact, getBillingStatus, getLicenseContact, getLicenseContactType, getStatus, normalizeContactInput } from "./lib/admin-ui";
 
+function isValidRecoverySecret(value) {
+  const secret = String(value || "").trim();
+  return /^\d{4,8}$/.test(secret) || /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z0-9]{6,8}$/.test(secret);
+}
+
+const RECOVERY_SECRET_MESSAGE = "Use 4 a 8 numeros ou uma senha de 6 a 8 caracteres com letras e numeros.";
 function createEmptyOverrideForm() {
   return {
     overrideMode: "create",
@@ -1295,8 +1301,8 @@ function App() {
       setToast(contactValidationMessage(createContactType));
       return;
     }
-    if (normalizedRecoveryPin && !/^\d{4,8}$/.test(normalizedRecoveryPin)) {
-      setToast("O PIN deve ter de 4 a 8 digitos.");
+    if (normalizedRecoveryPin && !isValidRecoverySecret(normalizedRecoveryPin)) {
+      setToast(RECOVERY_SECRET_MESSAGE);
       return;
     }
 
@@ -1335,8 +1341,8 @@ function App() {
       setToast(contactValidationMessage(formState.editContactType));
       return;
     }
-    if (normalizedRecoveryPin && !/^\d{4,8}$/.test(normalizedRecoveryPin)) {
-      setToast("O PIN deve ter de 4 a 8 digitos.");
+    if (normalizedRecoveryPin && !isValidRecoverySecret(normalizedRecoveryPin)) {
+      setToast(RECOVERY_SECRET_MESSAGE);
       return;
     }
 
