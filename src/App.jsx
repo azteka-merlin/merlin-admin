@@ -153,6 +153,11 @@ function App() {
       billingEnabled: false,
       monthlyEnabled: true,
       lifetimeEnabled: true,
+      pixEnabled: false,
+      pixMonthlyEnabled: true,
+      pixLifetimeEnabled: true,
+      monthlyCardTrialEnabled: false,
+      monthlyCardTrialDays: 30,
       monthlyPriceId: "",
       lifetimePriceId: "",
       prices: { monthly: null, lifetime: null }
@@ -405,6 +410,11 @@ function App() {
           billingEnabled: false,
           monthlyEnabled: true,
           lifetimeEnabled: true,
+          pixEnabled: false,
+          pixMonthlyEnabled: true,
+          pixLifetimeEnabled: true,
+          monthlyCardTrialEnabled: false,
+          monthlyCardTrialDays: 30,
           monthlyPriceId: "",
           lifetimePriceId: "",
           prices: { monthly: null, lifetime: null }
@@ -1044,6 +1054,11 @@ function App() {
         billingEnabled: false,
         monthlyEnabled: true,
         lifetimeEnabled: true,
+        pixEnabled: false,
+        pixMonthlyEnabled: true,
+        pixLifetimeEnabled: true,
+        monthlyCardTrialEnabled: false,
+        monthlyCardTrialDays: 30,
         monthlyPriceId: "",
         lifetimePriceId: "",
         prices: { monthly: null, lifetime: null }
@@ -1065,7 +1080,7 @@ function App() {
         billing: payload.billing || settings.billing || publicSignup.billing,
         metrics: payload.metrics || publicSignup.metrics
       });
-      setToast("Configurações do cadastro público salvas.");
+      setToast("Configurações do acesso público salvas.");
     } catch (error) {
       setToast(error.message);
     } finally {
