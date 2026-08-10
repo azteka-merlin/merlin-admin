@@ -1513,6 +1513,11 @@ h3 {
   gap: 16px;
 }
 
+.access-plan-grid,
+.access-payment-grid {
+  align-items: start;
+}
+
 .access-field-grid,
 .access-plan-grid,
 .access-payment-grid {
