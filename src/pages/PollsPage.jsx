@@ -426,6 +426,9 @@ export default function PollsPage({
                     {resultOptions.map((option) => {
                       const voters = option.voters || [];
                       const expanded = Boolean(expandedOptions[option.id]);
+                      const contributionResults = resultPoll.type === "game_request"
+                        ? resultPoll.contributionResultsByOptionId?.[String(option.id)] || []
+                        : [];
                       return (
                         <article className="poll-result-card" key={option.id}>
                           <div className="poll-result-card__top">
@@ -445,6 +448,21 @@ export default function PollsPage({
                           <div className="poll-result-bar" aria-hidden="true">
                             <span style={{ width: `${option.percent || 0}%` }}></span>
                           </div>
+
+                          {!!contributionResults.length && (
+                            <div className="poll-contribution-results">
+                              <strong>Segunda etapa</strong>
+                              {contributionResults.map((contributionOption) => (
+                                <div className="poll-contribution-result" key={contributionOption.id}>
+                                  <span>{formatContribution(contributionOption)}</span>
+                                  <em>{contributionOption.votes || 0} votos · {contributionOption.percent || 0}%</em>
+                                  <div className="poll-result-bar" aria-hidden="true">
+                                    <span style={{ width: `${contributionOption.percent || 0}%` }}></span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
 
                           {expanded && (
                             <div className="poll-voter-list">

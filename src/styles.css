@@ -3612,6 +3612,36 @@ h3 {
   background: linear-gradient(90deg, #a855f7, #22c55e);
 }
 
+.poll-contribution-results {
+  display: grid;
+  gap: 10px;
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.poll-contribution-results > strong {
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 0.84rem;
+}
+
+.poll-contribution-result {
+  display: grid;
+  gap: 6px;
+}
+
+.poll-contribution-result span,
+.poll-contribution-result em {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.82rem;
+}
+
+.poll-contribution-result em {
+  color: rgba(232, 224, 255, 0.68);
+  font-style: normal;
+}
+
 .poll-voter-list {
   display: grid;
   gap: 10px;
