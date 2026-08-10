@@ -21,7 +21,7 @@ function isValidRecoverySecret(value) {
   return /^\S{4,8}$/.test(secret);
 }
 
-const RECOVERY_SECRET_MESSAGE = "Use 4 a 8 caracteres, sem espacos. PINs numericos antigos continuam funcionando.";
+const RECOVERY_SECRET_MESSAGE = "Use 4 a 8 caracteres, sem espacos.";
 function createEmptyOverrideForm() {
   return {
     overrideMode: "create",

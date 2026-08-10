@@ -56,7 +56,7 @@ export default function LicenseDetail({ license, onCopy, onEdit, onRenew, onRese
         <DetailField label="Status" value={status.label} />
         <DetailField label="Vencimento" value={formatDate(license.expiresAt)} />
         <DetailField label="Contato" value={formatContact(contact, contactType)} />
-        <DetailField label="Recuperacao" value={license.hasRecoveryPin ? "PIN configurado" : "Sem PIN"} />
+        <DetailField label="Recuperacao" value={license.hasRecoveryPin ? "Senha configurada" : "Sem senha"} />
         <DetailField label="Origem" value={sourceLabel} />
         <DetailField label="Plano" value={getAccessType(license)} />
         <DetailField label="Cobrança" value={billingStatus.label} />

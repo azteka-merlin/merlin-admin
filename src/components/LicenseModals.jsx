@@ -122,7 +122,8 @@ export default function LicenseModals({
               <input
                 value={formState.createRecoveryPin}
                 onChange={(event) => setFormState((current) => ({ ...current, createRecoveryPin: sanitizeRecoverySecret(event.target.value) }))}
-                placeholder="PIN ou A1B2C3"
+                type="password"
+                placeholder="••••••••"
                 inputMode="text"
                 maxLength={8}
               />
@@ -198,7 +199,8 @@ export default function LicenseModals({
               <input
                 value={formState.editRecoveryPin}
                 onChange={(event) => setFormState((current) => ({ ...current, editRecoveryPin: sanitizeRecoverySecret(event.target.value) }))}
-                placeholder={selectedLicense.hasRecoveryPin ? "Deixe vazio para manter" : "PIN ou A1B2C3"}
+                type="password"
+                placeholder={selectedLicense.hasRecoveryPin ? "Deixe vazio para manter" : "••••••••"}
                 inputMode="text"
                 maxLength={8}
               />
