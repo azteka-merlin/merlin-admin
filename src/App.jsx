@@ -11,6 +11,7 @@ import OverridesPage from "./pages/OverridesPage";
 import PaymentsPage from "./pages/PaymentsPage";
 import PollsPage from "./pages/PollsPage";
 import PremiumPage from "./pages/PremiumPage";
+import PublicFeedbacksPage from "./pages/PublicFeedbacksPage";
 import PublicSignupPage from "./pages/PublicSignupPage";
 import SettingsPage from "./pages/SettingsPage";
 import { PAGE_SIZE, VIEW_PATHS, getViewFromPath } from "./lib/navigation";
@@ -146,6 +147,7 @@ function App() {
   const [polls, setPolls] = React.useState([]);
   const [paymentLogs, setPaymentLogs] = React.useState([]);
   const [paymentEvents, setPaymentEvents] = React.useState([]);
+  const [publicFeedbacks, setPublicFeedbacks] = React.useState([]);
   const [merlinUpdate, setMerlinUpdate] = React.useState(null);
   const [publicSignup, setPublicSignup] = React.useState({
     settings: { enabled: false, durationAmount: 30, durationUnit: "days", isLifetime: false, description: "" },
@@ -172,6 +174,7 @@ function App() {
   const [loadingPremiumGames, setLoadingPremiumGames] = React.useState(false);
   const [loadingPolls, setLoadingPolls] = React.useState(false);
   const [loadingPaymentLogs, setLoadingPaymentLogs] = React.useState(false);
+  const [loadingPublicFeedbacks, setLoadingPublicFeedbacks] = React.useState(false);
   const [loadingMerlinUpdate, setLoadingMerlinUpdate] = React.useState(false);
   const [selectedId, setSelectedId] = React.useState(null);
   const [search, setSearch] = React.useState("");
@@ -380,16 +383,17 @@ function App() {
 
   async function apiRequest(path, options = {}) {
     const { method = "GET", body, mutate = false, ignoreUnauthorized = false } = options;
+    const isFormData = body instanceof FormData;
     const headers = { Accept: "application/json" };
 
-    if (body !== undefined) headers["Content-Type"] = "application/json";
+    if (body !== undefined && !isFormData) headers["Content-Type"] = "application/json";
     if (mutate && csrfToken) headers["X-CSRF-Token"] = csrfToken;
 
     const response = await fetch(path, {
       method,
       credentials: "same-origin",
       headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined
+      body: body !== undefined ? (isFormData ? body : JSON.stringify(body)) : undefined
     });
 
     const isJson = response.headers.get("content-type")?.includes("application/json");
@@ -407,6 +411,7 @@ function App() {
       setPolls([]);
       setPaymentLogs([]);
       setPaymentEvents([]);
+      setPublicFeedbacks([]);
       setMerlinUpdate(null);
       setPublicSignup({
         settings: { enabled: false, durationAmount: 30, durationUnit: "days", isLifetime: false, description: "" },
@@ -1075,6 +1080,62 @@ function App() {
     });
   }
 
+  async function loadPublicFeedbacks() {
+    setLoadingPublicFeedbacks(true);
+    try {
+      const payload = await apiRequest("/panel-api/public-feedbacks");
+      setPublicFeedbacks(payload.feedbacks || []);
+    } catch (error) {
+      setToast(error.message);
+    } finally {
+      setLoadingPublicFeedbacks(false);
+    }
+  }
+
+  async function handleCreatePublicFeedback(input) {
+    return runBusyAction("create-public-feedback", async () => {
+      const formData = new FormData();
+      formData.append("file", input.file);
+      formData.append("title", String(input.title || ""));
+      formData.append("sortOrder", String(input.sortOrder || 0));
+      formData.append("enabled", input.enabled === false ? "false" : "true");
+      const payload = await apiRequest("/panel-api/public-feedbacks", {
+        method: "POST",
+        mutate: true,
+        body: formData
+      });
+      setPublicFeedbacks((current) => [payload.feedback, ...current].filter(Boolean));
+      await loadPublicFeedbacks();
+      return payload.feedback;
+    });
+  }
+
+  async function handleUpdatePublicFeedback(id, input) {
+    return runBusyAction("update-public-feedback", async () => {
+      const payload = await apiRequest(`/panel-api/public-feedbacks/${encodeURIComponent(id)}`, {
+        method: "PUT",
+        mutate: true,
+        body: {
+          title: String(input.title || "").trim() || "Feedback Merlin",
+          sortOrder: Number(input.sortOrder || 0),
+          enabled: input.enabled !== false
+        }
+      });
+      setPublicFeedbacks((current) => current.map((entry) => entry.id === payload.feedback?.id ? payload.feedback : entry));
+      return payload.feedback;
+    });
+  }
+
+  async function handleDeletePublicFeedback(id) {
+    return runBusyAction("delete-public-feedback", async () => {
+      await apiRequest(`/panel-api/public-feedbacks/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        mutate: true
+      });
+      setPublicFeedbacks((current) => current.filter((entry) => entry.id !== id));
+    });
+  }
+
   async function handleSavePublicSignupSettings(settings) {
     setBusyAction("save-public-signup");
     try {
@@ -1165,6 +1226,9 @@ function App() {
     }
     if (auth && view === "public-signup") {
       loadPublicSignup();
+    }
+    if (auth && view === "public-feedbacks") {
+      loadPublicFeedbacks();
     }
   }, [auth, view]);
 
@@ -1925,6 +1989,18 @@ function App() {
             onSave={handleSavePublicSignupSettings}
             saving={busyAction === "save-public-signup"}
             onRefresh={loadPublicSignup}
+          />
+        )}
+        {view === "public-feedbacks" && (
+          <PublicFeedbacksPage
+            feedbacks={publicFeedbacks}
+            loading={loadingPublicFeedbacks}
+            loadFeedbacks={loadPublicFeedbacks}
+            createFeedback={handleCreatePublicFeedback}
+            updateFeedback={handleUpdatePublicFeedback}
+            deleteFeedback={handleDeletePublicFeedback}
+            busyAction={busyAction}
+            notify={setToast}
           />
         )}
       </AppShell>

@@ -422,85 +422,114 @@ export default function PollsPage({
                     <p>Assim que usuários votarem, os resultados aparecem aqui.</p>
                   </div>
                 ) : (
-                  <div className="poll-results-list">
-                    {resultOptions.map((option) => {
-                      const voters = option.voters || [];
-                      const expanded = Boolean(expandedOptions[option.id]);
-                      const contributionResults = resultPoll.type === "game_request"
-                        ? resultPoll.contributionResultsByOptionId?.[String(option.id)] || []
-                        : [];
-                      return (
-                        <article className="poll-result-card" key={option.id}>
-                          <div className="poll-result-card__top">
-                            <div>
-                              <h3>{option.label}</h3>
-                              <p>{option.votes || 0} votos · {option.percent || 0}%</p>
-                            </div>
-                            <button
-                              className="button button--ghost button--sm"
-                              type="button"
-                              aria-expanded={expanded}
-                              onClick={() => setExpandedOptions((current) => ({ ...current, [option.id]: !current[option.id] }))}
-                            >
-                              {expanded ? "Ocultar votantes" : "Ver quem votou"}
-                            </button>
-                          </div>
-                          <div className="poll-result-bar" aria-hidden="true">
-                            <span style={{ width: `${option.percent || 0}%` }}></span>
-                          </div>
+                  <>
+                    <div className="poll-stage-section">
+                      <div className="poll-stage-section__head">
+                        <span>Tela 1</span>
+                        <strong>{resultPoll.type === "game_request" ? "Votação do jogo" : "Resultado da enquete"}</strong>
+                      </div>
+                      <div className="poll-results-list">
+                        {resultOptions.map((option) => {
+                          const voters = option.voters || [];
+                          const expanded = Boolean(expandedOptions[option.id]);
+                          return (
+                            <article className="poll-result-card" key={option.id}>
+                              <div className="poll-result-card__top">
+                                <div>
+                                  <h3>{option.label}</h3>
+                                  <p>{option.votes || 0} votos · {option.percent || 0}%</p>
+                                </div>
+                                <button
+                                  className="button button--ghost button--sm"
+                                  type="button"
+                                  aria-expanded={expanded}
+                                  onClick={() => setExpandedOptions((current) => ({ ...current, [option.id]: !current[option.id] }))}
+                                >
+                                  {expanded ? "Ocultar votantes" : "Ver quem votou"}
+                                </button>
+                              </div>
+                              <div className="poll-result-bar" aria-hidden="true">
+                                <span style={{ width: `${option.percent || 0}%` }}></span>
+                              </div>
 
-                          {!!contributionResults.length && (
-                            <div className="poll-contribution-results">
-                              <strong>Segunda etapa</strong>
-                              {contributionResults.map((contributionOption) => (
-                                <div className="poll-contribution-result" key={contributionOption.id}>
-                                  <span>{formatContribution(contributionOption)}</span>
-                                  <em>{contributionOption.votes || 0} votos · {contributionOption.percent || 0}%</em>
-                                  <div className="poll-result-bar" aria-hidden="true">
-                                    <span style={{ width: `${contributionOption.percent || 0}%` }}></span>
+                              {expanded && (
+                                <div className="poll-voter-list">
+                                  {!voters.length ? (
+                                    <p className="plain-copy">Nenhum voto registrado nesta alternativa.</p>
+                                  ) : (
+                                    voters.map((voter) => (
+                                      <div className="poll-voter-row" key={voter.id}>
+                                        <div>
+                                          <strong>{voter.name || voter.email || "Usuário sem nome"}</strong>
+                                          <span>{voter.email || "E-mail indisponível"}</span>
+                                          {resultPoll.type === "game_request" && (
+                                            <small>
+                                              {voter.contributionSkipped
+                                                ? "Sem contribuição"
+                                                : voter.contributionMinAmount !== null || voter.contributionMaxAmount !== null
+                                                  ? formatContribution({
+                                                    label: voter.contributionLabel,
+                                                    minAmount: voter.contributionMinAmount,
+                                                    maxAmount: voter.contributionMaxAmount,
+                                                  })
+                                                  : "Contribuição não informada"}
+                                            </small>
+                                          )}
+                                        </div>
+                                        <div>
+                                          <code title={voter.licenseKey}>Licença: {maskLicenseKey(voter.licenseKey)}</code>
+                                          <span>{formatDate(voter.votedAt)}</span>
+                                        </div>
+                                      </div>
+                                    ))
+                                  )}
+                                </div>
+                              )}
+                            </article>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {resultPoll.type === "game_request" && (
+                      <div className="poll-stage-section">
+                        <div className="poll-stage-section__head">
+                          <span>Tela 2</span>
+                          <strong>Votação de contribuição</strong>
+                        </div>
+                        <div className="poll-results-list">
+                          {resultOptions.map((option) => {
+                            const contributionResults = resultPoll.contributionResultsByOptionId?.[String(option.id)] || [];
+                            return (
+                              <article className="poll-result-card" key={`contribution-${option.id}`}>
+                                <div className="poll-result-card__top">
+                                  <div>
+                                    <h3>{option.label}</h3>
+                                    <p>{option.votes || 0} votos na primeira tela</p>
                                   </div>
                                 </div>
-                              ))}
-                            </div>
-                          )}
-
-                          {expanded && (
-                            <div className="poll-voter-list">
-                              {!voters.length ? (
-                                <p className="plain-copy">Nenhum voto registrado nesta alternativa.</p>
-                              ) : (
-                                voters.map((voter) => (
-                                  <div className="poll-voter-row" key={voter.id}>
-                                    <div>
-                                      <strong>{voter.name || voter.email || "Usuário sem nome"}</strong>
-                                      <span>{voter.email || "E-mail indisponível"}</span>
-                                      {resultPoll.type === "game_request" && (
-                                        <small>
-                                          {voter.contributionSkipped
-                                            ? "Sem contribuição"
-                                            : voter.contributionMinAmount !== null || voter.contributionMaxAmount !== null
-                                              ? formatContribution({
-                                                label: voter.contributionLabel,
-                                                minAmount: voter.contributionMinAmount,
-                                                maxAmount: voter.contributionMaxAmount,
-                                              })
-                                              : "Contribuição não informada"}
-                                        </small>
-                                      )}
-                                    </div>
-                                    <div>
-                                      <code title={voter.licenseKey}>Licença: {maskLicenseKey(voter.licenseKey)}</code>
-                                      <span>{formatDate(voter.votedAt)}</span>
-                                    </div>
+                                {contributionResults.length ? (
+                                  <div className="poll-contribution-results">
+                                    {contributionResults.map((contributionOption) => (
+                                      <div className="poll-contribution-result" key={contributionOption.id}>
+                                        <span>{formatContribution(contributionOption)}</span>
+                                        <em>{contributionOption.votes || 0} votos · {contributionOption.percent || 0}%</em>
+                                        <div className="poll-result-bar" aria-hidden="true">
+                                          <span style={{ width: `${contributionOption.percent || 0}%` }}></span>
+                                        </div>
+                                      </div>
+                                    ))}
                                   </div>
-                                ))
-                              )}
-                            </div>
-                          )}
-                        </article>
-                      );
-                    })}
-                  </div>
+                                ) : (
+                                  <p className="plain-copy">Nenhum voto registrado na segunda tela para este jogo.</p>
+                                )}
+                              </article>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </>
             ) : null}
