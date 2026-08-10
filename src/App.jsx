@@ -306,9 +306,13 @@ function App() {
     return paymentLogs.filter((payment) => {
       const haystack = [
         payment.email,
+        payment.provider,
         payment.providerSessionId,
         payment.providerPaymentId,
         payment.providerSubscriptionId,
+        payment.providerExternalReference,
+        payment.providerRawStatus,
+        payment.providerStatusDetail,
         payment.providerPriceId,
         payment.licenseKey,
         payment.licenseName,

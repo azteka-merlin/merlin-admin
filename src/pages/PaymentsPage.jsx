@@ -55,6 +55,13 @@ function paymentStatusLabel(payment) {
   return payment.paymentRecordStatus || payment.paymentStatus || payment.checkoutStatus || "--";
 }
 
+function providerLabel(provider) {
+  const value = String(provider || "").toLowerCase();
+  if (value === "stripe") return "Stripe";
+  if (value === "mercadopago") return "Mercado Pago";
+  return provider || "--";
+}
+
 function eventLabel(eventType) {
   const labels = {
     "charge.dispute.closed": "Contestação encerrada",
@@ -67,7 +74,12 @@ function eventLabel(eventType) {
     "customer.subscription.updated": "Assinatura atualizada",
     "invoice.paid": "Fatura paga",
     "invoice.payment_action_required": "Fatura exige ação",
-    "invoice.payment_failed": "Falha no pagamento da fatura"
+    "invoice.payment_failed": "Falha no pagamento da fatura",
+    "order.action_required": "Pix aguardando pagamento",
+    "order.processed": "Pix processado",
+    "order.cancelled": "Pix cancelado",
+    "order.canceled": "Pix cancelado",
+    "order.expired": "Pix expirado"
   };
   return labels[eventType] || String(eventType || "").replaceAll("_", " ");
 }
@@ -89,7 +101,7 @@ export default function PaymentsPage({
       <div className="page__header page__header--split">
         <div>
           <p className="eyebrow">Pagamentos</p>
-          <h1>Acompanhe compras, webhooks e reconcilie a Stripe quando precisar.</h1>
+          <h1>Acompanhe compras, webhooks e reconcilie pagamentos quando precisar.</h1>
         </div>
         <button className="button button--ghost" onClick={loadPaymentLogs} disabled={loadingPaymentLogs}>
           {loadingPaymentLogs ? "Atualizando..." : "Atualizar pagamentos"}
@@ -111,7 +123,7 @@ export default function PaymentsPage({
         {loadingPaymentLogs ? (
           <div className="empty-state">
             <h3>Carregando pagamentos</h3>
-            <p>Buscando checkouts e eventos recentes da Stripe.</p>
+            <p>Buscando checkouts e eventos recentes.</p>
           </div>
         ) : !filteredPaymentLogs.length ? (
           <div className="empty-state">
@@ -124,6 +136,7 @@ export default function PaymentsPage({
               const actionKey = `sync-checkout-${payment.providerSessionId}`;
               const licenseActionKey = `sync-license-${payment.licenseId}`;
               const evidence = payment.checkoutEvidence || {};
+              const isStripe = payment.provider === "stripe";
               return (
                 <article className="audit-card payment-card" key={`${payment.checkoutId}-${payment.paymentId || "checkout"}`}>
                   <div className="audit-card__head payment-card__head">
@@ -143,6 +156,10 @@ export default function PaymentsPage({
                         <dd className="truncate-text" title={payment.providerSessionId}>
                           {maskTechnicalValue(payment.providerSessionId, 14, 8)}
                         </dd>
+                      </div>
+                      <div>
+                        <dt>Provedor</dt>
+                        <dd>{providerLabel(payment.provider)}</dd>
                       </div>
                       <div>
                         <dt>Licenca</dt>
@@ -185,6 +202,12 @@ export default function PaymentsPage({
                           <dd className="truncate-text" title={payment.providerPriceId || "--"}>{payment.providerPriceId || "--"}</dd>
                         </div>
                         <div>
+                          <dt>Referencia</dt>
+                          <dd className="truncate-text" title={payment.providerExternalReference || "--"}>
+                            {payment.providerExternalReference ? maskTechnicalValue(payment.providerExternalReference, 12, 8) : "--"}
+                          </dd>
+                        </div>
+                        <div>
                           <dt>Expira em</dt>
                           <dd>{formatDateTime(payment.providerSessionExpiresAt)}</dd>
                         </div>
@@ -193,6 +216,10 @@ export default function PaymentsPage({
                           <dd>{formatDateTime(payment.completedAt)}</dd>
                         </div>
                       </dl>
+                      <div className="audit-card__details">
+                        <span>Status do provedor</span>
+                        <code>{[payment.providerRawStatus, payment.providerStatusDetail].filter(Boolean).join(" / ") || "--"}</code>
+                      </div>
                       <div className="audit-card__details">
                         <span>User agent</span>
                         <code>{payment.checkoutUserAgent || "--"}</code>
@@ -203,7 +230,7 @@ export default function PaymentsPage({
                       </div>
                     </details>
 
-                    <div className="payment-actions">
+                    {isStripe && <div className="payment-actions">
                       <button
                         className="button button--ghost"
                         onClick={() => onSyncCheckout(payment.providerSessionId)}
@@ -220,7 +247,7 @@ export default function PaymentsPage({
                           {busyAction === licenseActionKey ? "Sincronizando..." : "Sincronizar licenca"}
                         </button>
                       )}
-                    </div>
+                    </div>}
                   </div>
                 </article>
               );
@@ -233,7 +260,7 @@ export default function PaymentsPage({
         <div className="page__header page__header--split payment-events-header">
           <div>
             <p className="eyebrow">Webhooks</p>
-            <h2>Eventos Stripe recentes</h2>
+            <h2>Eventos recentes</h2>
           </div>
           <span>{paymentEvents.length} eventos</span>
         </div>
@@ -241,7 +268,7 @@ export default function PaymentsPage({
         {!paymentEvents.length ? (
           <div className="empty-state">
             <h3>Nenhum webhook recente</h3>
-            <p>Quando a Stripe enviar eventos, eles aparecem aqui.</p>
+            <p>Quando Stripe ou Mercado Pago enviarem eventos, eles aparecem aqui.</p>
           </div>
         ) : (
           <div className="payment-event-list">
@@ -249,6 +276,7 @@ export default function PaymentsPage({
               <article className="payment-event" key={event.id}>
                 <div>
                   <strong>{eventLabel(event.eventType)}</strong>
+                  <p>{providerLabel(event.provider)}</p>
                   <p className="truncate-text" title={event.providerEventId}>{event.providerEventId}</p>
                   {event.errorMessage && <code>{event.errorMessage}</code>}
                 </div>
