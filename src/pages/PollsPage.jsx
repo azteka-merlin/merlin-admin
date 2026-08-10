@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Modal from "../components/Modal";
 
 const GAME_REQUEST_FIXED_QUESTION = "Qual jogo você quer no Premium?";
@@ -9,11 +9,7 @@ function createEmptyPollDraft() {
     id: null,
     type: "basic",
     question: "",
-    options: [
-      { label: "" },
-      { label: "" },
-      { label: "" },
-    ],
+    options: [{ label: "" }, { label: "" }, { label: "" }],
     contributionOptions: [
       { minAmount: "0", maxAmount: "10" },
       { minAmount: "11", maxAmount: "20" },
@@ -33,10 +29,7 @@ function createPollDraft(entry) {
     question: entry.question || "",
     options: empty.options.map((option, index) => {
       const existing = entry.options?.[index];
-      return {
-        ...option,
-        label: existing?.label || "",
-      };
+      return { ...option, label: existing?.label || "" };
     }),
     contributionOptions: empty.contributionOptions.map((option, index) => {
       const existing = entry.contributionOptions?.filter((item) =>
@@ -53,26 +46,18 @@ function createPollDraft(entry) {
 
 function normalizePollPayload(draft) {
   const type = draft.type === "game_request" ? "game_request" : "basic";
-  const question = type === "game_request"
-    ? GAME_REQUEST_FIXED_QUESTION
-    : String(draft.question || "").trim();
+  const question = type === "game_request" ? GAME_REQUEST_FIXED_QUESTION : String(draft.question || "").trim();
   if (!question) throw new Error("Informe a pergunta da enquete.");
 
   const options = draft.options
-    .map((option) => ({
-      label: String(option.label || "").trim(),
-    }))
+    .map((option) => ({ label: String(option.label || "").trim() }))
     .filter((option) => option.label);
 
   if (options.length < 2 || options.length > 3) {
     throw new Error("Informe 2 ou 3 alternativas.");
   }
 
-  const payload = {
-    type,
-    question,
-    options,
-  };
+  const payload = { type, question, options };
 
   if (payload.type === "game_request") {
     const rangedOptions = draft.contributionOptions
@@ -138,7 +123,38 @@ function requestGamePlaceholder(index) {
 }
 
 function displayPollQuestion(entry) {
-  return entry.type === "game_request" ? GAME_REQUEST_FIXED_QUESTION : entry.question;
+  return entry?.type === "game_request" ? GAME_REQUEST_FIXED_QUESTION : entry?.question;
+}
+
+function pollTypeLabel(type) {
+  return type === "game_request" ? "Pedido de jogo" : "Básica";
+}
+
+function pollStatusLabel(status) {
+  if (status === "open") return "Aberta";
+  if (status === "closed") return "Fechada";
+  return "Rascunho";
+}
+
+function pollStatusTone(status) {
+  if (status === "open") return "badge--emerald";
+  if (status === "closed") return "badge--muted";
+  return "badge--warning";
+}
+
+function maskLicenseKey(value) {
+  const text = String(value || "");
+  if (!text) return "--";
+  const parts = text.split("-");
+  if (parts.length >= 4) return `${parts[0]}-${parts[1]}-XXXX-${parts[parts.length - 1]}`;
+  return text.length > 8 ? `${text.slice(0, 6)}...${text.slice(-4)}` : text;
+}
+
+function leadingOption(options = []) {
+  return options.reduce((leader, option) => {
+    if (!leader || (option.votes || 0) > (leader.votes || 0)) return option;
+    return leader;
+  }, null);
 }
 
 export default function PollsPage({
@@ -147,6 +163,7 @@ export default function PollsPage({
   pollSearch,
   setPollSearch,
   loadPolls,
+  loadPollResults,
   savePoll,
   setPollStatus,
   deletePoll,
@@ -156,6 +173,11 @@ export default function PollsPage({
   const [activeModal, setActiveModal] = useState(null);
   const [draft, setDraft] = useState(createEmptyPollDraft());
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [resultsOpen, setResultsOpen] = useState(false);
+  const [resultsLoading, setResultsLoading] = useState(false);
+  const [resultsError, setResultsError] = useState("");
+  const [resultsData, setResultsData] = useState(null);
+  const [expandedOptions, setExpandedOptions] = useState({});
 
   const filteredPolls = useMemo(() => {
     const query = pollSearch.trim().toLowerCase();
@@ -165,6 +187,7 @@ export default function PollsPage({
         displayPollQuestion(poll),
         poll.type,
         poll.status,
+        pollTypeLabel(poll.type),
         ...(poll.options || []).map((option) => option.label),
       ].some((value) => String(value || "").toLowerCase().includes(query));
     });
@@ -216,6 +239,42 @@ export default function PollsPage({
     }
   }
 
+  async function openResults(entry) {
+    setResultsOpen(true);
+    setResultsData(null);
+    setResultsError("");
+    setExpandedOptions({});
+    setResultsLoading(true);
+    try {
+      const payload = await loadPollResults(entry.id);
+      setResultsData(payload);
+    } catch (error) {
+      setResultsError(error.message || "Não foi possível carregar os resultados.");
+    } finally {
+      setResultsLoading(false);
+    }
+  }
+
+  function closeResults() {
+    setResultsOpen(false);
+    setResultsData(null);
+    setResultsError("");
+    setExpandedOptions({});
+  }
+
+  useEffect(() => {
+    if (!resultsOpen) return undefined;
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") closeResults();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [resultsOpen]);
+
+  const resultPoll = resultsData?.poll;
+  const resultOptions = resultsData?.options || [];
+  const leader = resultPoll?.leader || leadingOption(resultOptions);
+
   return (
     <section className="page page--polls">
       <div className="page__header page__header--split">
@@ -252,21 +311,30 @@ export default function PollsPage({
           </div>
         ) : !filteredPolls.length ? (
           <div className="empty-state">
-            <h3>Nenhuma enquete encontrada</h3>
-            <p>Crie a primeira enquete ou ajuste a busca.</p>
+            <h3>Nenhuma enquete criada ainda.</h3>
+            <p>Crie uma enquete para receber feedback da comunidade.</p>
+            <button className="button button--primary" onClick={openCreateModal}>
+              + Nova enquete
+            </button>
           </div>
         ) : (
-          <div className="premium-grid">
+          <div className="poll-list">
             {filteredPolls.map((entry) => (
-              <article className="audit-card premium-card" key={entry.id}>
-                <div className="audit-card__head premium-card__head">
-                  <div className="premium-card__summary">
-                    <p className="eyebrow">{entry.type === "game_request" ? "Pedido de jogo" : "Básica"}</p>
-                    <h2>{displayPollQuestion(entry)}</h2>
-                    <p className="premium-card__title">{entry.totalVotes || 0} votos</p>
+              <article className="audit-card poll-list-card" key={entry.id}>
+                <div className="poll-list-card__main">
+                  <p className="eyebrow">{pollTypeLabel(entry.type)}</p>
+                  <h2>{displayPollQuestion(entry)}</h2>
+                  <div className="poll-list-card__meta">
+                    <span className={`badge ${pollStatusTone(entry.status)}`}>{pollStatusLabel(entry.status)}</span>
+                    <span>{entry.totalVotes || 0} votos</span>
+                    <span>Criada em {formatDate(entry.createdAt)}</span>
                   </div>
-
-                  <div className="override-actions premium-card__actions">
+                </div>
+                <div className="poll-list-card__actions">
+                  <button className="button button--primary button--sm" onClick={() => openResults(entry)}>
+                    Ver resultados
+                  </button>
+                  <div className="override-actions">
                     <button className="button button--ghost button--sm" onClick={() => openEditModal(entry)} disabled={(entry.totalVotes || 0) > 0}>
                       Editar
                     </button>
@@ -290,44 +358,137 @@ export default function PollsPage({
                     </button>
                   </div>
                 </div>
-
-                <div className="audit-card__body">
-                  <dl className="audit-card__meta premium-card__meta premium-card__meta--single">
-                    <div>
-                      <dt>Status</dt>
-                      <dd>
-                        <span className={`badge ${entry.status === "open" ? "badge--emerald" : "badge--muted"}`}>
-                          {entry.status === "open" ? "Aberta" : entry.status === "closed" ? "Fechada" : "Rascunho"}
-                        </span>
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>Criada em</dt>
-                      <dd>{formatDate(entry.createdAt)}</dd>
-                    </div>
-                  </dl>
-
-                  <div className="poll-result-list">
-                    {(entry.options || []).map((option) => (
-                      <div className="poll-result-row" key={option.id}>
-                        <span>{option.label}</span>
-                        <strong>{option.votes || 0} votos</strong>
-                        <div className="poll-result-bar" aria-hidden="true">
-                          <span style={{ width: `${option.percent || 0}%` }}></span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {entry.type === "game_request" && entry.viewer?.optionId && (
-                    <p className="plain-copy">Resultados de contribuição aparecem no launcher após o voto do usuário.</p>
-                  )}
-                </div>
               </article>
             ))}
           </div>
         )}
       </section>
+
+      {resultsOpen && (
+        <div className="poll-results-overlay" role="presentation" onMouseDown={closeResults}>
+          <aside
+            className="poll-results-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="poll-results-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="poll-results-drawer__head">
+              <div>
+                <p className="eyebrow">{resultPoll ? pollTypeLabel(resultPoll.type) : "Resultados"}</p>
+                <h2 id="poll-results-title">{resultPoll ? displayPollQuestion(resultPoll) : "Carregando resultados"}</h2>
+                {resultPoll && (
+                  <div className="poll-list-card__meta">
+                    <span className={`badge ${pollStatusTone(resultPoll.status)}`}>{pollStatusLabel(resultPoll.status)}</span>
+                    <span>Criada em {formatDate(resultPoll.createdAt)}</span>
+                  </div>
+                )}
+              </div>
+              <button className="button button--ghost button--sm" onClick={closeResults}>
+                Fechar
+              </button>
+            </div>
+
+            {resultsLoading ? (
+              <div className="empty-state">
+                <h3>Carregando resultados</h3>
+                <p>Buscando votos e identificação dos participantes.</p>
+              </div>
+            ) : resultsError ? (
+              <div className="empty-state">
+                <h3>Não foi possível carregar</h3>
+                <p>{resultsError}</p>
+              </div>
+            ) : resultPoll ? (
+              <>
+                <div className="poll-results-summary">
+                  <div>
+                    <strong>{resultPoll.totalVotes || 0}</strong>
+                    <span>votos únicos</span>
+                  </div>
+                  <div>
+                    <strong>{resultOptions.length}</strong>
+                    <span>alternativas</span>
+                  </div>
+                  <div>
+                    <strong>{leader && (leader.votes || 0) > 0 ? `${leader.percent || 0}%` : "--"}</strong>
+                    <span>{leader && (leader.votes || 0) > 0 ? "na opção líder" : "sem líder ainda"}</span>
+                  </div>
+                </div>
+
+                {!resultOptions.length || !(resultPoll.totalVotes || 0) ? (
+                  <div className="empty-state">
+                    <h3>Enquete sem votos</h3>
+                    <p>Assim que usuários votarem, os resultados aparecem aqui.</p>
+                  </div>
+                ) : (
+                  <div className="poll-results-list">
+                    {resultOptions.map((option) => {
+                      const voters = option.voters || [];
+                      const expanded = Boolean(expandedOptions[option.id]);
+                      return (
+                        <article className="poll-result-card" key={option.id}>
+                          <div className="poll-result-card__top">
+                            <div>
+                              <h3>{option.label}</h3>
+                              <p>{option.votes || 0} votos · {option.percent || 0}%</p>
+                            </div>
+                            <button
+                              className="button button--ghost button--sm"
+                              type="button"
+                              aria-expanded={expanded}
+                              onClick={() => setExpandedOptions((current) => ({ ...current, [option.id]: !current[option.id] }))}
+                            >
+                              {expanded ? "Ocultar votantes" : "Ver quem votou"}
+                            </button>
+                          </div>
+                          <div className="poll-result-bar" aria-hidden="true">
+                            <span style={{ width: `${option.percent || 0}%` }}></span>
+                          </div>
+
+                          {expanded && (
+                            <div className="poll-voter-list">
+                              {!voters.length ? (
+                                <p className="plain-copy">Nenhum voto registrado nesta alternativa.</p>
+                              ) : (
+                                voters.map((voter) => (
+                                  <div className="poll-voter-row" key={voter.id}>
+                                    <div>
+                                      <strong>{voter.name || voter.email || "Usuário sem nome"}</strong>
+                                      <span>{voter.email || "E-mail indisponível"}</span>
+                                      {resultPoll.type === "game_request" && (
+                                        <small>
+                                          {voter.contributionSkipped
+                                            ? "Sem contribuição"
+                                            : voter.contributionMinAmount !== null || voter.contributionMaxAmount !== null
+                                              ? formatContribution({
+                                                label: voter.contributionLabel,
+                                                minAmount: voter.contributionMinAmount,
+                                                maxAmount: voter.contributionMaxAmount,
+                                              })
+                                              : "Contribuição não informada"}
+                                        </small>
+                                      )}
+                                    </div>
+                                    <div>
+                                      <code title={voter.licenseKey}>Licença: {maskLicenseKey(voter.licenseKey)}</code>
+                                      <span>{formatDate(voter.votedAt)}</span>
+                                    </div>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          )}
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            ) : null}
+          </aside>
+        </div>
+      )}
 
       {activeModal === "upsert" && (
         <Modal
@@ -384,21 +545,19 @@ export default function PollsPage({
 
           <div className="field-grid">
             {draft.options.map((option, index) => (
-              <React.Fragment key={index}>
-                <label className="field">
-                  <span>{`Alternativa ${index + 1}`}</span>
-                  <input
-                    value={option.label}
-                    onChange={(event) => setDraft((current) => ({
-                      ...current,
-                      options: current.options.map((item, itemIndex) =>
-                        itemIndex === index ? { ...item, label: event.target.value } : item
-                      ),
-                    }))}
-                    placeholder={draft.type === "game_request" ? requestGamePlaceholder(index) : basicOptionPlaceholder(index)}
-                  />
-                </label>
-              </React.Fragment>
+              <label className="field" key={index}>
+                <span>{`Alternativa ${index + 1}`}</span>
+                <input
+                  value={option.label}
+                  onChange={(event) => setDraft((current) => ({
+                    ...current,
+                    options: current.options.map((item, itemIndex) =>
+                      itemIndex === index ? { ...item, label: event.target.value } : item
+                    ),
+                  }))}
+                  placeholder={draft.type === "game_request" ? requestGamePlaceholder(index) : basicOptionPlaceholder(index)}
+                />
+              </label>
             ))}
           </div>
 
@@ -407,7 +566,7 @@ export default function PollsPage({
               <div className="premium-upload-box">
                 <div>
                   <strong>Contribuição opcional</strong>
-                  <p>A opção “Sem contribuição” é fixa. Configure até 3 faixas com valor mínimo e máximo.</p>
+                  <p>A opção "Sem contribuição" é fixa. Configure até 3 faixas com valor mínimo e máximo.</p>
                 </div>
               </div>
               <div className="premium-upload-box">

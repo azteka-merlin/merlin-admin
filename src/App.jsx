@@ -1025,6 +1025,10 @@ function App() {
     }
   }
 
+  async function loadPollResults(pollId) {
+    return apiRequest(`/panel-api/polls/${encodeURIComponent(pollId)}/results`);
+  }
+
   async function loadPaymentLogs() {
     setLoadingPaymentLogs(true);
     try {
@@ -1848,6 +1852,7 @@ function App() {
             pollSearch={pollSearch}
             setPollSearch={setPollSearch}
             loadPolls={loadPolls}
+            loadPollResults={loadPollResults}
             savePoll={handleSavePoll}
             setPollStatus={handleSetPollStatus}
             deletePoll={handleDeletePoll}
