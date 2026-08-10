@@ -4,6 +4,7 @@ import { formatDateTime } from "../lib/admin-ui";
 
 function formatBytes(value) {
   const bytes = Number(value) || 0;
+  if (bytes <= 0) return "arquivo estatico";
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${bytes} B`;
@@ -95,7 +96,7 @@ export default function PublicFeedbacksPage({
         <div className="premium-upload-box">
           <div>
             <strong>Nova foto</strong>
-            <p>As fotos cadastradas aqui aparecem antes das imagens estaticas atuais, mantendo o mesmo layout do site.</p>
+            <p>Novos uploads entram na mesma lista configurada que alimenta os feedbacks da pagina publica.</p>
           </div>
         </div>
         <div className="field-grid">
@@ -156,8 +157,8 @@ export default function PublicFeedbacksPage({
           </div>
         ) : !sortedFeedbacks.length ? (
           <div className="empty-state">
-            <h3>Nenhum feedback cadastrado no painel.</h3>
-            <p>O site continua exibindo as imagens estaticas atuais.</p>
+            <h3>Nenhum feedback configurado.</h3>
+            <p>Cadastre uma foto para exibir na pagina publica.</p>
           </div>
         ) : (
           <div className="public-feedback-grid">
@@ -168,7 +169,7 @@ export default function PublicFeedbacksPage({
                 </div>
                 <div className="public-feedback-card__body">
                   <div>
-                    <p className="eyebrow">{entry.enabled ? "Publicado" : "Oculto"}</p>
+                    <p className="eyebrow">{entry.source === "static" ? "Estatico" : "Upload"} · {entry.enabled ? "Publicado" : "Oculto"}</p>
                     <h2>{entry.title || "Feedback Merlin"}</h2>
                     <p>{entry.filename} · {formatBytes(entry.sizeBytes)}</p>
                     <small>Ordem {entry.sortOrder || 0} · Atualizado em {formatDateTime(entry.updatedAt)}</small>
