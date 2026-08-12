@@ -281,6 +281,7 @@ export default function AnnouncementsPage({
 
       {modalOpen && (
         <Modal
+          className="modal--announcement-editor"
           title={draft.mode === "edit" ? "Editar comunicado" : "Novo comunicado"}
           subtitle="Configure somente a modal informativa da V1."
           onClose={() => !saving && setModalOpen(false)}
