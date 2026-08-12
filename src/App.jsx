@@ -1061,6 +1061,9 @@ function App() {
     formData.append("frequency", input.frequency || "always");
     formData.append("allowDismissForever", input.allowDismissForever === true ? "true" : "false");
     formData.append("removeImage", input.removeImage === true ? "true" : "false");
+    formData.append("imageFit", input.imageFit || "cover");
+    formData.append("imagePositionX", String(input.imagePositionX ?? 50));
+    formData.append("imagePositionY", String(input.imagePositionY ?? 50));
     if (input.file) formData.append("file", input.file);
   }
 

@@ -3804,7 +3804,9 @@ h3 {
   place-items: center;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.035);
+  background:
+    radial-gradient(circle at 50% 18%, rgba(159, 89, 255, 0.14), transparent 42%),
+    rgba(255, 255, 255, 0.035);
   color: var(--muted);
   font-size: 0.8rem;
 }
@@ -3881,6 +3883,41 @@ h3 {
   margin-top: 0;
 }
 
+.announcement-image-controls {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: end;
+  padding: 14px;
+  border: 1px solid rgba(199, 153, 255, 0.15);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.announcement-range-field {
+  gap: 8px;
+}
+
+.announcement-range-row {
+  min-height: 52px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 46px;
+  gap: 10px;
+  align-items: center;
+}
+
+.announcement-range-row input[type="range"] {
+  width: 100%;
+  accent-color: #b35cff;
+}
+
+.announcement-range-row output {
+  color: var(--text);
+  font-weight: 800;
+  text-align: right;
+  font-size: 0.86rem;
+}
+
 .announcement-toggles {
   display: grid;
   gap: 10px;
@@ -3928,7 +3965,9 @@ h3 {
 
 .announcement-preview-image {
   aspect-ratio: 16 / 9;
-  background: rgba(255, 255, 255, 0.04);
+  background:
+    radial-gradient(circle at 50% 18%, rgba(159, 89, 255, 0.14), transparent 42%),
+    rgba(255, 255, 255, 0.04);
 }
 
 .announcement-preview-image img {
@@ -3978,6 +4017,10 @@ h3 {
   }
 
   .announcement-editor {
+    grid-template-columns: 1fr;
+  }
+
+  .announcement-image-controls {
     grid-template-columns: 1fr;
   }
 

@@ -7,6 +7,16 @@ const FREQUENCIES = [
   { value: "once_per_day", label: "Uma vez por dia" },
   { value: "once", label: "Uma unica vez" },
 ];
+const IMAGE_FITS = [
+  { value: "cover", label: "Preencher" },
+  { value: "contain", label: "Ajustar inteira" },
+];
+
+function normalizePosition(value) {
+  const numberValue = Number(value);
+  if (!Number.isFinite(numberValue)) return 50;
+  return Math.min(100, Math.max(0, Math.round(numberValue)));
+}
 
 function createEmptyDraft() {
   return {
@@ -23,6 +33,9 @@ function createEmptyDraft() {
     file: null,
     imageUrl: "",
     imageFilename: "",
+    imageFit: "cover",
+    imagePositionX: 50,
+    imagePositionY: 50,
     removeImage: false,
   };
 }
@@ -57,6 +70,9 @@ function createDraft(entry) {
     file: null,
     imageUrl: entry.imageUrl || "",
     imageFilename: entry.imageFilename || "",
+    imageFit: entry.imageFit === "contain" ? "contain" : "cover",
+    imagePositionX: normalizePosition(entry.imagePositionX),
+    imagePositionY: normalizePosition(entry.imagePositionY),
     removeImage: false,
   };
 }
@@ -103,12 +119,19 @@ function buildPayload(draft) {
     frequency: draft.frequency || "always",
     allowDismissForever: draft.allowDismissForever === true,
     removeImage: draft.removeImage === true,
+    imageFit: draft.imageFit === "contain" ? "contain" : "cover",
+    imagePositionX: normalizePosition(draft.imagePositionX),
+    imagePositionY: normalizePosition(draft.imagePositionY),
     file: draft.file,
   };
 }
 
 function AnnouncementPreview({ draft }) {
   const previewImage = React.useMemo(() => imagePreviewUrl(draft), [draft.file, draft.imageUrl, draft.removeImage]);
+  const imageStyle = {
+    objectFit: draft.imageFit === "contain" ? "contain" : "cover",
+    objectPosition: `${normalizePosition(draft.imagePositionX)}% ${normalizePosition(draft.imagePositionY)}%`,
+  };
   React.useEffect(() => {
     if (!draft.file) return undefined;
     return () => URL.revokeObjectURL(previewImage);
@@ -120,7 +143,7 @@ function AnnouncementPreview({ draft }) {
         <button className="announcement-preview-close" type="button" aria-label="Fechar preview">x</button>
         {previewImage && (
           <div className="announcement-preview-image">
-            <img src={previewImage} alt="" />
+            <img src={previewImage} alt="" style={imageStyle} />
           </div>
         )}
         <div className="announcement-preview-copy">
@@ -249,7 +272,17 @@ export default function AnnouncementsPage({
             {filtered.map((entry) => (
               <article className="audit-card announcement-card" key={entry.id}>
                 <div className="announcement-card__media">
-                  {entry.imageUrl ? <img src={entry.imageUrl} alt="" loading="lazy" /> : <span>Sem imagem</span>}
+                  {entry.imageUrl ? (
+                    <img
+                      src={entry.imageUrl}
+                      alt=""
+                      loading="lazy"
+                      style={{
+                        objectFit: entry.imageFit === "contain" ? "contain" : "cover",
+                        objectPosition: `${normalizePosition(entry.imagePositionX)}% ${normalizePosition(entry.imagePositionY)}%`,
+                      }}
+                    />
+                  ) : <span>Sem imagem</span>}
                 </div>
                 <div className="announcement-card__main">
                   <p className="eyebrow">{entry.internalName}</p>
@@ -357,6 +390,43 @@ export default function AnnouncementsPage({
                   />
                   <span>Remover imagem atual ao salvar</span>
                 </label>
+              )}
+
+              {(draft.file || draft.imageUrl) && !draft.removeImage && (
+                <div className="announcement-image-controls">
+                  <label className="field">
+                    <span>Modo da imagem</span>
+                    <select value={draft.imageFit} onChange={(event) => setDraft((current) => ({ ...current, imageFit: event.target.value }))}>
+                      {IMAGE_FITS.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}
+                    </select>
+                  </label>
+                  <label className="field announcement-range-field">
+                    <span>Foco horizontal</span>
+                    <div className="announcement-range-row">
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={normalizePosition(draft.imagePositionX)}
+                        onChange={(event) => setDraft((current) => ({ ...current, imagePositionX: Number(event.target.value) }))}
+                      />
+                      <output>{normalizePosition(draft.imagePositionX)}%</output>
+                    </div>
+                  </label>
+                  <label className="field announcement-range-field">
+                    <span>Foco vertical</span>
+                    <div className="announcement-range-row">
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={normalizePosition(draft.imagePositionY)}
+                        onChange={(event) => setDraft((current) => ({ ...current, imagePositionY: Number(event.target.value) }))}
+                      />
+                      <output>{normalizePosition(draft.imagePositionY)}%</output>
+                    </div>
+                  </label>
+                </div>
               )}
 
               <div className="announcement-toggles">
