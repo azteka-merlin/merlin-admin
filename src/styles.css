@@ -3811,7 +3811,7 @@ h3 {
   font-size: 0.8rem;
 }
 
-.announcement-card__media img {
+.announcement-card__media > img {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -3883,39 +3883,39 @@ h3 {
   margin-top: 0;
 }
 
-.announcement-image-controls {
-  display: grid;
-  grid-template-columns: 180px minmax(0, 1fr) minmax(0, 1fr);
-  gap: 12px;
-  align-items: end;
+.announcement-crop-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
   padding: 14px;
   border: 1px solid rgba(199, 153, 255, 0.15);
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.035);
 }
 
-.announcement-range-field {
-  gap: 8px;
+.announcement-crop-action strong {
+  display: block;
+  margin-top: 4px;
 }
 
-.announcement-range-row {
-  min-height: 52px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 46px;
-  gap: 10px;
-  align-items: center;
-}
-
-.announcement-range-row input[type="range"] {
+.announcement-cropped-image--cover {
   width: 100%;
-  accent-color: #b35cff;
+  height: 100%;
+  object-fit: cover;
 }
 
-.announcement-range-row output {
-  color: var(--text);
-  font-weight: 800;
-  text-align: right;
-  font-size: 0.86rem;
+.announcement-cropped-frame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.announcement-cropped-frame img {
+  position: absolute;
+  max-width: none;
+  display: block;
 }
 
 .announcement-toggles {
@@ -3970,12 +3970,6 @@ h3 {
     rgba(255, 255, 255, 0.04);
 }
 
-.announcement-preview-image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
 .announcement-preview-copy {
   padding: 30px 28px 22px;
 }
@@ -4002,6 +3996,54 @@ h3 {
   font-size: 0.9rem;
 }
 
+.modal--announcement-cropper {
+  width: min(94vw, 760px);
+}
+
+.modal--announcement-cropper .modal__body {
+  margin: 22px 0;
+}
+
+.announcement-cropper {
+  display: grid;
+  gap: 18px;
+}
+
+.announcement-cropper__stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  min-height: 280px;
+  overflow: hidden;
+  border: 1px solid rgba(199, 153, 255, 0.26);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(159, 89, 255, 0.14), transparent 42%),
+    rgba(255, 255, 255, 0.04);
+}
+
+.announcement-cropper__stage .reactEasyCrop_CropArea {
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 0 0 9999em rgba(2, 4, 12, 0.42);
+}
+
+.announcement-cropper__zoom {
+  display: grid;
+  grid-template-columns: 60px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  color: var(--muted);
+  font-weight: 800;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.announcement-cropper__zoom input {
+  width: 100%;
+  accent-color: #b35cff;
+}
+
 @media (max-width: 900px) {
   .announcement-card {
     grid-template-columns: 96px minmax(0, 1fr);
@@ -4020,8 +4062,13 @@ h3 {
     grid-template-columns: 1fr;
   }
 
-  .announcement-image-controls {
-    grid-template-columns: 1fr;
+  .announcement-crop-action {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .announcement-cropper__stage {
+    min-height: 220px;
   }
 
   .premium-card__head {

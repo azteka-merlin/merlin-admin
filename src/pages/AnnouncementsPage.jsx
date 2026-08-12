@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from "react";
+import Cropper from "react-easy-crop";
+import "react-easy-crop/react-easy-crop.css";
 import Modal from "../components/Modal";
 import { formatDateTime } from "../lib/admin-ui";
 
@@ -7,15 +9,22 @@ const FREQUENCIES = [
   { value: "once_per_day", label: "Uma vez por dia" },
   { value: "once", label: "Uma unica vez" },
 ];
-const IMAGE_FITS = [
-  { value: "cover", label: "Preencher" },
-  { value: "contain", label: "Ajustar inteira" },
-];
+const ANNOUNCEMENT_IMAGE_ASPECT = 16 / 9;
 
-function normalizePosition(value) {
+function normalizeCropPercent(value) {
   const numberValue = Number(value);
-  if (!Number.isFinite(numberValue)) return 50;
-  return Math.min(100, Math.max(0, Math.round(numberValue)));
+  if (!Number.isFinite(numberValue)) return null;
+  return Math.min(100, Math.max(0, Number(numberValue.toFixed(4))));
+}
+
+function readCropArea(source) {
+  const x = normalizeCropPercent(source?.imageCropX);
+  const y = normalizeCropPercent(source?.imageCropY);
+  const width = normalizeCropPercent(source?.imageCropWidth);
+  const height = normalizeCropPercent(source?.imageCropHeight);
+  if (x === null || y === null || !width || !height) return null;
+  if (x + width > 100.0001 || y + height > 100.0001) return null;
+  return { x, y, width, height };
 }
 
 function createEmptyDraft() {
@@ -33,9 +42,7 @@ function createEmptyDraft() {
     file: null,
     imageUrl: "",
     imageFilename: "",
-    imageFit: "cover",
-    imagePositionX: 50,
-    imagePositionY: 50,
+    imageCropArea: null,
     removeImage: false,
   };
 }
@@ -70,9 +77,7 @@ function createDraft(entry) {
     file: null,
     imageUrl: entry.imageUrl || "",
     imageFilename: entry.imageFilename || "",
-    imageFit: entry.imageFit === "contain" ? "contain" : "cover",
-    imagePositionX: normalizePosition(entry.imagePositionX),
-    imagePositionY: normalizePosition(entry.imagePositionY),
+    imageCropArea: readCropArea(entry),
     removeImage: false,
   };
 }
@@ -119,19 +124,69 @@ function buildPayload(draft) {
     frequency: draft.frequency || "always",
     allowDismissForever: draft.allowDismissForever === true,
     removeImage: draft.removeImage === true,
-    imageFit: draft.imageFit === "contain" ? "contain" : "cover",
-    imagePositionX: normalizePosition(draft.imagePositionX),
-    imagePositionY: normalizePosition(draft.imagePositionY),
+    imageCropX: draft.imageCropArea?.x ?? null,
+    imageCropY: draft.imageCropArea?.y ?? null,
+    imageCropWidth: draft.imageCropArea?.width ?? null,
+    imageCropHeight: draft.imageCropArea?.height ?? null,
     file: draft.file,
   };
 }
 
+function CroppedAnnouncementImage({ src, cropArea, loading }) {
+  const frameRef = React.useRef(null);
+  const imageRef = React.useRef(null);
+  const [layout, setLayout] = React.useState(null);
+
+  const updateLayout = React.useCallback(() => {
+    const frame = frameRef.current;
+    const image = imageRef.current;
+    if (!frame || !image || !cropArea || !image.naturalWidth || !image.naturalHeight) return;
+
+    const cropWidth = image.naturalWidth * (cropArea.width / 100);
+    const cropHeight = image.naturalHeight * (cropArea.height / 100);
+    if (!cropWidth || !cropHeight) return;
+
+    const scale = Math.max(frame.clientWidth / cropWidth, frame.clientHeight / cropHeight);
+    setLayout({
+      width: image.naturalWidth * scale,
+      height: image.naturalHeight * scale,
+      left: -image.naturalWidth * (cropArea.x / 100) * scale,
+      top: -image.naturalHeight * (cropArea.y / 100) * scale,
+    });
+  }, [cropArea]);
+
+  React.useEffect(() => {
+    if (!cropArea) return undefined;
+    updateLayout();
+    window.addEventListener("resize", updateLayout);
+    return () => window.removeEventListener("resize", updateLayout);
+  }, [cropArea, updateLayout, src]);
+
+  if (!cropArea) {
+    return <img src={src} alt="" loading={loading} className="announcement-cropped-image announcement-cropped-image--cover" />;
+  }
+
+  return (
+    <div className="announcement-cropped-frame" ref={frameRef}>
+      <img
+        src={src}
+        alt=""
+        loading={loading}
+        ref={imageRef}
+        onLoad={updateLayout}
+        style={layout ? {
+          width: `${layout.width}px`,
+          height: `${layout.height}px`,
+          left: `${layout.left}px`,
+          top: `${layout.top}px`,
+        } : { opacity: 0 }}
+      />
+    </div>
+  );
+}
+
 function AnnouncementPreview({ draft }) {
   const previewImage = React.useMemo(() => imagePreviewUrl(draft), [draft.file, draft.imageUrl, draft.removeImage]);
-  const imageStyle = {
-    objectFit: draft.imageFit === "contain" ? "contain" : "cover",
-    objectPosition: `${normalizePosition(draft.imagePositionX)}% ${normalizePosition(draft.imagePositionY)}%`,
-  };
   React.useEffect(() => {
     if (!draft.file) return undefined;
     return () => URL.revokeObjectURL(previewImage);
@@ -143,7 +198,7 @@ function AnnouncementPreview({ draft }) {
         <button className="announcement-preview-close" type="button" aria-label="Fechar preview">x</button>
         {previewImage && (
           <div className="announcement-preview-image">
-            <img src={previewImage} alt="" style={imageStyle} />
+            <CroppedAnnouncementImage src={previewImage} cropArea={draft.imageCropArea} />
           </div>
         )}
         <div className="announcement-preview-copy">
@@ -162,6 +217,75 @@ function AnnouncementPreview({ draft }) {
   );
 }
 
+function ImageCropEditor({ imageUrl, cropArea, onApply, onClose }) {
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [nextCropArea, setNextCropArea] = useState(cropArea);
+  const [resetKey, setResetKey] = useState(0);
+
+  function handleReset() {
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setNextCropArea(null);
+    setResetKey((current) => current + 1);
+  }
+
+  return (
+    <Modal
+      className="modal--announcement-cropper"
+      title="Enquadrar imagem"
+      subtitle="A moldura usa a mesma proporcao da imagem exibida no Launcher."
+      onClose={onClose}
+      actions={
+        <>
+          <button className="button button--ghost" type="button" onClick={handleReset}>
+            Redefinir
+          </button>
+          <button className="button button--primary" type="button" onClick={() => onApply(nextCropArea)}>
+            Aplicar
+          </button>
+        </>
+      }
+    >
+      <div className="announcement-cropper">
+        <div className="announcement-cropper__stage">
+          <Cropper
+            key={`${resetKey}-${imageUrl}`}
+            image={imageUrl}
+            crop={crop}
+            zoom={zoom}
+            aspect={ANNOUNCEMENT_IMAGE_ASPECT}
+            minZoom={1}
+            maxZoom={4}
+            objectFit="cover"
+            showGrid={false}
+            initialCroppedAreaPercentages={cropArea || undefined}
+            onCropChange={setCrop}
+            onZoomChange={setZoom}
+            onCropComplete={(area) => setNextCropArea(readCropArea({
+              imageCropX: area.x,
+              imageCropY: area.y,
+              imageCropWidth: area.width,
+              imageCropHeight: area.height,
+            }))}
+          />
+        </div>
+        <label className="announcement-cropper__zoom">
+          <span>Zoom</span>
+          <input
+            type="range"
+            min="1"
+            max="4"
+            step="0.01"
+            value={zoom}
+            onChange={(event) => setZoom(Number(event.target.value))}
+          />
+        </label>
+      </div>
+    </Modal>
+  );
+}
+
 export default function AnnouncementsPage({
   announcements,
   loading,
@@ -174,7 +298,13 @@ export default function AnnouncementsPage({
   const [search, setSearch] = useState("");
   const [draft, setDraft] = useState(createEmptyDraft());
   const [modalOpen, setModalOpen] = useState(false);
+  const [cropEditorOpen, setCropEditorOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const cropEditorImage = React.useMemo(() => imagePreviewUrl(draft), [draft.file, draft.imageUrl, draft.removeImage]);
+  React.useEffect(() => {
+    if (!draft.file || !cropEditorImage) return undefined;
+    return () => URL.revokeObjectURL(cropEditorImage);
+  }, [draft.file, cropEditorImage]);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -195,11 +325,13 @@ export default function AnnouncementsPage({
 
   function openCreate() {
     setDraft(createEmptyDraft());
+    setCropEditorOpen(false);
     setModalOpen(true);
   }
 
   function openEdit(entry) {
     setDraft(createDraft(entry));
+    setCropEditorOpen(false);
     setModalOpen(true);
   }
 
@@ -207,6 +339,7 @@ export default function AnnouncementsPage({
     try {
       const saved = await saveAnnouncement(draft.mode, draft.id, buildPayload(draft));
       setDraft(createDraft(saved));
+      setCropEditorOpen(false);
       setModalOpen(false);
       notify(draft.mode === "edit" ? "Comunicado atualizado." : "Comunicado criado.");
     } catch (error) {
@@ -273,15 +406,7 @@ export default function AnnouncementsPage({
               <article className="audit-card announcement-card" key={entry.id}>
                 <div className="announcement-card__media">
                   {entry.imageUrl ? (
-                    <img
-                      src={entry.imageUrl}
-                      alt=""
-                      loading="lazy"
-                      style={{
-                        objectFit: entry.imageFit === "contain" ? "contain" : "cover",
-                        objectPosition: `${normalizePosition(entry.imagePositionX)}% ${normalizePosition(entry.imagePositionY)}%`,
-                      }}
-                    />
+                    <CroppedAnnouncementImage src={entry.imageUrl} cropArea={readCropArea(entry)} loading="lazy" />
                   ) : <span>Sem imagem</span>}
                 </div>
                 <div className="announcement-card__main">
@@ -365,11 +490,16 @@ export default function AnnouncementsPage({
                 <input
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
-                  onChange={(event) => setDraft((current) => ({
-                    ...current,
-                    file: event.target.files?.[0] || null,
-                    removeImage: false,
-                  }))}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0] || null;
+                    setDraft((current) => ({
+                      ...current,
+                      file,
+                      imageCropArea: null,
+                      removeImage: false,
+                    }));
+                    setCropEditorOpen(Boolean(file));
+                  }}
                 />
                 <div>
                   <span className="override-upload-card__label">Imagem opcional</span>
@@ -393,39 +523,14 @@ export default function AnnouncementsPage({
               )}
 
               {(draft.file || draft.imageUrl) && !draft.removeImage && (
-                <div className="announcement-image-controls">
-                  <label className="field">
-                    <span>Modo da imagem</span>
-                    <select value={draft.imageFit} onChange={(event) => setDraft((current) => ({ ...current, imageFit: event.target.value }))}>
-                      {IMAGE_FITS.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}
-                    </select>
-                  </label>
-                  <label className="field announcement-range-field">
-                    <span>Foco horizontal</span>
-                    <div className="announcement-range-row">
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={normalizePosition(draft.imagePositionX)}
-                        onChange={(event) => setDraft((current) => ({ ...current, imagePositionX: Number(event.target.value) }))}
-                      />
-                      <output>{normalizePosition(draft.imagePositionX)}%</output>
-                    </div>
-                  </label>
-                  <label className="field announcement-range-field">
-                    <span>Foco vertical</span>
-                    <div className="announcement-range-row">
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={normalizePosition(draft.imagePositionY)}
-                        onChange={(event) => setDraft((current) => ({ ...current, imagePositionY: Number(event.target.value) }))}
-                      />
-                      <output>{normalizePosition(draft.imagePositionY)}%</output>
-                    </div>
-                  </label>
+                <div className="announcement-crop-action">
+                  <div>
+                    <span className="override-upload-card__label">Enquadramento</span>
+                    <strong>{draft.imageCropArea ? "Imagem enquadrada" : "Padrao da modal"}</strong>
+                  </div>
+                  <button className="button button--ghost" type="button" onClick={() => setCropEditorOpen(true)}>
+                    Enquadrar imagem
+                  </button>
                 </div>
               )}
 
@@ -443,6 +548,18 @@ export default function AnnouncementsPage({
             <AnnouncementPreview draft={draft} />
           </div>
         </Modal>
+      )}
+
+      {modalOpen && cropEditorOpen && cropEditorImage && (
+        <ImageCropEditor
+          imageUrl={cropEditorImage}
+          cropArea={draft.imageCropArea}
+          onClose={() => setCropEditorOpen(false)}
+          onApply={(area) => {
+            setDraft((current) => ({ ...current, imageCropArea: area }));
+            setCropEditorOpen(false);
+          }}
+        />
       )}
 
       {deleteTarget && (

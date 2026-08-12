@@ -1061,9 +1061,10 @@ function App() {
     formData.append("frequency", input.frequency || "always");
     formData.append("allowDismissForever", input.allowDismissForever === true ? "true" : "false");
     formData.append("removeImage", input.removeImage === true ? "true" : "false");
-    formData.append("imageFit", input.imageFit || "cover");
-    formData.append("imagePositionX", String(input.imagePositionX ?? 50));
-    formData.append("imagePositionY", String(input.imagePositionY ?? 50));
+    formData.append("imageCropX", input.imageCropX === null || input.imageCropX === undefined ? "" : String(input.imageCropX));
+    formData.append("imageCropY", input.imageCropY === null || input.imageCropY === undefined ? "" : String(input.imageCropY));
+    formData.append("imageCropWidth", input.imageCropWidth === null || input.imageCropWidth === undefined ? "" : String(input.imageCropWidth));
+    formData.append("imageCropHeight", input.imageCropHeight === null || input.imageCropHeight === undefined ? "" : String(input.imageCropHeight));
     if (input.file) formData.append("file", input.file);
   }
 
