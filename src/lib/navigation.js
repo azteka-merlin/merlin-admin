@@ -9,6 +9,7 @@ export const VIEW_PATHS = {
   overrides: "/overrides",
   premium: "/premium",
   polls: "/polls",
+  announcements: "/announcements",
   payments: "/payments",
   "public-signup": "/public-signup",
   "public-feedbacks": "/public-feedbacks"
@@ -23,6 +24,7 @@ export function getViewFromPath(pathname) {
   if (pathname === "/overrides") return "overrides";
   if (pathname === "/premium") return "premium";
   if (pathname === "/polls") return "polls";
+  if (pathname === "/announcements") return "announcements";
   if (pathname === "/payments") return "payments";
   if (pathname === "/public-signup") return "public-signup";
   if (pathname === "/public-feedbacks") return "public-feedbacks";

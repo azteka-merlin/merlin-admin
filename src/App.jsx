@@ -4,6 +4,7 @@ import LicenseModals from "./components/LicenseModals";
 import LoadingScreen from "./components/LoadingScreen";
 import LoginScreen from "./components/LoginScreen";
 import ActivityPage from "./pages/ActivityPage";
+import AnnouncementsPage from "./pages/AnnouncementsPage";
 import AuditPage from "./pages/AuditPage";
 import LicensesPage from "./pages/LicensesPage";
 import OverviewPage from "./pages/OverviewPage";
@@ -145,6 +146,7 @@ function App() {
   const [overrides, setOverrides] = React.useState([]);
   const [premiumGames, setPremiumGames] = React.useState([]);
   const [polls, setPolls] = React.useState([]);
+  const [announcements, setAnnouncements] = React.useState([]);
   const [paymentLogs, setPaymentLogs] = React.useState([]);
   const [paymentEvents, setPaymentEvents] = React.useState([]);
   const [publicFeedbacks, setPublicFeedbacks] = React.useState([]);
@@ -173,6 +175,7 @@ function App() {
   const [loadingOverrides, setLoadingOverrides] = React.useState(false);
   const [loadingPremiumGames, setLoadingPremiumGames] = React.useState(false);
   const [loadingPolls, setLoadingPolls] = React.useState(false);
+  const [loadingAnnouncements, setLoadingAnnouncements] = React.useState(false);
   const [loadingPaymentLogs, setLoadingPaymentLogs] = React.useState(false);
   const [loadingPublicFeedbacks, setLoadingPublicFeedbacks] = React.useState(false);
   const [loadingMerlinUpdate, setLoadingMerlinUpdate] = React.useState(false);
@@ -409,6 +412,7 @@ function App() {
       setOverrides([]);
       setPremiumGames([]);
       setPolls([]);
+      setAnnouncements([]);
       setPaymentLogs([]);
       setPaymentEvents([]);
       setPublicFeedbacks([]);
@@ -529,6 +533,7 @@ function App() {
       setOverrides([]);
       setPremiumGames([]);
       setPolls([]);
+      setAnnouncements([]);
       setPaymentLogs([]);
       setPaymentEvents([]);
       setMerlinUpdate(null);
@@ -1034,6 +1039,60 @@ function App() {
     return apiRequest(`/panel-api/polls/${encodeURIComponent(pollId)}/results`);
   }
 
+  async function loadAnnouncements() {
+    setLoadingAnnouncements(true);
+    try {
+      const payload = await apiRequest("/panel-api/announcements");
+      setAnnouncements(payload.announcements || []);
+    } catch (error) {
+      setToast(error.message);
+    } finally {
+      setLoadingAnnouncements(false);
+    }
+  }
+
+  function appendAnnouncementForm(formData, input) {
+    formData.append("internalName", String(input.internalName || ""));
+    formData.append("title", String(input.title || ""));
+    formData.append("bodyText", String(input.bodyText || ""));
+    formData.append("active", input.active === true ? "true" : "false");
+    formData.append("startsAt", input.startsAt || "");
+    formData.append("endsAt", input.endsAt || "");
+    formData.append("frequency", input.frequency || "always");
+    formData.append("allowDismissForever", input.allowDismissForever === true ? "true" : "false");
+    formData.append("removeImage", input.removeImage === true ? "true" : "false");
+    if (input.file) formData.append("file", input.file);
+  }
+
+  async function handleSaveAnnouncement(mode, id, input) {
+    return runBusyAction("save-announcement", async () => {
+      const formData = new FormData();
+      appendAnnouncementForm(formData, input);
+      const payload = await apiRequest(
+        mode === "edit"
+          ? `/panel-api/announcements/${encodeURIComponent(id)}`
+          : "/panel-api/announcements",
+        {
+          method: mode === "edit" ? "PUT" : "POST",
+          mutate: true,
+          body: formData
+        }
+      );
+      await loadAnnouncements();
+      return payload.announcement || null;
+    });
+  }
+
+  async function handleDeleteAnnouncement(id) {
+    return runBusyAction("delete-announcement", async () => {
+      await apiRequest(`/panel-api/announcements/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        mutate: true
+      });
+      setAnnouncements((current) => current.filter((entry) => entry.id !== id));
+    });
+  }
+
   async function loadPaymentLogs() {
     setLoadingPaymentLogs(true);
     try {
@@ -1220,6 +1279,9 @@ function App() {
     }
     if (auth && view === "polls") {
       loadPolls();
+    }
+    if (auth && view === "announcements") {
+      loadAnnouncements();
     }
     if (auth && view === "payments") {
       loadPaymentLogs();
@@ -1920,6 +1982,17 @@ function App() {
             savePoll={handleSavePoll}
             setPollStatus={handleSetPollStatus}
             deletePoll={handleDeletePoll}
+            busyAction={busyAction}
+            notify={setToast}
+          />
+        )}
+        {view === "announcements" && (
+          <AnnouncementsPage
+            announcements={announcements}
+            loading={loadingAnnouncements}
+            loadAnnouncements={loadAnnouncements}
+            saveAnnouncement={handleSaveAnnouncement}
+            deleteAnnouncement={handleDeleteAnnouncement}
             busyAction={busyAction}
             notify={setToast}
           />

@@ -52,6 +52,9 @@ export default function AppShell({
             <button className={`nav-button ${view === "polls" ? "is-active" : ""}`} onClick={() => navigate("polls")}>
               Enquetes
             </button>
+            <button className={`nav-button ${view === "announcements" ? "is-active" : ""}`} onClick={() => navigate("announcements")}>
+              Comunicados
+            </button>
             <button className={`nav-button ${view === "public-signup" ? "is-active" : ""}`} onClick={() => navigate("public-signup")}>
               Acesso público
             </button>
