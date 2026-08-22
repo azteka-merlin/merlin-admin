@@ -27,7 +27,8 @@ const defaultBilling = {
   monthlyCardTrialDays: 30,
   monthlyPriceId: "",
   lifetimePriceId: "",
-  prices: { monthly: null, lifetime: null }
+  pixLifetimePriceId: "",
+  prices: { monthly: null, lifetime: null, pixLifetime: null }
 };
 
 function buildPreview(settings) {
@@ -67,7 +68,8 @@ function normalizeBilling(billing = {}) {
     monthlyCardTrialEnabled: Boolean(billing.monthlyCardTrialEnabled),
     monthlyCardTrialDays: Math.min(730, Math.max(1, Number(billing.monthlyCardTrialDays) || 30)),
     monthlyPriceId: billing.monthlyPriceId || "",
-    lifetimePriceId: billing.lifetimePriceId || ""
+    lifetimePriceId: billing.lifetimePriceId || "",
+    pixLifetimePriceId: billing.pixLifetimePriceId || ""
   };
 }
 
@@ -244,6 +246,7 @@ export default function PublicSignupPage({ publicSignup, onSave, saving, onRefre
 
   const monthlyPrice = billing.prices?.monthly;
   const lifetimePrice = billing.prices?.lifetime;
+  const pixLifetimePrice = billing.prices?.pixLifetime;
   const stripeConfigured = (!billing.monthlyEnabled || priceIsConfigured(monthlyPrice)) && (!billing.lifetimeEnabled || priceIsConfigured(lifetimePrice));
   const stripeNeedsAttention = Boolean(billing.billingEnabled && !stripeConfigured);
   const pixConfiguredLabel = billing.pixEnabled ? "Habilitado" : "Inativo";
@@ -469,8 +472,19 @@ export default function PublicSignupPage({ publicSignup, onSave, saving, onRefre
                 id="advanced-pix"
                 open={advancedOpen.pix}
                 onToggle={() => setAdvancedOpen((current) => ({ ...current, pix: !current.pix }))}
-                title="Ver detalhes técnicos"
+                title="Detalhes do Pix"
               >
+                <label className="field access-field">
+                  <span>Stripe Price ID do Pix vitalício</span>
+                  <input
+                    value={billing.pixLifetimePriceId || ""}
+                    placeholder="price_... (opcional)"
+                    spellCheck="false"
+                    onChange={(event) => updateBilling({ pixLifetimePriceId: event.target.value })}
+                  />
+                  <small>Quando preenchido, o Pix vitalício usa este valor. Se ficar vazio, usa o preço vitalício do cartão.</small>
+                </label>
+                <PriceMeta price={pixLifetimePrice || lifetimePrice} />
                 <p className="access-technical-note">
                   Pix disponível somente quando a integração com Mercado Pago estiver configurada no ambiente do Worker. Credenciais e tokens continuam apenas nos secrets da Cloudflare.
                 </p>

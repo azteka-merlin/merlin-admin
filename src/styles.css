@@ -2486,12 +2486,88 @@ h3 {
 .sidebar {
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar__brand {
+  flex: 0 0 auto;
+}
+
+.sidebar__group {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+  scrollbar-width: thin;
 }
 
 .sidebar__footer {
+  flex: 0 0 auto;
   margin-top: auto;
   padding-top: 18px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+@media (max-width: 900px) {
+  .sidebar {
+    width: min(88vw, 320px);
+    height: 100dvh;
+    max-height: 100dvh;
+    padding: 14px 14px calc(18px + env(safe-area-inset-bottom));
+  }
+
+  .sidebar__brand {
+    gap: 12px;
+  }
+
+  .sidebar__brand .brand-mark--small {
+    width: 48px;
+    height: 48px;
+  }
+
+  .sidebar__group {
+    margin-top: 16px;
+    gap: 4px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .sidebar__label {
+    margin-bottom: 4px;
+    font-size: 0.72rem;
+  }
+
+  .sidebar__footer {
+    padding-top: 10px;
+  }
+
+  .nav-button {
+    border-radius: 14px;
+    min-height: 42px;
+    padding: 9px 14px;
+  }
+}
+
+@media (max-height: 720px) and (max-width: 900px) {
+  .sidebar {
+    padding-top: 10px;
+  }
+
+  .sidebar__brand .brand-mark--small {
+    width: 44px;
+    height: 44px;
+    border-radius: 15px;
+  }
+
+  .sidebar__group {
+    margin-top: 12px;
+    gap: 2px;
+  }
+
+  .nav-button {
+    min-height: 38px;
+    padding-block: 7px;
+  }
 }
 
 .nav-button--logout {
@@ -4269,5 +4345,65 @@ h3 {
 
   .premium-card__actions {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ---- final mobile drawer fit ---- */
+@media (max-width: 900px) {
+  .sidebar {
+    width: min(82vw, 296px);
+    height: 100dvh;
+    max-height: 100dvh;
+    padding: 12px 14px calc(14px + env(safe-area-inset-bottom));
+  }
+
+  .sidebar__brand {
+    gap: 12px;
+  }
+
+  .sidebar__brand .brand-mark--small {
+    width: 46px;
+    height: 46px;
+    border-radius: 15px;
+  }
+
+  .sidebar__brand strong {
+    font-size: 0.96rem;
+  }
+
+  .sidebar__brand span {
+    font-size: 0.9rem;
+  }
+
+  .sidebar__group {
+    flex: 1 1 0;
+    min-height: 0;
+    margin-top: 14px;
+    gap: 3px;
+    overflow-y: auto;
+    padding-right: 2px;
+  }
+
+  .sidebar__label {
+    margin-bottom: 2px;
+    font-size: 0.68rem;
+  }
+
+  .nav-button {
+    min-height: 38px;
+    padding: 7px 14px;
+    border-radius: 13px;
+    font-size: 0.88rem;
+    line-height: 1.2;
+  }
+
+  .sidebar__footer {
+    flex: 0 0 auto;
+    margin-top: 8px;
+    padding-top: 10px;
+  }
+
+  .sidebar__footer .nav-button {
+    min-height: 42px;
   }
 }

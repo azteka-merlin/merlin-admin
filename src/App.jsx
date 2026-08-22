@@ -164,7 +164,8 @@ function App() {
       monthlyCardTrialDays: 30,
       monthlyPriceId: "",
       lifetimePriceId: "",
-      prices: { monthly: null, lifetime: null }
+      pixLifetimePriceId: "",
+      prices: { monthly: null, lifetime: null, pixLifetime: null }
     },
     metrics: { total: 0, active: 0, expired: 0, latestCreatedAt: null }
   });
@@ -430,7 +431,8 @@ function App() {
           monthlyCardTrialDays: 30,
           monthlyPriceId: "",
           lifetimePriceId: "",
-          prices: { monthly: null, lifetime: null }
+          pixLifetimePriceId: "",
+          prices: { monthly: null, lifetime: null, pixLifetime: null }
         },
         metrics: { total: 0, active: 0, expired: 0, latestCreatedAt: null }
       });
@@ -1137,7 +1139,8 @@ function App() {
         monthlyCardTrialDays: 30,
         monthlyPriceId: "",
         lifetimePriceId: "",
-        prices: { monthly: null, lifetime: null }
+        pixLifetimePriceId: "",
+        prices: { monthly: null, lifetime: null, pixLifetime: null }
       },
       metrics: payload.metrics || { total: 0, active: 0, expired: 0, latestCreatedAt: null }
     });
