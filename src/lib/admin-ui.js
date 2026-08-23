@@ -49,6 +49,7 @@ export function getLicenseContactType(license) {
 }
 
 export function formatContact(value, contactType = "phone") {
+  if (contactType === "none") return "--";
   if (!value) return "--";
   if (contactType === "phone") return formatBrazilPhone(value);
   return String(value);
@@ -112,6 +113,7 @@ export function getBillingStatus(license) {
 }
 
 export function getAccessType(license) {
+  if (license?.licenseType === "test") return "Teste";
   const value = license?.accessType || "free";
   const labels = {
     free: "Grátis",
@@ -120,6 +122,16 @@ export function getAccessType(license) {
     monthly_subscription: "Assinatura mensal"
   };
   return labels[value] || value.replaceAll("_", " ");
+}
+
+export function getLicenseType(license) {
+  return license?.licenseType === "test" ? "test" : "normal";
+}
+
+export function formatActivationUsage(used, limit) {
+  const safeUsed = Number.isFinite(Number(used)) ? Number(used) : 0;
+  if (limit === null || limit === undefined || limit === "") return String(safeUsed);
+  return `${safeUsed}/${Number(limit) || 0}`;
 }
 
 export function getSourceLabel(source) {

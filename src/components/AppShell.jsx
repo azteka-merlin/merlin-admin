@@ -113,6 +113,8 @@ export default function AppShell({
             license={selectedLicense}
             onCopy={copyLicenseKey}
             onEdit={() => openModal("edit")}
+            onEditTest={() => openModal("edit-test")}
+            onResetTestUsage={() => openModal("reset-test-usage")}
             onRenew={() => openModal("renew")}
             onReset={() => openModal("reset")}
             onRevoke={() => openModal("revoke")}

@@ -23,9 +23,11 @@ export default function LicenseModals({
   selectedLicense,
   handleCreateLicense,
   handleUpdateLicense,
+  handleUpdateTestLicense,
   handleRenewLicense,
   handleReactivateLicense,
   handleResetHwid,
+  handleResetTestLicenseUsage,
   handleRevokeLicense,
   handleSaveOverride,
   handleOverrideFileUpload,
@@ -37,10 +39,13 @@ export default function LicenseModals({
   overrideUploadProgress
 }) {
   const createBusy = busyAction === "create-license";
+  const createIsTest = formState.createLicenseType === "test";
   const updateBusy = busyAction === "update-license";
+  const updateTestBusy = busyAction === "update-test-license";
   const renewBusy = busyAction === "renew-license";
   const reactivateBusy = busyAction === "reactivate-license";
   const resetBusy = busyAction === "reset-hwid";
+  const resetTestUsageBusy = busyAction === "reset-test-license-usage";
   const revokeBusy = busyAction === "revoke-license";
   const saveOverrideBusy = busyAction === "save-override";
   const uploadManifestBusy = busyAction === "upload-override-manifest";
@@ -67,7 +72,7 @@ export default function LicenseModals({
       {activeModal === "create" && (
         <Modal
           title="Nova licença"
-          subtitle="Cadastre o usuário, contato e validade. A chave será gerada automaticamente."
+          subtitle={createIsTest ? "Crie uma licença de teste com limite de ativações." : "Cadastre o usuário, contato e validade. A chave será gerada automaticamente."}
           onClose={() => setActiveModal(null)}
           closeDisabled={createBusy}
           actions={
@@ -76,69 +81,194 @@ export default function LicenseModals({
                 Cancelar
               </button>
               <button type="submit" form="create-license-form" className="button button--primary" disabled={createBusy}>
-                {createBusy ? "Criando..." : "Criar licença"}
+                {createBusy ? "Criando..." : createIsTest ? "Criar teste" : "Criar licença"}
               </button>
             </>
           }
         >
           <form id="create-license-form" className="form-panel create-modal-form" onSubmit={handleCreateLicense}>
             <label className="field">
-              <span>Nome do usuário</span>
-              <input
-                value={formState.createName}
-                onChange={(event) => setFormState((current) => ({ ...current, createName: event.target.value }))}
-                placeholder="Digite o nome do usuário"
-                autoFocus
-              />
-            </label>
-
-            <label className="field">
-              <span>Tipo de contato</span>
+              <span>Tipo de licença</span>
               <select
-                value={formState.createContactType}
-                onChange={(event) => setFormState((current) => ({ ...current, createContactType: event.target.value, createContact: "" }))}
+                value={formState.createLicenseType}
+                onChange={(event) => setFormState((current) => ({ ...current, createLicenseType: event.target.value }))}
               >
-                <option value="phone">Telefone</option>
-                <option value="email">E-mail</option>
-                <option value="discord">Discord</option>
+                <option value="normal">Normal</option>
+                <option value="test">Teste</option>
               </select>
             </label>
 
             <label className="field">
-              <span>Contato</span>
+              <span>{createIsTest ? "Nome do teste" : "Nome do usuário"}</span>
               <input
-                value={formState.createContact}
-                onChange={(event) => setFormState((current) => ({
-                  ...current,
-                  createContact: current.createContactType === "phone" ? formatBrazilPhoneInput(event.target.value) : event.target.value
-                }))}
-                placeholder={formState.createContactType === "phone" ? "(11) 99999-9999" : formState.createContactType === "email" ? "usuario@email.com" : "usuario"}
-                inputMode={formState.createContactType === "phone" ? "numeric" : "text"}
+                value={formState.createName}
+                onChange={(event) => setFormState((current) => ({ ...current, createName: event.target.value }))}
+                placeholder={createIsTest ? "Ex.: Gabriel teste" : "Digite o nome do usuário"}
+                autoFocus
               />
             </label>
 
-            <label className="field">
-              <span>Senha de recuperacao opcional</span>
-              <input
-                value={formState.createRecoveryPin}
-                onChange={(event) => setFormState((current) => ({ ...current, createRecoveryPin: sanitizeRecoverySecret(event.target.value) }))}
-                type="password"
-                placeholder="••••••••"
-                inputMode="text"
-                maxLength={8}
-              />
-            </label>
+            {createIsTest ? (
+              <div className="field-grid">
+                <label className="field">
+                  <span>Ativações normais</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="9999"
+                    value={formState.createNormalActivationLimit}
+                    onChange={(event) => setFormState((current) => ({ ...current, createNormalActivationLimit: event.target.value }))}
+                    inputMode="numeric"
+                  />
+                </label>
 
-            <label className="field">
-              <span>Data de vencimento</span>
-              <input
-                className="date-input"
-                type="date"
-                value={formState.createExpiry}
-                onChange={(event) => setFormState((current) => ({ ...current, createExpiry: event.target.value }))}
-              />
-            </label>
+                <label className="field">
+                  <span>Ativações premium</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="9999"
+                    value={formState.createPremiumActivationLimit}
+                    onChange={(event) => setFormState((current) => ({ ...current, createPremiumActivationLimit: event.target.value }))}
+                    inputMode="numeric"
+                  />
+                </label>
+              </div>
+            ) : (
+              <>
+                <label className="field">
+                  <span>Tipo de contato</span>
+                  <select
+                    value={formState.createContactType}
+                    onChange={(event) => setFormState((current) => ({ ...current, createContactType: event.target.value, createContact: "" }))}
+                  >
+                    <option value="phone">Telefone</option>
+                    <option value="email">E-mail</option>
+                    <option value="discord">Discord</option>
+                  </select>
+                </label>
+
+                <label className="field">
+                  <span>Contato</span>
+                  <input
+                    value={formState.createContact}
+                    onChange={(event) => setFormState((current) => ({
+                      ...current,
+                      createContact: current.createContactType === "phone" ? formatBrazilPhoneInput(event.target.value) : event.target.value
+                    }))}
+                    placeholder={formState.createContactType === "phone" ? "(11) 99999-9999" : formState.createContactType === "email" ? "usuario@email.com" : "usuario"}
+                    inputMode={formState.createContactType === "phone" ? "numeric" : "text"}
+                  />
+                </label>
+
+                <label className="field">
+                  <span>Senha de recuperacao opcional</span>
+                  <input
+                    value={formState.createRecoveryPin}
+                    onChange={(event) => setFormState((current) => ({ ...current, createRecoveryPin: sanitizeRecoverySecret(event.target.value) }))}
+                    type="password"
+                    placeholder="••••••••"
+                    inputMode="text"
+                    maxLength={8}
+                  />
+                </label>
+
+                <label className="field">
+                  <span>Data de vencimento</span>
+                  <input
+                    className="date-input"
+                    type="date"
+                    value={formState.createExpiry}
+                    onChange={(event) => setFormState((current) => ({ ...current, createExpiry: event.target.value }))}
+                  />
+                </label>
+              </>
+            )}
           </form>
+        </Modal>
+      )}
+
+      {activeModal === "edit-test" && selectedLicense && (
+        <Modal
+          title="Editar licença de teste"
+          subtitle="Ajuste o nome e os limites usados pelo launcher."
+          onClose={() => setActiveModal(null)}
+          closeDisabled={updateTestBusy}
+          actions={
+            <>
+              <button className="button button--ghost" onClick={() => setActiveModal(null)} disabled={updateTestBusy}>
+                Cancelar
+              </button>
+              <button className="button button--primary" onClick={handleUpdateTestLicense} disabled={updateTestBusy}>
+                {updateTestBusy ? "Salvando..." : "Salvar limites"}
+              </button>
+            </>
+          }
+        >
+          <div className="form-panel create-modal-form">
+            <label className="field">
+              <span>Nome do teste</span>
+              <input
+                value={formState.editTestName}
+                onChange={(event) => setFormState((current) => ({ ...current, editTestName: event.target.value }))}
+                placeholder="Ex.: Cliente teste"
+                autoFocus
+              />
+            </label>
+
+            <div className="field-grid">
+              <label className="field">
+                <span>Ativações normais</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="9999"
+                  value={formState.editTestNormalActivationLimit}
+                  onChange={(event) => setFormState((current) => ({ ...current, editTestNormalActivationLimit: event.target.value }))}
+                  inputMode="numeric"
+                />
+              </label>
+
+              <label className="field">
+                <span>Ativações premium</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="9999"
+                  value={formState.editTestPremiumActivationLimit}
+                  onChange={(event) => setFormState((current) => ({ ...current, editTestPremiumActivationLimit: event.target.value }))}
+                  inputMode="numeric"
+                />
+              </label>
+            </div>
+
+            <div className="plain-copy">
+              Uso atual: {selectedLicense.normalActivationUsed || 0}/{selectedLicense.normalActivationLimit || 0} normais · {selectedLicense.premiumActivationUsed || 0}/{selectedLicense.premiumActivationLimit || 0} premium.
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {activeModal === "reset-test-usage" && selectedLicense && (
+        <Modal
+          title="Resetar uso do teste"
+          subtitle={`Os contadores de ${selectedLicense.name} voltarão a zero sem apagar o histórico.`}
+          onClose={() => setActiveModal(null)}
+          closeDisabled={resetTestUsageBusy}
+          actions={
+            <>
+              <button className="button button--ghost" onClick={() => setActiveModal(null)} disabled={resetTestUsageBusy}>
+                Cancelar
+              </button>
+              <button className="button button--danger" onClick={handleResetTestLicenseUsage} disabled={resetTestUsageBusy}>
+                {resetTestUsageBusy ? "Resetando..." : "Resetar uso"}
+              </button>
+            </>
+          }
+        >
+          <p className="plain-copy">
+            O histórico de ativações continua salvo para auditoria. A partir do reset, os limites passam a contar somente novas ativações.
+          </p>
         </Modal>
       )}
 

@@ -1,6 +1,6 @@
 import React from "react";
 import LicenseDetail from "../components/LicenseDetail";
-import { formatContact, formatDate, getBillingStatus, getLicenseContact, getLicenseContactType, getStatus, initials, maskKey, maskTechnicalValue } from "../lib/admin-ui";
+import { formatActivationUsage, formatContact, formatDate, getBillingStatus, getLicenseContact, getLicenseContactType, getStatus, initials, maskKey, maskTechnicalValue } from "../lib/admin-ui";
 import { PAGE_SIZE } from "../lib/navigation";
 
 export default function LicensesPage({
@@ -14,6 +14,10 @@ export default function LicensesPage({
   setBillingFilter,
   deviceFilter,
   setDeviceFilter,
+  licenseTab,
+  setLicenseTab,
+  normalLicenseCount,
+  testLicenseCount,
   loadingLicenses,
   filteredLicenses,
   pagedLicenses,
@@ -42,6 +46,29 @@ export default function LicensesPage({
 
       <div className="workspace">
         <section className="panel panel--list">
+          <div className="license-tabs" role="tablist" aria-label="Tipo de licença">
+            <button
+              type="button"
+              className={`license-tab ${licenseTab === "normal" ? "is-active" : ""}`}
+              onClick={() => setLicenseTab("normal")}
+              role="tab"
+              aria-selected={licenseTab === "normal"}
+            >
+              Licenças normais
+              <span>{normalLicenseCount}</span>
+            </button>
+            <button
+              type="button"
+              className={`license-tab ${licenseTab === "test" ? "is-active" : ""}`}
+              onClick={() => setLicenseTab("test")}
+              role="tab"
+              aria-selected={licenseTab === "test"}
+            >
+              Licenças de teste
+              <span>{testLicenseCount}</span>
+            </button>
+          </div>
+
           <div className="filters">
             <label className="field-shell field-shell--search">
               <span>Buscar</span>
@@ -65,7 +92,7 @@ export default function LicensesPage({
 
             <label className="field-shell">
               <span>Origem</span>
-              <select value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value)}>
+              <select value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value)} disabled={licenseTab === "test"}>
                 <option value="all">Todas as origens</option>
                 <option value="admin">Admin</option>
                 <option value="stripe">Stripe</option>
@@ -75,7 +102,7 @@ export default function LicensesPage({
 
             <label className="field-shell">
               <span>Cobrança</span>
-              <select value={billingFilter} onChange={(event) => setBillingFilter(event.target.value)}>
+              <select value={billingFilter} onChange={(event) => setBillingFilter(event.target.value)} disabled={licenseTab === "test"}>
                 <option value="all">Todos</option>
                 <option value="none">Sem cobrança</option>
                 <option value="active">Pagamento ativo</option>
@@ -90,7 +117,7 @@ export default function LicensesPage({
 
             <label className="field-shell">
               <span>Dispositivo</span>
-              <select value={deviceFilter} onChange={(event) => setDeviceFilter(event.target.value)}>
+              <select value={deviceFilter} onChange={(event) => setDeviceFilter(event.target.value)} disabled={licenseTab === "test"}>
                 <option value="all">Todos os dispositivos</option>
                 <option value="with">Com dispositivo vinculado</option>
                 <option value="without">Sem dispositivo vinculado</option>
@@ -112,23 +139,43 @@ export default function LicensesPage({
             <>
               <div className="table-shell">
                 <table className="license-table">
-                  <colgroup>
-                    <col className="col-user" />
-                    <col className="col-phone" />
-                    <col className="col-key" />
-                    <col className="col-date" />
-                    <col className="col-device" />
-                    <col className="col-status" />
-                  </colgroup>
+                  {licenseTab === "test" ? (
+                    <colgroup>
+                      <col className="col-user" />
+                      <col className="col-key" />
+                      <col className="col-date" />
+                      <col className="col-device" />
+                      <col className="col-status" />
+                    </colgroup>
+                  ) : (
+                    <colgroup>
+                      <col className="col-user" />
+                      <col className="col-phone" />
+                      <col className="col-key" />
+                      <col className="col-date" />
+                      <col className="col-device" />
+                      <col className="col-status" />
+                    </colgroup>
+                  )}
                   <thead>
-                    <tr>
-                      <th>Usuário</th>
-                      <th>Contato</th>
-                      <th>Chave</th>
-                      <th>Vencimento</th>
-                      <th>Dispositivo</th>
-                      <th>Status</th>
-                    </tr>
+                    {licenseTab === "test" ? (
+                      <tr>
+                        <th>Teste</th>
+                        <th>Chave</th>
+                        <th>Normais</th>
+                        <th>Premium</th>
+                        <th>Status</th>
+                      </tr>
+                    ) : (
+                      <tr>
+                        <th>Usuário</th>
+                        <th>Contato</th>
+                        <th>Chave</th>
+                        <th>Vencimento</th>
+                        <th>Dispositivo</th>
+                        <th>Status</th>
+                      </tr>
+                    )}
                   </thead>
                   <tbody>
                     {pagedLicenses.map((license) => {
@@ -145,12 +192,22 @@ export default function LicensesPage({
                               </div>
                             </div>
                           </td>
-                          <td className="cell-phone">{formatContact(getLicenseContact(license), getLicenseContactType(license))}</td>
-                          <td className="cell-key" title={license.licenseKey}>{maskKey(license.licenseKey)}</td>
-                          <td className="cell-date">{formatDate(license.expiresAt)}</td>
-                          <td className="cell-device" title={license.hwid || "Sem dispositivo"}>
-                            {license.hwid ? maskTechnicalValue(license.hwid, 10, 4) : "Sem dispositivo"}
-                          </td>
+                          {licenseTab === "test" ? (
+                            <>
+                              <td className="cell-key" title={license.licenseKey}>{maskKey(license.licenseKey)}</td>
+                              <td className="cell-date">{formatActivationUsage(license.normalActivationUsed, license.normalActivationLimit)}</td>
+                              <td className="cell-device">{formatActivationUsage(license.premiumActivationUsed, license.premiumActivationLimit)}</td>
+                            </>
+                          ) : (
+                            <>
+                              <td className="cell-phone">{formatContact(getLicenseContact(license), getLicenseContactType(license))}</td>
+                              <td className="cell-key" title={license.licenseKey}>{maskKey(license.licenseKey)}</td>
+                              <td className="cell-date">{formatDate(license.expiresAt)}</td>
+                              <td className="cell-device" title={license.hwid || "Sem dispositivo"}>
+                                {license.hwid ? maskTechnicalValue(license.hwid, 10, 4) : "Sem dispositivo"}
+                              </td>
+                            </>
+                          )}
                           <td className="cell-status">
                             <div className="status-stack">
                               <span className={`badge badge--${status.tone}`}>{status.shortLabel}</span>
@@ -177,7 +234,7 @@ export default function LicensesPage({
                           <span className="avatar">{initials(license.name)}</span>
                           <div>
                             <strong>{license.name}</strong>
-                            <p>{formatContact(getLicenseContact(license), getLicenseContactType(license))}</p>
+                            <p>{licenseTab === "test" ? "Licença de teste" : formatContact(getLicenseContact(license), getLicenseContactType(license))}</p>
                           </div>
                         </div>
                         <div className="status-stack status-stack--card">
@@ -193,14 +250,18 @@ export default function LicensesPage({
                           <dd className="truncate-text" title={license.licenseKey}>{maskKey(license.licenseKey)}</dd>
                         </div>
                         <div>
-                          <dt>Vencimento</dt>
-                          <dd>{formatDate(license.expiresAt)}</dd>
+                          <dt>{licenseTab === "test" ? "Normais" : "Vencimento"}</dt>
+                          <dd>{licenseTab === "test" ? formatActivationUsage(license.normalActivationUsed, license.normalActivationLimit) : formatDate(license.expiresAt)}</dd>
                         </div>
                         <div>
-                          <dt>Dispositivo</dt>
-                          <dd className="truncate-text" title={license.hwid || "Sem dispositivo vinculado"}>
-                            {license.hwid ? maskTechnicalValue(license.hwid, 10, 4) : "Sem dispositivo vinculado"}
-                          </dd>
+                          <dt>{licenseTab === "test" ? "Premium" : "Dispositivo"}</dt>
+                          {licenseTab === "test" ? (
+                            <dd>{formatActivationUsage(license.premiumActivationUsed, license.premiumActivationLimit)}</dd>
+                          ) : (
+                            <dd className="truncate-text" title={license.hwid || "Sem dispositivo vinculado"}>
+                              {license.hwid ? maskTechnicalValue(license.hwid, 10, 4) : "Sem dispositivo vinculado"}
+                            </dd>
+                          )}
                         </div>
                       </dl>
                     </button>
@@ -231,6 +292,8 @@ export default function LicensesPage({
             license={selectedLicense}
             onCopy={copyLicenseKey}
             onEdit={() => openModal("edit")}
+            onEditTest={() => openModal("edit-test")}
+            onResetTestUsage={() => openModal("reset-test-usage")}
             onRenew={() => openModal("renew")}
             onReset={() => openModal("reset")}
             onRevoke={() => openModal("revoke")}

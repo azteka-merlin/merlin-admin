@@ -16,7 +16,7 @@ import PublicFeedbacksPage from "./pages/PublicFeedbacksPage";
 import PublicSignupPage from "./pages/PublicSignupPage";
 import SettingsPage from "./pages/SettingsPage";
 import { PAGE_SIZE, VIEW_PATHS, getViewFromPath } from "./lib/navigation";
-import { formatContact, getBillingStatus, getLicenseContact, getLicenseContactType, getStatus, normalizeContactInput } from "./lib/admin-ui";
+import { formatContact, getBillingStatus, getLicenseContact, getLicenseContactType, getLicenseType, getStatus, normalizeContactInput } from "./lib/admin-ui";
 
 function isValidRecoverySecret(value) {
   const secret = String(value || "").trim();
@@ -186,6 +186,7 @@ function App() {
   const [deviceFilter, setDeviceFilter] = React.useState("all");
   const [sourceFilter, setSourceFilter] = React.useState("all");
   const [billingFilter, setBillingFilter] = React.useState("all");
+  const [licenseTab, setLicenseTab] = React.useState("normal");
   const [auditSearch, setAuditSearch] = React.useState("");
   const [auditActionFilter, setAuditActionFilter] = React.useState("all");
   const [auditAdminFilter, setAuditAdminFilter] = React.useState("all");
@@ -207,10 +208,16 @@ function App() {
   const [loginState, setLoginState] = React.useState({ username: "", password: "", rememberMe: false, error: "", submitting: false });
   const [formState, setFormState] = React.useState({
     createName: "",
+    createLicenseType: "normal",
     createContact: "",
     createContactType: "phone",
     createRecoveryPin: "",
     createExpiry: "",
+    createNormalActivationLimit: "1",
+    createPremiumActivationLimit: "1",
+    editTestName: "",
+    editTestNormalActivationLimit: "1",
+    editTestPremiumActivationLimit: "1",
     editName: "",
     editContact: "",
     editContactType: "phone",
@@ -231,6 +238,10 @@ function App() {
   const filteredLicenses = React.useMemo(() => {
     const query = search.trim().toLowerCase();
     return licenses.filter((license) => {
+      const licenseType = getLicenseType(license);
+      if (licenseTab === "test" && licenseType !== "test") return false;
+      if (licenseTab !== "test" && licenseType === "test") return false;
+
       const status = getStatus(license);
       const contact = getLicenseContact(license);
       const contactType = getLicenseContactType(license);
@@ -246,18 +257,19 @@ function App() {
 
       const matchesStatus = statusFilter === "all" || status.key === statusFilter;
       const source = license.source || "admin";
-      const matchesSource = sourceFilter === "all" || source === sourceFilter;
+      const matchesSource = licenseTab === "test" || sourceFilter === "all" || source === sourceFilter;
       const billingStatus = getBillingStatus(license);
-      const matchesBilling = billingFilter === "all" || billingStatus.key === billingFilter;
+      const matchesBilling = licenseTab === "test" || billingFilter === "all" || billingStatus.key === billingFilter;
       const hasDevice = Boolean(license.hwid);
       const matchesDevice =
+        licenseTab === "test" ||
         deviceFilter === "all" ||
         (deviceFilter === "with" && hasDevice) ||
         (deviceFilter === "without" && !hasDevice);
 
       return matchesSearch && matchesStatus && matchesSource && matchesBilling && matchesDevice;
     });
-  }, [billingFilter, deviceFilter, licenses, search, sourceFilter, statusFilter]);
+  }, [billingFilter, deviceFilter, licenseTab, licenses, search, sourceFilter, statusFilter]);
 
   const auditAdminOptions = React.useMemo(
     () =>
@@ -373,7 +385,7 @@ function App() {
 
   React.useEffect(() => {
     setPage(1);
-  }, [search, statusFilter, sourceFilter, billingFilter, deviceFilter]);
+  }, [search, statusFilter, sourceFilter, billingFilter, deviceFilter, licenseTab]);
 
   React.useEffect(() => {
     if (safePage !== page) setPage(safePage);
@@ -384,6 +396,16 @@ function App() {
       setSelectedId(licenses[0].id);
     }
   }, [licenses, selectedLicense]);
+
+  React.useEffect(() => {
+    if (!filteredLicenses.length) {
+      setSelectedId(null);
+      return;
+    }
+    if (!filteredLicenses.some((license) => license.id === selectedId)) {
+      setSelectedId(filteredLicenses[0].id);
+    }
+  }, [filteredLicenses, selectedId]);
 
   async function apiRequest(path, options = {}) {
     const { method = "GET", body, mutate = false, ignoreUnauthorized = false } = options;
@@ -1349,6 +1371,9 @@ function App() {
       setFormState((current) => ({
         ...current,
         editName: selectedLicense.name,
+        editTestName: selectedLicense.name,
+        editTestNormalActivationLimit: String(selectedLicense.normalActivationLimit ?? 0),
+        editTestPremiumActivationLimit: String(selectedLicense.premiumActivationLimit ?? 0),
         editContact: getLicenseContact(selectedLicense),
         editContactType: getLicenseContactType(selectedLicense),
         editRecoveryPin: "",
@@ -1449,15 +1474,30 @@ function App() {
 
   async function handleCreateLicense(event) {
     event?.preventDefault();
-    const { createName, createContact, createContactType, createRecoveryPin, createExpiry } = formState;
+    const { createName, createLicenseType, createContact, createContactType, createRecoveryPin, createExpiry, createNormalActivationLimit, createPremiumActivationLimit } = formState;
+    const isTestLicense = createLicenseType === "test";
     const normalizedContact = normalizeContactInput(createContact, createContactType);
     const normalizedRecoveryPin = String(createRecoveryPin || "").trim();
+    const normalActivationLimit = Number(createNormalActivationLimit);
+    const premiumActivationLimit = Number(createPremiumActivationLimit);
 
-    if (!isValidContact(normalizedContact, createContactType)) {
+    if (!createName.trim()) {
+      setToast(isTestLicense ? "Informe o nome do teste." : "Informe o nome do usuário.");
+      return;
+    }
+    if (isTestLicense && (!Number.isInteger(normalActivationLimit) || normalActivationLimit < 0 || normalActivationLimit > 9999)) {
+      setToast("Informe um limite válido de ativações normais.");
+      return;
+    }
+    if (isTestLicense && (!Number.isInteger(premiumActivationLimit) || premiumActivationLimit < 0 || premiumActivationLimit > 9999)) {
+      setToast("Informe um limite válido de ativações premium.");
+      return;
+    }
+    if (!isTestLicense && !isValidContact(normalizedContact, createContactType)) {
       setToast(contactValidationMessage(createContactType));
       return;
     }
-    if (normalizedRecoveryPin && !isValidRecoverySecret(normalizedRecoveryPin)) {
+    if (!isTestLicense && normalizedRecoveryPin && !isValidRecoverySecret(normalizedRecoveryPin)) {
       setToast(RECOVERY_SECRET_MESSAGE);
       return;
     }
@@ -1468,20 +1508,39 @@ function App() {
           method: "POST",
           mutate: true,
           body: {
-            name: createName,
-            contact: normalizedContact,
-            contactType: createContactType,
-            ...(normalizedRecoveryPin ? { recoveryPin: normalizedRecoveryPin } : {}),
-            expiresAt: createExpiry
+            name: createName.trim(),
+            licenseType: isTestLicense ? "test" : "normal",
+            ...(isTestLicense
+              ? {
+                  normalActivationLimit,
+                  premiumActivationLimit
+                }
+              : {
+                  contact: normalizedContact,
+                  contactType: createContactType,
+                  ...(normalizedRecoveryPin ? { recoveryPin: normalizedRecoveryPin } : {}),
+                  expiresAt: createExpiry
+                })
           }
         });
 
-        setFormState((current) => ({ ...current, createName: "", createContact: "", createContactType: "phone", createRecoveryPin: "", createExpiry: "" }));
+        setFormState((current) => ({
+          ...current,
+          createName: "",
+          createLicenseType: "normal",
+          createContact: "",
+          createContactType: "phone",
+          createRecoveryPin: "",
+          createExpiry: "",
+          createNormalActivationLimit: "1",
+          createPremiumActivationLimit: "1"
+        }));
         setActiveModal(null);
         setSelectedId(created.id);
+        setLicenseTab(isTestLicense ? "test" : "normal");
         await Promise.all([loadLicenses(), loadAuditLogs()]);
         navigate("licenses");
-        setToast(createContactType === "email" ? "Licenca criada. E-mail de boas-vindas enviado em segundo plano." : "Licenca criada com sucesso.");
+        setToast(isTestLicense ? "Licenca de teste criada com sucesso." : createContactType === "email" ? "Licenca criada. E-mail de boas-vindas enviado em segundo plano." : "Licenca criada com sucesso.");
       } catch (error) {
         setToast(error.message);
       }
@@ -1522,6 +1581,67 @@ function App() {
         setSelectedId(updated.id);
         await Promise.all([loadLicenses(), loadAuditLogs()]);
         setToast("Licença atualizada com sucesso.");
+      } catch (error) {
+        setToast(error.message);
+      }
+    });
+  }
+
+  async function handleUpdateTestLicense() {
+    if (!selectedLicense) return;
+
+    const normalActivationLimit = Number(formState.editTestNormalActivationLimit);
+    const premiumActivationLimit = Number(formState.editTestPremiumActivationLimit);
+
+    if (!formState.editTestName.trim()) {
+      setToast("Informe o nome do teste.");
+      return;
+    }
+    if (!Number.isInteger(normalActivationLimit) || normalActivationLimit < 0 || normalActivationLimit > 9999) {
+      setToast("Informe um limite válido de ativações normais.");
+      return;
+    }
+    if (!Number.isInteger(premiumActivationLimit) || premiumActivationLimit < 0 || premiumActivationLimit > 9999) {
+      setToast("Informe um limite válido de ativações premium.");
+      return;
+    }
+
+    await runBusyAction("update-test-license", async () => {
+      try {
+        const updated = await apiRequest(`/panel-api/licenses/${selectedLicense.id}/test`, {
+          method: "PUT",
+          mutate: true,
+          body: {
+            name: formState.editTestName.trim(),
+            normalActivationLimit,
+            premiumActivationLimit
+          }
+        });
+
+        setActiveModal(null);
+        setSelectedId(updated.id);
+        await Promise.all([loadLicenses(), loadAuditLogs()]);
+        setToast("Licença de teste atualizada com sucesso.");
+      } catch (error) {
+        setToast(error.message);
+      }
+    });
+  }
+
+  async function handleResetTestLicenseUsage() {
+    if (!selectedLicense) return;
+
+    await runBusyAction("reset-test-license-usage", async () => {
+      try {
+        const updated = await apiRequest(`/panel-api/licenses/${selectedLicense.id}/test/reset-usage`, {
+          method: "POST",
+          mutate: true
+        });
+
+        setActiveModal(null);
+        setSelectedId(updated.id);
+        await Promise.all([loadLicenses(), loadAuditLogs()]);
+        setToast("Uso da licença de teste resetado com sucesso.");
       } catch (error) {
         setToast(error.message);
       }
@@ -1937,6 +2057,10 @@ function App() {
             setBillingFilter={setBillingFilter}
             deviceFilter={deviceFilter}
             setDeviceFilter={setDeviceFilter}
+            licenseTab={licenseTab}
+            setLicenseTab={setLicenseTab}
+            normalLicenseCount={licenses.filter((license) => getLicenseType(license) !== "test").length}
+            testLicenseCount={licenses.filter((license) => getLicenseType(license) === "test").length}
             loadingLicenses={loadingLicenses}
             filteredLicenses={filteredLicenses}
             pagedLicenses={pagedLicenses}
@@ -2093,9 +2217,11 @@ function App() {
         selectedLicense={selectedLicense}
         handleCreateLicense={handleCreateLicense}
         handleUpdateLicense={handleUpdateLicense}
+        handleUpdateTestLicense={handleUpdateTestLicense}
         handleRenewLicense={handleRenewLicense}
         handleReactivateLicense={handleReactivateLicense}
         handleResetHwid={handleResetHwid}
+        handleResetTestLicenseUsage={handleResetTestLicenseUsage}
         handleRevokeLicense={handleRevokeLicense}
         handleSaveOverride={handleSaveOverride}
         handleOverrideFileUpload={handleOverrideFileUpload}

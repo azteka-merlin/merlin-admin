@@ -1,9 +1,9 @@
 import React from "react";
 import CopyIcon from "./CopyIcon";
 import DetailField from "./DetailField";
-import { formatContact, formatDate, formatDateTime, getAccessType, getBillingStatus, getLicenseContact, getLicenseContactType, getRevokedOriginLabel, getSourceLabel, getStatus, initials, maskTechnicalValue } from "../lib/admin-ui";
+import { formatActivationUsage, formatContact, formatDate, formatDateTime, getAccessType, getBillingStatus, getLicenseContact, getLicenseContactType, getLicenseType, getRevokedOriginLabel, getSourceLabel, getStatus, initials, maskTechnicalValue } from "../lib/admin-ui";
 
-export default function LicenseDetail({ license, onCopy, onEdit, onRenew, onReset, onRevoke, onReactivate, onSendWelcomeEmail, onClose, mobile }) {
+export default function LicenseDetail({ license, onCopy, onEdit, onEditTest, onResetTestUsage, onRenew, onReset, onRevoke, onReactivate, onSendWelcomeEmail, onClose, mobile }) {
   if (!license) {
     return (
       <div className="detail-empty">
@@ -17,6 +17,7 @@ export default function LicenseDetail({ license, onCopy, onEdit, onRenew, onRese
   const billingStatus = getBillingStatus(license);
   const contact = getLicenseContact(license);
   const contactType = getLicenseContactType(license);
+  const licenseType = getLicenseType(license);
   const sourceLabel = getSourceLabel(license.source);
   const hasBilling = billingStatus.key !== "none" || license.stripeCustomerId || license.stripeSubscriptionId || license.stripeCheckoutSessionId;
 
@@ -54,23 +55,35 @@ export default function LicenseDetail({ license, onCopy, onEdit, onRenew, onRese
       <div className="detail__grid">
         <DetailField label="Licença" value={`#${license.id}`} />
         <DetailField label="Status" value={status.label} />
-        <DetailField label="Vencimento" value={formatDate(license.expiresAt)} />
-        <DetailField label="Contato" value={formatContact(contact, contactType)} />
-        <DetailField label="Recuperacao" value={license.hasRecoveryPin ? "Senha configurada" : "Sem senha"} />
+        {licenseType === "test" ? (
+          <>
+            <DetailField label="Tipo" value="Teste" />
+            <DetailField label="Ativações normais" value={formatActivationUsage(license.normalActivationUsed, license.normalActivationLimit)} />
+            <DetailField label="Ativações premium" value={formatActivationUsage(license.premiumActivationUsed, license.premiumActivationLimit)} />
+          </>
+        ) : (
+          <>
+            <DetailField label="Vencimento" value={formatDate(license.expiresAt)} />
+            <DetailField label="Contato" value={formatContact(contact, contactType)} />
+            <DetailField label="Recuperacao" value={license.hasRecoveryPin ? "Senha configurada" : "Sem senha"} />
+          </>
+        )}
         <DetailField label="Origem" value={sourceLabel} />
         <DetailField label="Plano" value={getAccessType(license)} />
-        <DetailField label="Cobrança" value={billingStatus.label} />
+        {licenseType !== "test" && <DetailField label="Cobrança" value={billingStatus.label} />}
         {hasBilling && <DetailField label="Fim do período" value={license.billingCurrentPeriodEnd ? formatDate(license.billingCurrentPeriodEnd) : "--"} />}
         {hasBilling && <DetailField label="Renovação" value={license.billingCancelAtPeriodEnd ? "Cancelada ao fim do período" : "Automática"} />}
         <DetailField label="Criada em" value={formatDateTime(license.createdAt)} />
         <DetailField label="Atualizada em" value={formatDateTime(license.updatedAt)} />
-        <DetailField
-          label="Dispositivo / HWID"
-          value={license.hwid ? maskTechnicalValue(license.hwid, 12, 4) : "Sem dispositivo vinculado"}
-          wide
-          valueClassName="truncate-text"
-          title={license.hwid || "Sem dispositivo vinculado"}
-        />
+        {licenseType !== "test" && (
+          <DetailField
+            label="Dispositivo / HWID"
+            value={license.hwid ? maskTechnicalValue(license.hwid, 12, 4) : "Sem dispositivo vinculado"}
+            wide
+            valueClassName="truncate-text"
+            title={license.hwid || "Sem dispositivo vinculado"}
+          />
+        )}
 
         <div className="detail-field detail-field--wide">
           <span>Chave da licença</span>
@@ -104,22 +117,35 @@ export default function LicenseDetail({ license, onCopy, onEdit, onRenew, onRese
       </div>
 
       <div className="detail__actions">
-        <button className="button button--primary" onClick={onEdit}>
-          Atualizar licença
-        </button>
+        {licenseType === "test" ? (
+          <>
+            <button className="button button--primary" onClick={onEditTest}>
+              Editar limites
+            </button>
+            <button className="button button--ghost" onClick={onResetTestUsage}>
+              Resetar uso
+            </button>
+          </>
+        ) : (
+          <button className="button button--primary" onClick={onEdit}>
+            Atualizar licença
+          </button>
+        )}
         {license.status === "revoked" ? (
           <button className="button button--ghost" onClick={onReactivate}>
             Reativar licença
           </button>
-        ) : (
+        ) : licenseType !== "test" ? (
           <button className="button button--ghost" onClick={onRenew}>
             Renovar licença
           </button>
+        ) : null}
+        {licenseType !== "test" && (
+          <button className="button button--ghost" onClick={onReset} disabled={!license.hwid}>
+            Redefinir dispositivo
+          </button>
         )}
-        <button className="button button--ghost" onClick={onReset} disabled={!license.hwid}>
-          Redefinir dispositivo
-        </button>
-        {contactType === "email" && (
+        {licenseType !== "test" && contactType === "email" && (
           <button className="button button--ghost" onClick={onSendWelcomeEmail}>
             Reenviar boas-vindas
           </button>
