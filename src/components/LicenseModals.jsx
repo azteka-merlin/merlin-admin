@@ -182,6 +182,19 @@ export default function LicenseModals({
                     onChange={(event) => setFormState((current) => ({ ...current, createExpiry: event.target.value }))}
                   />
                 </label>
+
+                <label className="field">
+                  <span>Plano</span>
+                  <select
+                    value={formState.createPlanTier || "ouro"}
+                    onChange={(event) => setFormState((current) => ({ ...current, createPlanTier: event.target.value }))}
+                  >
+                    <option value="bronze">Bronze</option>
+                    <option value="prata">Prata</option>
+                    <option value="ouro">Ouro</option>
+                  </select>
+                </label>
+
               </>
             )}
           </form>
@@ -323,6 +336,17 @@ export default function LicenseModals({
             <label className="field">
               <span>HWID</span>
               <input value={formState.editHwid} onChange={(event) => setFormState((current) => ({ ...current, editHwid: event.target.value }))} placeholder="Sem dispositivo vinculado" />
+            </label>
+            <label className="field">
+              <span>Plano</span>
+              <select
+                value={formState.editPlanTier || "ouro"}
+                onChange={(event) => setFormState((current) => ({ ...current, editPlanTier: event.target.value }))}
+              >
+                <option value="bronze">Bronze</option>
+                <option value="prata">Prata</option>
+                <option value="ouro">Ouro</option>
+              </select>
             </label>
             <label className="field">
               <span>Nova senha de recuperacao</span>

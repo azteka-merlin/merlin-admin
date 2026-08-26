@@ -119,6 +119,8 @@ export function getAccessType(license) {
     free: "Grátis",
     legacy_lifetime: "Legada vitalícia",
     paid_lifetime: "Vitalícia paga",
+    annual_subscription: "Assinatura anual",
+    annual_manual: "Anual manual",
     monthly_subscription: "Assinatura mensal"
   };
   return labels[value] || value.replaceAll("_", " ");

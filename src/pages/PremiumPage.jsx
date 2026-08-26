@@ -12,6 +12,9 @@ function createEmptyPremiumDraft() {
     activationType: "steam_ticket",
     launchExecutablePath: "",
     activationLimit: "5",
+    accessBronzeEnabled: false,
+    accessPrataEnabled: false,
+    accessOuroEnabled: true,
     enabled: false,
   };
 }
@@ -31,6 +34,9 @@ function createPremiumDraft(entry) {
     activationType: entry.activationType || "steam_ticket",
     launchExecutablePath: entry.launchExecutablePath || "",
     activationLimit: String(entry.activationLimit || 5),
+    accessBronzeEnabled: Boolean(entry.accessBronzeEnabled),
+    accessPrataEnabled: Boolean(entry.accessPrataEnabled),
+    accessOuroEnabled: entry.accessOuroEnabled !== false,
     enabled: Boolean(entry.enabled),
   };
 }
@@ -49,6 +55,9 @@ function normalizePremiumPayload(draft) {
   const payload = {
     appId,
     activationLimit,
+    accessBronzeEnabled: Boolean(draft.accessBronzeEnabled),
+    accessPrataEnabled: Boolean(draft.accessPrataEnabled),
+    accessOuroEnabled: draft.accessOuroEnabled !== false,
     enabled: Boolean(draft.enabled),
   };
 
@@ -252,7 +261,17 @@ export default function PremiumPage({
                     </div>
                     <div>
                       <dt>Tipo</dt>
-                      <dd>{entry.activationType === "third_party" ? "Third-party" : "Steam"}</dd>
+                      <dd>{entry.activationType === "third_party" ? "Third-party" : "Ativação Premium"}</dd>
+                    </div>
+                    <div>
+                      <dt>Tiers</dt>
+                      <dd>
+                        {[
+                          entry.accessBronzeEnabled ? "Bronze" : "",
+                          entry.accessPrataEnabled ? "Prata" : "",
+                          entry.accessOuroEnabled !== false ? "Ouro" : ""
+                        ].filter(Boolean).join(", ") || "--"}
+                      </dd>
                     </div>
                   </dl>
                 </div>
@@ -310,13 +329,44 @@ export default function PremiumPage({
               />
             </label>
 
+            <label className="field field--toggle">
+              <span>Liberar imediatamente no Bronze</span>
+              <input
+                type="checkbox"
+                checked={draft.accessBronzeEnabled}
+                onChange={(event) => setDraft((current) => ({ ...current, accessBronzeEnabled: event.target.checked }))}
+              />
+            </label>
+
+            <label className="field field--toggle">
+              <span>Liberar imediatamente no Prata</span>
+              <input
+                type="checkbox"
+                checked={draft.accessPrataEnabled}
+                onChange={(event) => setDraft((current) => ({ ...current, accessPrataEnabled: event.target.checked }))}
+              />
+            </label>
+
+            <label className="field field--toggle">
+              <span>Liberar imediatamente no Ouro</span>
+              <input
+                type="checkbox"
+                checked={draft.accessOuroEnabled}
+                onChange={(event) => setDraft((current) => ({ ...current, accessOuroEnabled: event.target.checked }))}
+              />
+            </label>
+
+            <p className="field-grid__note field--wide">
+              Quando um tier não recebe liberação imediata, o jogo continua visível no Launcher e é liberado conforme a janela de lançamentos do plano.
+            </p>
+
             <label className="field">
               <span>Tipo de ativacao</span>
               <select
                 value={draft.activationType}
                 onChange={(event) => setDraft((current) => ({ ...current, activationType: event.target.value }))}
               >
-                <option value="steam_ticket">Steam</option>
+                <option value="steam_ticket">Ativação Premium</option>
                 <option value="third_party">Third-party</option>
               </select>
             </label>

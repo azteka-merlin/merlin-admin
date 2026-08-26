@@ -15,6 +15,7 @@ function formatMoney(amountCents, currency) {
 
 function planLabel(planType) {
   if (planType === "monthly") return "Mensal";
+  if (planType === "annual") return "Anual";
   if (planType === "lifetime") return "Vitalício";
   return planType || "--";
 }

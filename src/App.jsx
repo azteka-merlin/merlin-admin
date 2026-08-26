@@ -24,6 +24,7 @@ function isValidRecoverySecret(value) {
 }
 
 const RECOVERY_SECRET_MESSAGE = "Use 4 a 8 caracteres, sem espacos.";
+
 function createEmptyOverrideForm() {
   return {
     overrideMode: "create",
@@ -155,20 +156,26 @@ function App() {
     settings: { enabled: false, durationAmount: 30, durationUnit: "days", isLifetime: false, description: "" },
     billing: {
       billingEnabled: false,
+      plansEnabled: false,
       monthlyEnabled: true,
+      annualEnabled: false,
       lifetimeEnabled: true,
       pixEnabled: false,
       pixMonthlyEnabled: true,
+      pixAnnualEnabled: true,
       pixLifetimeEnabled: true,
       monthlyCardTrialEnabled: false,
       monthlyCardTrialDays: 30,
       monthlyPriceId: "",
+      annualPriceId: "",
       lifetimePriceId: "",
+      pixAnnualPriceId: "",
       pixLifetimePriceId: "",
-      prices: { monthly: null, lifetime: null, pixLifetime: null }
+      prices: { monthly: null, annual: null, lifetime: null, pixAnnual: null, pixLifetime: null }
     },
     metrics: { total: 0, active: 0, expired: 0, latestCreatedAt: null }
   });
+  const [billingPlanPrices, setBillingPlanPrices] = React.useState([]);
   const [loadingLicenses, setLoadingLicenses] = React.useState(false);
   const [loadingAuditLogs, setLoadingAuditLogs] = React.useState(false);
   const [loadingUserActivityLogs, setLoadingUserActivityLogs] = React.useState(false);
@@ -187,6 +194,8 @@ function App() {
   const [sourceFilter, setSourceFilter] = React.useState("all");
   const [billingFilter, setBillingFilter] = React.useState("all");
   const [licenseTab, setLicenseTab] = React.useState("normal");
+  const [tierFilter, setTierFilter] = React.useState("all");
+  const [accessTypeFilter, setAccessTypeFilter] = React.useState("all");
   const [auditSearch, setAuditSearch] = React.useState("");
   const [auditActionFilter, setAuditActionFilter] = React.useState("all");
   const [auditAdminFilter, setAuditAdminFilter] = React.useState("all");
@@ -213,6 +222,7 @@ function App() {
     createContactType: "phone",
     createRecoveryPin: "",
     createExpiry: "",
+    createPlanTier: "ouro",
     createNormalActivationLimit: "1",
     createPremiumActivationLimit: "1",
     editTestName: "",
@@ -224,6 +234,7 @@ function App() {
     editRecoveryPin: "",
     editExpiry: "",
     editHwid: "",
+    editPlanTier: "ouro",
     renewExpiry: "",
     revokeReason: "",
     ...createEmptyOverrideForm()
@@ -266,10 +277,11 @@ function App() {
         deviceFilter === "all" ||
         (deviceFilter === "with" && hasDevice) ||
         (deviceFilter === "without" && !hasDevice);
-
-      return matchesSearch && matchesStatus && matchesSource && matchesBilling && matchesDevice;
+      const matchesTier = licenseTab === "test" || tierFilter === "all" || (license.planTier || "ouro") === tierFilter;
+      const matchesAccessType = licenseTab === "test" || accessTypeFilter === "all" || (license.accessType || "free") === accessTypeFilter;
+      return matchesSearch && matchesStatus && matchesSource && matchesBilling && matchesDevice && matchesTier && matchesAccessType;
     });
-  }, [billingFilter, deviceFilter, licenseTab, licenses, search, sourceFilter, statusFilter]);
+  }, [accessTypeFilter, billingFilter, deviceFilter, licenseTab, licenses, search, sourceFilter, statusFilter, tierFilter]);
 
   const auditAdminOptions = React.useMemo(
     () =>
@@ -385,7 +397,7 @@ function App() {
 
   React.useEffect(() => {
     setPage(1);
-  }, [search, statusFilter, sourceFilter, billingFilter, deviceFilter, licenseTab]);
+  }, [accessTypeFilter, search, statusFilter, sourceFilter, billingFilter, deviceFilter, tierFilter, licenseTab]);
 
   React.useEffect(() => {
     if (safePage !== page) setPage(safePage);
@@ -444,17 +456,22 @@ function App() {
         settings: { enabled: false, durationAmount: 30, durationUnit: "days", isLifetime: false, description: "" },
         billing: {
           billingEnabled: false,
+          plansEnabled: false,
           monthlyEnabled: true,
+          annualEnabled: false,
           lifetimeEnabled: true,
           pixEnabled: false,
           pixMonthlyEnabled: true,
+          pixAnnualEnabled: true,
           pixLifetimeEnabled: true,
           monthlyCardTrialEnabled: false,
           monthlyCardTrialDays: 30,
           monthlyPriceId: "",
+          annualPriceId: "",
           lifetimePriceId: "",
+          pixAnnualPriceId: "",
           pixLifetimePriceId: "",
-          prices: { monthly: null, lifetime: null, pixLifetime: null }
+          prices: { monthly: null, annual: null, lifetime: null, pixAnnual: null, pixLifetime: null }
         },
         metrics: { total: 0, active: 0, expired: 0, latestCreatedAt: null }
       });
@@ -1147,25 +1164,34 @@ function App() {
   }
 
   async function loadPublicSignup() {
-    const payload = await apiRequest("/panel-api/public-signup");
+    const [payload, planPricesPayload] = await Promise.all([
+      apiRequest("/panel-api/public-signup"),
+      apiRequest("/panel-api/billing/plan-prices")
+    ]);
     setPublicSignup({
       settings: payload.settings || { enabled: false, durationAmount: 30, durationUnit: "days", isLifetime: false, description: "" },
       billing: payload.billing || {
         billingEnabled: false,
+        plansEnabled: false,
         monthlyEnabled: true,
+        annualEnabled: false,
         lifetimeEnabled: true,
         pixEnabled: false,
         pixMonthlyEnabled: true,
+        pixAnnualEnabled: true,
         pixLifetimeEnabled: true,
         monthlyCardTrialEnabled: false,
         monthlyCardTrialDays: 30,
         monthlyPriceId: "",
+        annualPriceId: "",
         lifetimePriceId: "",
+        pixAnnualPriceId: "",
         pixLifetimePriceId: "",
-        prices: { monthly: null, lifetime: null, pixLifetime: null }
+        prices: { monthly: null, annual: null, lifetime: null, pixAnnual: null, pixLifetime: null }
       },
       metrics: payload.metrics || { total: 0, active: 0, expired: 0, latestCreatedAt: null }
     });
+    setBillingPlanPrices(planPricesPayload.prices || []);
   }
 
   async function loadPublicFeedbacks() {
@@ -1238,6 +1264,46 @@ function App() {
         metrics: payload.metrics || publicSignup.metrics
       });
       setToast("Configurações do acesso público salvas.");
+    } catch (error) {
+      setToast(error.message);
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function handleSaveBillingPlanPrices(prices) {
+    setBusyAction("save-billing-plan-prices");
+    try {
+      const payload = await apiRequest("/panel-api/billing/plan-prices", {
+        method: "PUT",
+        mutate: true,
+        body: { prices }
+      });
+      setBillingPlanPrices(payload.prices || []);
+      setToast("Tabela de preços dos planos salva.");
+      return true;
+    } catch (error) {
+      setToast(error.message);
+      return false;
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function handleRefreshBillingPrices() {
+    setBusyAction("refresh-billing-prices");
+    try {
+      const payload = await apiRequest("/panel-api/public-signup/billing/refresh-prices", {
+        method: "POST",
+        mutate: true
+      });
+      setPublicSignup({
+        settings: payload.settings || publicSignup.settings,
+        billing: payload.billing || publicSignup.billing,
+        metrics: payload.metrics || publicSignup.metrics
+      });
+      setBillingPlanPrices(payload.prices || billingPlanPrices);
+      setToast("Preços sincronizados com a Stripe.");
     } catch (error) {
       setToast(error.message);
     } finally {
@@ -1379,6 +1445,7 @@ function App() {
         editRecoveryPin: "",
         editExpiry: selectedLicense.expiresAt,
         editHwid: selectedLicense.hwid || "",
+        editPlanTier: selectedLicense.planTier || "ouro",
         renewExpiry: selectedLicense.expiresAt,
         revokeReason: type === "revoke" ? "" : current.revokeReason
       }));
@@ -1474,7 +1541,7 @@ function App() {
 
   async function handleCreateLicense(event) {
     event?.preventDefault();
-    const { createName, createLicenseType, createContact, createContactType, createRecoveryPin, createExpiry, createNormalActivationLimit, createPremiumActivationLimit } = formState;
+    const { createName, createLicenseType, createContact, createContactType, createRecoveryPin, createExpiry, createPlanTier, createNormalActivationLimit, createPremiumActivationLimit } = formState;
     const isTestLicense = createLicenseType === "test";
     const normalizedContact = normalizeContactInput(createContact, createContactType);
     const normalizedRecoveryPin = String(createRecoveryPin || "").trim();
@@ -1517,7 +1584,8 @@ function App() {
                 }
               : {
                   contact: normalizedContact,
-                  contactType: createContactType,
+                   contactType: createContactType,
+                   planTier: createPlanTier || "ouro",
                   ...(normalizedRecoveryPin ? { recoveryPin: normalizedRecoveryPin } : {}),
                   expiresAt: createExpiry
                 })
@@ -1532,6 +1600,7 @@ function App() {
           createContactType: "phone",
           createRecoveryPin: "",
           createExpiry: "",
+          createPlanTier: "ouro",
           createNormalActivationLimit: "1",
           createPremiumActivationLimit: "1"
         }));
@@ -1572,7 +1641,8 @@ function App() {
             contactType: formState.editContactType,
             ...(normalizedRecoveryPin ? { recoveryPin: normalizedRecoveryPin } : {}),
             expiresAt: formState.editExpiry,
-            hwid: formState.editHwid || null
+            hwid: formState.editHwid || null,
+            planTier: formState.editPlanTier || "ouro"
           }
         });
 
@@ -1868,6 +1938,9 @@ function App() {
               ...(payload.activationType !== undefined ? { activationType: payload.activationType } : {}),
               ...(payload.launchExecutablePath !== undefined ? { launchExecutablePath: payload.launchExecutablePath } : {}),
               activationLimit: payload.activationLimit,
+              accessBronzeEnabled: payload.accessBronzeEnabled,
+              accessPrataEnabled: payload.accessPrataEnabled,
+              accessOuroEnabled: payload.accessOuroEnabled,
               enabled: payload.enabled,
             }
           })
@@ -2057,6 +2130,10 @@ function App() {
             setBillingFilter={setBillingFilter}
             deviceFilter={deviceFilter}
             setDeviceFilter={setDeviceFilter}
+            tierFilter={tierFilter}
+            setTierFilter={setTierFilter}
+            accessTypeFilter={accessTypeFilter}
+            setAccessTypeFilter={setAccessTypeFilter}
             licenseTab={licenseTab}
             setLicenseTab={setLicenseTab}
             normalLicenseCount={licenses.filter((license) => getLicenseType(license) !== "test").length}
@@ -2190,8 +2267,13 @@ function App() {
         {view === "public-signup" && (
           <PublicSignupPage
             publicSignup={publicSignup}
+            planPrices={billingPlanPrices}
             onSave={handleSavePublicSignupSettings}
+            onSavePlanPrices={handleSaveBillingPlanPrices}
             saving={busyAction === "save-public-signup"}
+            savingPlanPrices={busyAction === "save-billing-plan-prices"}
+            onRefreshPrices={handleRefreshBillingPrices}
+            refreshingPrices={busyAction === "refresh-billing-prices"}
             onRefresh={loadPublicSignup}
           />
         )}

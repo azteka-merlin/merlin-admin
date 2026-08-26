@@ -20,6 +20,7 @@ export default function LicenseDetail({ license, onCopy, onEdit, onEditTest, onR
   const licenseType = getLicenseType(license);
   const sourceLabel = getSourceLabel(license.source);
   const hasBilling = billingStatus.key !== "none" || license.stripeCustomerId || license.stripeSubscriptionId || license.stripeCheckoutSessionId;
+  const tierLabel = ({ bronze: "Bronze", prata: "Prata", ouro: "Ouro" })[license.planTier] || "Ouro";
 
   return (
     <div className={`detail ${mobile ? "detail--mobile" : ""}`}>
@@ -69,6 +70,7 @@ export default function LicenseDetail({ license, onCopy, onEdit, onEditTest, onR
           </>
         )}
         <DetailField label="Origem" value={sourceLabel} />
+        {licenseType !== "test" && <DetailField label="Tier" value={tierLabel} />}
         <DetailField label="Plano" value={getAccessType(license)} />
         {licenseType !== "test" && <DetailField label="Cobrança" value={billingStatus.label} />}
         {hasBilling && <DetailField label="Fim do período" value={license.billingCurrentPeriodEnd ? formatDate(license.billingCurrentPeriodEnd) : "--"} />}

@@ -6,6 +6,8 @@ Use este README como entrada principal. So abra outros docs quando a tarefa real
 
 1. `docs/UP.md`: rodar, buildar, publicar e validar o painel.
 2. `docs/CONTEXT.md`: arquitetura, rotas relativas e fluxos do admin.
+3. `docs/ECOSYSTEM.md`: fronteiras entre Public, Admin, API e Launcher.
+4. `docs/PLANOS_VISUAL.md`: como usar a POC visual sem criar rota ou arquitetura paralela.
 
 Projeto open source: nao documente credenciais, tokens, paths pessoais, emails privados, IDs de infraestrutura ou valores sensiveis.
 

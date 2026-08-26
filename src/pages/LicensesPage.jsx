@@ -14,6 +14,10 @@ export default function LicensesPage({
   setBillingFilter,
   deviceFilter,
   setDeviceFilter,
+  tierFilter,
+  setTierFilter,
+  accessTypeFilter,
+  setAccessTypeFilter,
   licenseTab,
   setLicenseTab,
   normalLicenseCount,
@@ -123,6 +127,30 @@ export default function LicensesPage({
                 <option value="without">Sem dispositivo vinculado</option>
               </select>
             </label>
+
+            <label className="field-shell">
+              <span>Tier</span>
+              <select value={tierFilter} onChange={(event) => setTierFilter(event.target.value)} disabled={licenseTab === "test"}>
+                <option value="all">Todos os tiers</option>
+                <option value="bronze">Bronze</option>
+                <option value="prata">Prata</option>
+                <option value="ouro">Ouro</option>
+              </select>
+            </label>
+
+            <label className="field-shell">
+              <span>Período</span>
+              <select value={accessTypeFilter} onChange={(event) => setAccessTypeFilter(event.target.value)} disabled={licenseTab === "test"}>
+                <option value="all">Todos os períodos</option>
+                <option value="monthly_subscription">Mensal</option>
+                <option value="annual_subscription">Anual cartão</option>
+                <option value="annual_manual">Anual Pix/manual</option>
+                <option value="paid_lifetime">Vitalício</option>
+                <option value="legacy_lifetime">Vitalício legado</option>
+                <option value="free">Sem cobrança</option>
+              </select>
+            </label>
+
           </div>
 
           {loadingLicenses ? (
@@ -143,6 +171,8 @@ export default function LicensesPage({
                     <colgroup>
                       <col className="col-user" />
                       <col className="col-key" />
+                      <col className="col-status" />
+                      <col className="col-status" />
                       <col className="col-date" />
                       <col className="col-device" />
                       <col className="col-status" />
@@ -152,6 +182,8 @@ export default function LicensesPage({
                       <col className="col-user" />
                       <col className="col-phone" />
                       <col className="col-key" />
+                      <col className="col-status" />
+                      <col className="col-status" />
                       <col className="col-date" />
                       <col className="col-device" />
                       <col className="col-status" />
@@ -171,6 +203,8 @@ export default function LicensesPage({
                         <th>Usuário</th>
                         <th>Contato</th>
                         <th>Chave</th>
+                        <th>Tier</th>
+                        <th>Plano</th>
                         <th>Vencimento</th>
                         <th>Dispositivo</th>
                         <th>Status</th>
@@ -202,6 +236,8 @@ export default function LicensesPage({
                             <>
                               <td className="cell-phone">{formatContact(getLicenseContact(license), getLicenseContactType(license))}</td>
                               <td className="cell-key" title={license.licenseKey}>{maskKey(license.licenseKey)}</td>
+                              <td><span className="badge badge--muted">{({ bronze: "Bronze", prata: "Prata", ouro: "Ouro" })[license.planTier] || "Ouro"}</span></td>
+                              <td><span className="badge badge--muted">{license.accessType === "annual_manual" ? "Anual Pix" : license.accessType === "annual_subscription" ? "Anual" : license.accessType === "monthly_subscription" ? "Mensal" : license.accessType?.includes("lifetime") ? "Vitalício" : "Manual"}</span></td>
                               <td className="cell-date">{formatDate(license.expiresAt)}</td>
                               <td className="cell-device" title={license.hwid || "Sem dispositivo"}>
                                 {license.hwid ? maskTechnicalValue(license.hwid, 10, 4) : "Sem dispositivo"}
@@ -250,8 +286,8 @@ export default function LicensesPage({
                           <dd className="truncate-text" title={license.licenseKey}>{maskKey(license.licenseKey)}</dd>
                         </div>
                         <div>
-                          <dt>{licenseTab === "test" ? "Normais" : "Vencimento"}</dt>
-                          <dd>{licenseTab === "test" ? formatActivationUsage(license.normalActivationUsed, license.normalActivationLimit) : formatDate(license.expiresAt)}</dd>
+                          <dt>{licenseTab === "test" ? "Normais" : "Plano"}</dt>
+                          <dd>{licenseTab === "test" ? formatActivationUsage(license.normalActivationUsed, license.normalActivationLimit) : `${({ bronze: "Bronze", prata: "Prata", ouro: "Ouro" })[license.planTier] || "Ouro"} · ${license.accessType === "annual_manual" ? "Anual Pix" : license.accessType === "annual_subscription" ? "Anual" : license.accessType === "monthly_subscription" ? "Mensal" : license.accessType?.includes("lifetime") ? "Vitalício" : "Manual"}`}</dd>
                         </div>
                         <div>
                           <dt>{licenseTab === "test" ? "Premium" : "Dispositivo"}</dt>

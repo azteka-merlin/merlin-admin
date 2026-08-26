@@ -31,5 +31,5 @@ pnpm-debug.log*
 # coverage
 coverage/
 
-# local context docs
-docs/
+# Local production export with personal data and license keys.
+licencas-producao-classificacao.csv

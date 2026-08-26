@@ -957,6 +957,13 @@ h3 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.field-grid__note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
 .field--wide {
   grid-column: 1 / -1;
 }
@@ -1449,6 +1456,13 @@ h3 {
   line-height: 1.55;
 }
 
+.access-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .access-status-row {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1557,15 +1571,29 @@ h3 {
   gap: 16px;
 }
 
+.access-commercial-grid,
+.access-period-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.access-commercial-grid .access-card {
+  align-content: start;
+}
+
 .access-plan-grid,
 .access-payment-grid {
   align-items: start;
 }
 
 .access-field-grid,
-.access-plan-grid,
 .access-payment-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.access-plan-grid {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
 
 .access-field small {
@@ -1864,6 +1892,237 @@ h3 {
   padding: 9px 11px;
 }
 
+.access-tier-prices,
+.access-tier-method {
+  display: grid;
+  gap: 16px;
+}
+
+.access-tier-method {
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 22px;
+  background: var(--access-card);
+}
+
+.access-tier-method header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.access-tier-method h3 {
+  margin: 0;
+  font-size: 1.18rem;
+}
+
+.access-tier-method header span,
+.access-tier-prices__actions p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.access-tier-price-table {
+  display: grid;
+  gap: 8px;
+}
+
+.access-tier-price-table__head,
+.access-tier-price-row {
+  display: grid;
+  grid-template-columns: minmax(82px, 0.7fr) minmax(82px, 0.7fr) minmax(220px, 1.4fr) minmax(120px, 0.8fr) minmax(88px, 0.6fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.access-tier-price-table__head {
+  padding: 0 10px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.access-tier-price-row {
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.access-tier-price-row > strong {
+  color: var(--text);
+}
+
+.access-tier-price-row > span {
+  color: var(--muted);
+}
+
+.access-tier-price-row .access-field {
+  gap: 5px;
+}
+
+.access-tier-price-row .access-field span {
+  display: none;
+}
+
+.access-tier-active {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.access-tier-active input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--violet);
+}
+
+.access-tier-prices__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.access-tier-prices__actions .button {
+  min-width: 210px;
+}
+
+.access-tier-summary {
+  overflow: hidden;
+  border: 1px solid var(--access-border);
+  border-radius: 22px;
+  background: var(--access-card);
+}
+
+.access-tier-summary__head,
+.access-tier-summary__row {
+  display: grid;
+  grid-template-columns: minmax(100px, 0.75fr) repeat(3, minmax(145px, 1fr)) minmax(138px, 0.72fr);
+  gap: 14px;
+  align-items: center;
+}
+
+.access-tier-summary__head {
+  padding: 13px 18px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.025);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.access-tier-summary__row {
+  min-width: 0;
+  padding: 16px 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.access-tier-summary__row > strong,
+.access-tier-summary__row > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.access-tier-summary__row > strong {
+  font-family: "Sora", sans-serif;
+  font-size: 1rem;
+}
+
+.access-tier-summary__row > span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.access-tier-summary__row .button {
+  width: 100%;
+}
+
+.access-tier-summary__note {
+  padding-left: 2px;
+}
+
+.modal--tier-price {
+  width: min(92vw, 760px);
+}
+
+.tier-editor,
+.tier-editor__period,
+.tier-editor__method {
+  display: grid;
+  gap: 16px;
+}
+
+.tier-editor {
+  gap: 18px;
+}
+
+.tier-editor__period {
+  padding: 18px;
+  border: 1px solid var(--access-border);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.tier-editor__period-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.tier-editor__period-head > div,
+.tier-editor__period-title {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.tier-editor__period-head > div > span,
+.tier-editor__period-title > span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.tier-editor__period-head > div > strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-family: "Sora", sans-serif;
+  font-size: 1.18rem;
+}
+
+.tier-editor__period-head .access-switch {
+  grid-template-columns: auto auto;
+}
+
+.tier-editor__period-head .access-switch__text {
+  order: -1;
+  text-align: right;
+}
+
+.tier-editor__period > p,
+.tier-editor__method > p,
+.tier-editor__period-title p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.tier-editor__method {
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.12);
+}
+
 .access-save-bar {
   position: fixed;
   z-index: 45;
@@ -1910,7 +2169,9 @@ h3 {
 @media (max-width: 860px) {
   .access-field-grid,
   .access-plan-grid,
-  .access-payment-grid {
+  .access-payment-grid,
+  .access-commercial-grid,
+  .access-period-controls {
     grid-template-columns: 1fr;
   }
 
@@ -1919,8 +2180,77 @@ h3 {
     flex-direction: column;
   }
 
+  .access-tier-price-table__head {
+    display: none;
+  }
+
+  .access-tier-price-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .access-tier-price-row .access-field {
+    grid-column: 1 / -1;
+  }
+
+  .access-tier-price-row .access-field span {
+    display: block;
+  }
+
+  .access-tier-active {
+    justify-content: flex-end;
+  }
+
+  .access-tier-prices__actions {
+    display: grid;
+  }
+
+  .access-tier-prices__actions .button {
+    width: 100%;
+    min-width: 0;
+  }
+
   .access-section__head > .access-switch {
     width: 100%;
+  }
+
+  .access-tier-summary {
+    display: grid;
+    gap: 12px;
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+
+  .access-tier-summary__head {
+    display: none;
+  }
+
+  .access-tier-summary__row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    border: 1px solid var(--access-border);
+    border-radius: 20px;
+    background: var(--access-card);
+  }
+
+  .access-tier-summary__row > strong,
+  .access-tier-summary__row > span {
+    display: grid;
+    gap: 4px;
+  }
+
+  .access-tier-summary__row > strong::before,
+  .access-tier-summary__row > span::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-family: inherit;
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+
+  .access-tier-summary__row .button {
+    grid-column: 1 / -1;
   }
 }
 
@@ -1931,6 +2261,15 @@ h3 {
 
   .access-page-header {
     gap: 14px;
+  }
+
+  .access-header-actions {
+    justify-content: stretch;
+    width: 100%;
+  }
+
+  .access-header-actions .button {
+    flex: 1 1 180px;
   }
 
   .access-status-row {
@@ -1962,6 +2301,32 @@ h3 {
 
   .access-payment-card .access-status-pill {
     width: 100%;
+  }
+
+  .access-tier-summary__row {
+    grid-template-columns: 1fr;
+  }
+
+  .access-tier-summary__row .button {
+    grid-column: auto;
+  }
+
+  .modal--tier-price {
+    width: 100%;
+  }
+
+  .tier-editor__period-head {
+    display: grid;
+  }
+
+  .tier-editor__period-head .access-switch {
+    width: 100%;
+    grid-template-columns: auto 1fr;
+  }
+
+  .tier-editor__period-head .access-switch__text {
+    order: 0;
+    text-align: left;
   }
 
   .access-save-bar {
