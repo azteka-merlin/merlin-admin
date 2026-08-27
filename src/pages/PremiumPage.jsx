@@ -12,6 +12,7 @@ function createEmptyPremiumDraft() {
     activationType: "steam_ticket",
     launchExecutablePath: "",
     activationLimit: "5",
+    activationCooldownDays: "",
     accessBronzeEnabled: false,
     accessPrataEnabled: false,
     accessOuroEnabled: true,
@@ -34,6 +35,7 @@ function createPremiumDraft(entry) {
     activationType: entry.activationType || "steam_ticket",
     launchExecutablePath: entry.launchExecutablePath || "",
     activationLimit: String(entry.activationLimit || 5),
+    activationCooldownDays: entry.activationCooldownHours ? String(entry.activationCooldownHours / 24) : "",
     accessBronzeEnabled: Boolean(entry.accessBronzeEnabled),
     accessPrataEnabled: Boolean(entry.accessPrataEnabled),
     accessOuroEnabled: entry.accessOuroEnabled !== false,
@@ -52,9 +54,16 @@ function normalizePremiumPayload(draft) {
     throw new Error("Informe um limite de ativacoes valido.");
   }
 
+  const activationCooldownDaysRaw = String(draft.activationCooldownDays || "").trim();
+  const activationCooldownDays = activationCooldownDaysRaw ? Number(activationCooldownDaysRaw) : null;
+  if (activationCooldownDays !== null && (!Number.isInteger(activationCooldownDays) || activationCooldownDays < 1)) {
+    throw new Error("Informe um cooldown de pelo menos 1 dia.");
+  }
+
   const payload = {
     appId,
     activationLimit,
+    activationCooldownHours: activationCooldownDays === null ? null : activationCooldownDays * 24,
     accessBronzeEnabled: Boolean(draft.accessBronzeEnabled),
     accessPrataEnabled: Boolean(draft.accessPrataEnabled),
     accessOuroEnabled: draft.accessOuroEnabled !== false,
@@ -284,7 +293,7 @@ export default function PremiumPage({
       {activeModal === "upsert" && (
         <Modal
           title={draft.mode === "edit" ? "Editar premium" : "Novo premium"}
-          subtitle="Informe o appId, envie o ZIP e ajuste o limite de ativacoes. Nome e capa tentam ser preenchidos automaticamente."
+          subtitle="Informe o appId, envie o ZIP e ajuste o limite e cooldown das ativações. Nome e capa tentam ser preenchidos automaticamente."
           onClose={() => !createBusy && !uploadBusy && setActiveModal(null)}
           closeDisabled={createBusy || uploadBusy}
           actions={
@@ -336,6 +345,17 @@ export default function PremiumPage({
                 checked={draft.accessBronzeEnabled}
                 onChange={(event) => setDraft((current) => ({ ...current, accessBronzeEnabled: event.target.checked }))}
               />
+            </label>
+
+            <label className="field">
+              <span>Cooldown da ativação (dias)</span>
+              <input
+                value={draft.activationCooldownDays}
+                onChange={(event) => setDraft((current) => ({ ...current, activationCooldownDays: event.target.value }))}
+                inputMode="numeric"
+                placeholder="Padrão: 1"
+              />
+              <small>Vazio usa 24 horas. Mínimo: 1 dia.</small>
             </label>
 
             <label className="field field--toggle">
