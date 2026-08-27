@@ -4525,6 +4525,116 @@ h3 {
   accent-color: #b35cff;
 }
 
+.partner-list {
+  display: grid;
+  gap: 14px;
+}
+
+.partner-card {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+}
+
+.partner-card__media {
+  width: 92px;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(179, 92, 255, 0.3);
+  border-radius: 999px;
+  background: rgba(179, 92, 255, 0.09);
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.partner-card__main {
+  min-width: 0;
+}
+
+.partner-card__main h2 {
+  margin-bottom: 8px;
+}
+
+.partner-card__main small {
+  display: block;
+  margin-top: 10px;
+  color: var(--muted);
+}
+
+.partner-card__actions {
+  justify-content: flex-end;
+}
+
+.partner-cropped-image,
+.partner-cropped-frame {
+  width: 100%;
+  height: 100%;
+}
+
+.partner-cropped-image {
+  object-fit: cover;
+}
+
+.partner-cropped-frame {
+  position: relative;
+  overflow: hidden;
+}
+
+.partner-cropped-frame img {
+  position: absolute;
+  max-width: none;
+  display: block;
+}
+
+.modal--partner-cropper {
+  width: min(94vw, 680px);
+}
+
+.modal--partner-cropper .modal__body {
+  margin: 22px 0;
+}
+
+.partner-cropper {
+  display: grid;
+  gap: 18px;
+}
+
+.partner-cropper__stage {
+  position: relative;
+  width: min(100%, 480px);
+  aspect-ratio: 1;
+  min-height: 280px;
+  margin: 0 auto;
+  overflow: hidden;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.partner-cropper__stage .reactEasyCrop_CropArea {
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 0 0 9999em rgba(2, 4, 12, 0.42);
+}
+
+.partner-cropper__zoom {
+  display: grid;
+  grid-template-columns: 60px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.partner-cropper__zoom input {
+  width: 100%;
+  accent-color: #b35cff;
+}
+
 @media (max-width: 900px) {
   .announcement-card {
     grid-template-columns: 96px minmax(0, 1fr);
@@ -4550,6 +4660,19 @@ h3 {
 
   .announcement-cropper__stage {
     min-height: 220px;
+  }
+
+  .partner-card {
+    grid-template-columns: 76px minmax(0, 1fr);
+  }
+
+  .partner-card__media {
+    width: 76px;
+  }
+
+  .partner-card__actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
   }
 
   .premium-card__head {

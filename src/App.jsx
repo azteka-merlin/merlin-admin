@@ -5,6 +5,7 @@ import LoadingScreen from "./components/LoadingScreen";
 import LoginScreen from "./components/LoginScreen";
 import ActivityPage from "./pages/ActivityPage";
 import AnnouncementsPage from "./pages/AnnouncementsPage";
+import PartnersPage from "./pages/PartnersPage";
 import AuditPage from "./pages/AuditPage";
 import LicensesPage from "./pages/LicensesPage";
 import OverviewPage from "./pages/OverviewPage";
@@ -148,6 +149,7 @@ function App() {
   const [premiumGames, setPremiumGames] = React.useState([]);
   const [polls, setPolls] = React.useState([]);
   const [announcements, setAnnouncements] = React.useState([]);
+  const [partners, setPartners] = React.useState([]);
   const [paymentLogs, setPaymentLogs] = React.useState([]);
   const [paymentEvents, setPaymentEvents] = React.useState([]);
   const [publicFeedbacks, setPublicFeedbacks] = React.useState([]);
@@ -184,6 +186,7 @@ function App() {
   const [loadingPremiumGames, setLoadingPremiumGames] = React.useState(false);
   const [loadingPolls, setLoadingPolls] = React.useState(false);
   const [loadingAnnouncements, setLoadingAnnouncements] = React.useState(false);
+  const [loadingPartners, setLoadingPartners] = React.useState(false);
   const [loadingPaymentLogs, setLoadingPaymentLogs] = React.useState(false);
   const [loadingPublicFeedbacks, setLoadingPublicFeedbacks] = React.useState(false);
   const [loadingMerlinUpdate, setLoadingMerlinUpdate] = React.useState(false);
@@ -448,6 +451,7 @@ function App() {
       setPremiumGames([]);
       setPolls([]);
       setAnnouncements([]);
+      setPartners([]);
       setPaymentLogs([]);
       setPaymentEvents([]);
       setPublicFeedbacks([]);
@@ -575,6 +579,7 @@ function App() {
       setPremiumGames([]);
       setPolls([]);
       setAnnouncements([]);
+      setPartners([]);
       setPaymentLogs([]);
       setPaymentEvents([]);
       setMerlinUpdate(null);
@@ -1138,6 +1143,54 @@ function App() {
     });
   }
 
+  async function loadPartners() {
+    setLoadingPartners(true);
+    try {
+      const payload = await apiRequest("/panel-api/partners");
+      setPartners(payload.partners || []);
+    } catch (error) {
+      setToast(error.message);
+    } finally {
+      setLoadingPartners(false);
+    }
+  }
+
+  function appendPartnerForm(formData, input) {
+    formData.append("name", String(input.name || ""));
+    formData.append("youtubeUrl", String(input.youtubeUrl || ""));
+    formData.append("tiktokUrl", String(input.tiktokUrl || ""));
+    formData.append("twitchUrl", String(input.twitchUrl || ""));
+    formData.append("sortOrder", String(input.sortOrder ?? 0));
+    formData.append("active", input.active === true ? "true" : "false");
+    formData.append("removeImage", input.removeImage === true ? "true" : "false");
+    formData.append("imageCropX", input.imageCropX === null || input.imageCropX === undefined ? "" : String(input.imageCropX));
+    formData.append("imageCropY", input.imageCropY === null || input.imageCropY === undefined ? "" : String(input.imageCropY));
+    formData.append("imageCropWidth", input.imageCropWidth === null || input.imageCropWidth === undefined ? "" : String(input.imageCropWidth));
+    formData.append("imageCropHeight", input.imageCropHeight === null || input.imageCropHeight === undefined ? "" : String(input.imageCropHeight));
+    if (input.file) formData.append("file", input.file);
+  }
+
+  async function handleSavePartner(mode, id, input) {
+    return runBusyAction("save-partner", async () => {
+      const formData = new FormData();
+      appendPartnerForm(formData, input);
+      const payload = await apiRequest(mode === "edit" ? `/panel-api/partners/${encodeURIComponent(id)}` : "/panel-api/partners", {
+        method: mode === "edit" ? "PUT" : "POST",
+        mutate: true,
+        body: formData,
+      });
+      await loadPartners();
+      return payload.partner || null;
+    });
+  }
+
+  async function handleDeletePartner(id) {
+    return runBusyAction("delete-partner", async () => {
+      await apiRequest(`/panel-api/partners/${encodeURIComponent(id)}`, { method: "DELETE", mutate: true });
+      setPartners((current) => current.filter((entry) => entry.id !== id));
+    });
+  }
+
   async function loadPaymentLogs() {
     setLoadingPaymentLogs(true);
     try {
@@ -1377,6 +1430,9 @@ function App() {
     }
     if (auth && view === "announcements") {
       loadAnnouncements();
+    }
+    if (auth && view === "partners") {
+      loadPartners();
     }
     if (auth && view === "payments") {
       loadPaymentLogs();
@@ -2201,6 +2257,17 @@ function App() {
             loadAnnouncements={loadAnnouncements}
             saveAnnouncement={handleSaveAnnouncement}
             deleteAnnouncement={handleDeleteAnnouncement}
+            busyAction={busyAction}
+            notify={setToast}
+          />
+        )}
+        {view === "partners" && (
+          <PartnersPage
+            partners={partners}
+            loading={loadingPartners}
+            loadPartners={loadPartners}
+            savePartner={handleSavePartner}
+            deletePartner={handleDeletePartner}
             busyAction={busyAction}
             notify={setToast}
           />
