@@ -174,12 +174,13 @@ export default function LicenseModals({
                 </label>
 
                 <label className="field">
-                  <span>Data de vencimento</span>
+                  <span>Data de vencimento *</span>
                   <input
                     className="date-input"
                     type="date"
                     value={formState.createExpiry}
                     onChange={(event) => setFormState((current) => ({ ...current, createExpiry: event.target.value }))}
+                    required
                   />
                 </label>
 

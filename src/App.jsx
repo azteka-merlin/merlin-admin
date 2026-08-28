@@ -1620,6 +1620,10 @@ function App() {
       setToast(contactValidationMessage(createContactType));
       return;
     }
+    if (!isTestLicense && !/^\d{4}-\d{2}-\d{2}$/.test(String(createExpiry || ""))) {
+      setToast("Informe a data de vencimento.");
+      return;
+    }
     if (!isTestLicense && normalizedRecoveryPin && !isValidRecoverySecret(normalizedRecoveryPin)) {
       setToast(RECOVERY_SECRET_MESSAGE);
       return;
