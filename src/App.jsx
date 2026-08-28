@@ -1998,6 +1998,7 @@ function App() {
               ...(payload.activationType !== undefined ? { activationType: payload.activationType } : {}),
               ...(payload.launchExecutablePath !== undefined ? { launchExecutablePath: payload.launchExecutablePath } : {}),
               activationLimit: payload.activationLimit,
+              activationCooldownHours: payload.activationCooldownHours,
               accessBronzeEnabled: payload.accessBronzeEnabled,
               accessPrataEnabled: payload.accessPrataEnabled,
               accessOuroEnabled: payload.accessOuroEnabled,
