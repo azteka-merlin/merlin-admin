@@ -154,6 +154,7 @@ function App() {
   const [paymentEvents, setPaymentEvents] = React.useState([]);
   const [publicFeedbacks, setPublicFeedbacks] = React.useState([]);
   const [merlinUpdate, setMerlinUpdate] = React.useState(null);
+  const [manifestSourceSettings, setManifestSourceSettings] = React.useState({ primarySource: "depotbox", updatedAt: null });
   const [publicSignup, setPublicSignup] = React.useState({
     settings: { enabled: false, durationAmount: 30, durationUnit: "days", isLifetime: false, description: "" },
     billing: {
@@ -190,6 +191,7 @@ function App() {
   const [loadingPaymentLogs, setLoadingPaymentLogs] = React.useState(false);
   const [loadingPublicFeedbacks, setLoadingPublicFeedbacks] = React.useState(false);
   const [loadingMerlinUpdate, setLoadingMerlinUpdate] = React.useState(false);
+  const [loadingManifestSourceSettings, setLoadingManifestSourceSettings] = React.useState(false);
   const [selectedId, setSelectedId] = React.useState(null);
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
@@ -456,6 +458,7 @@ function App() {
       setPaymentEvents([]);
       setPublicFeedbacks([]);
       setMerlinUpdate(null);
+      setManifestSourceSettings({ primarySource: "depotbox", updatedAt: null });
       setPublicSignup({
         settings: { enabled: false, durationAmount: 30, durationUnit: "days", isLifetime: false, description: "" },
         billing: {
@@ -1081,6 +1084,18 @@ function App() {
     }
   }
 
+  async function loadManifestSourceSettings() {
+    setLoadingManifestSourceSettings(true);
+    try {
+      const payload = await apiRequest("/panel-api/manifest-source-settings");
+      setManifestSourceSettings(payload.settings || { primarySource: "depotbox", updatedAt: null });
+    } catch (error) {
+      setToast(error.message);
+    } finally {
+      setLoadingManifestSourceSettings(false);
+    }
+  }
+
   async function loadPollResults(pollId) {
     return apiRequest(`/panel-api/polls/${encodeURIComponent(pollId)}/results`);
   }
@@ -1324,6 +1339,23 @@ function App() {
     }
   }
 
+  async function handleSaveManifestSourceSettings(primarySource) {
+    setBusyAction("save-manifest-source-settings");
+    try {
+      const payload = await apiRequest("/panel-api/manifest-source-settings", {
+        method: "PUT",
+        mutate: true,
+        body: { primarySource }
+      });
+      setManifestSourceSettings(payload.settings || { primarySource, updatedAt: null });
+      setToast("Prioridade das fontes salva.");
+    } catch (error) {
+      setToast(error.message);
+    } finally {
+      setBusyAction("");
+    }
+  }
+
   async function handleSaveBillingPlanPrices(prices) {
     setBusyAction("save-billing-plan-prices");
     try {
@@ -1418,6 +1450,7 @@ function App() {
     if (auth && view === "settings") {
       loadBlockedIps();
       loadMerlinUpdate();
+      loadManifestSourceSettings();
     }
     if (auth && view === "overrides") {
       loadOverrides();
@@ -2334,6 +2367,10 @@ function App() {
             handlePublishMerlinUpdate={handlePublishMerlinUpdate}
             merlinUpdateUploadProgress={merlinUpdateUploadProgress}
             handleCancelMerlinUpdateUpload={handleCancelMerlinUpdateUpload}
+            manifestSourceSettings={manifestSourceSettings}
+            loadingManifestSourceSettings={loadingManifestSourceSettings}
+            loadManifestSourceSettings={loadManifestSourceSettings}
+            handleSaveManifestSourceSettings={handleSaveManifestSourceSettings}
           />
         )}
         {view === "public-signup" && (

@@ -23,9 +23,19 @@ export default function SettingsPage({
   loadMerlinUpdate,
   handlePublishMerlinUpdate,
   merlinUpdateUploadProgress,
-  handleCancelMerlinUpdateUpload
+  handleCancelMerlinUpdateUpload,
+  manifestSourceSettings,
+  loadingManifestSourceSettings,
+  loadManifestSourceSettings,
+  handleSaveManifestSourceSettings
 }) {
   const publishingUpdate = busyAction === "publish-merlin-update";
+  const savingManifestSourceSettings = busyAction === "save-manifest-source-settings";
+  const [primarySource, setPrimarySource] = React.useState("depotbox");
+
+  React.useEffect(() => {
+    setPrimarySource(manifestSourceSettings?.primarySource === "ryuu" ? "ryuu" : "depotbox");
+  }, [manifestSourceSettings?.primarySource]);
 
   return (
     <section className="page">
@@ -35,6 +45,64 @@ export default function SettingsPage({
           <h1>Gerencie segurança básica, IPs bloqueados e o update do Merlin.</h1>
         </div>
       </div>
+
+      <section className="panel panel--audit">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Ativação normal</p>
+            <h2>Prioridade das fontes</h2>
+          </div>
+          <button className="button button--ghost" onClick={loadManifestSourceSettings} disabled={loadingManifestSourceSettings || savingManifestSourceSettings}>
+            {loadingManifestSourceSettings ? "Atualizando..." : "Atualizar dados"}
+          </button>
+        </div>
+
+        <p className="field-grid__note">
+          Overrides sempre têm prioridade. A fonte não selecionada continua como o próximo fallback antes das demais fontes.
+        </p>
+
+        <div className="toggle-grid">
+          <label className="toggle-field">
+            <input
+              type="radio"
+              name="manifest-primary-source"
+              value="depotbox"
+              checked={primarySource === "depotbox"}
+              disabled={loadingManifestSourceSettings || savingManifestSourceSettings}
+              onChange={() => setPrimarySource("depotbox")}
+            />
+            <div>
+              <strong>DepotBox primeiro</strong>
+              <span>Consulta o DepotBox antes do Ryuu para ativações normais.</span>
+            </div>
+          </label>
+
+          <label className="toggle-field">
+            <input
+              type="radio"
+              name="manifest-primary-source"
+              value="ryuu"
+              checked={primarySource === "ryuu"}
+              disabled={loadingManifestSourceSettings || savingManifestSourceSettings}
+              onChange={() => setPrimarySource("ryuu")}
+            />
+            <div>
+              <strong>Ryuu primeiro</strong>
+              <span>Consulta o Ryuu antes do DepotBox para ativações normais.</span>
+            </div>
+          </label>
+        </div>
+
+        <div className="override-upload-card__actions">
+          <button
+            className="button button--primary button--sm"
+            onClick={() => handleSaveManifestSourceSettings(primarySource)}
+            disabled={loadingManifestSourceSettings || savingManifestSourceSettings || primarySource === manifestSourceSettings?.primarySource}
+          >
+            {savingManifestSourceSettings ? "Salvando..." : "Salvar prioridade"}
+          </button>
+        </div>
+      </section>
 
       <section className="panel panel--audit">
         <div className="section-heading">
