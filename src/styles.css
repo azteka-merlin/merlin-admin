@@ -3872,6 +3872,44 @@ h3 {
   align-self: flex-start;
 }
 
+.premium-early-access__candidates,
+.premium-early-access__selected {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.premium-early-access__candidate,
+.premium-early-access__entry {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  color: inherit;
+  text-align: left;
+}
+
+.premium-early-access__candidate {
+  cursor: pointer;
+}
+
+.premium-early-access__candidate:hover:not(:disabled) {
+  border-color: var(--violet);
+}
+
+.premium-early-access__candidate span,
+.premium-early-access__entry span {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
 .premium-card__value {
   max-width: 100%;
 }

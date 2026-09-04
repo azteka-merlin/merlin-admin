@@ -88,6 +88,7 @@ npm run deploy-stage:panel
 - After login, screens load through `/panel-api/*`.
 - Override and update uploads work from the panel.
 - `https://api-merlin.com/api/health` still responds.
+- For an individual early-access release, verify one granted license and one non-granted license of the same tier: only the granted one may activate before the normal release window, while cooldowns, slots, and activation limits remain unchanged.
 
 ## Notes
 

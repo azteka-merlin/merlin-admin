@@ -2073,6 +2073,33 @@ function App() {
     });
   }
 
+  async function loadPremiumEarlyAccess(appId) {
+    const payload = await apiRequest(`/panel-api/premium/games/${encodeURIComponent(appId)}/early-access`);
+    return payload.entries || [];
+  }
+
+  async function grantPremiumEarlyAccess(appId, licenseId) {
+    return runBusyAction("grant-premium-early-access", async () => {
+      const response = await apiRequest(`/panel-api/premium/games/${encodeURIComponent(appId)}/early-access`, {
+        method: "POST",
+        mutate: true,
+        body: { licenseId },
+      });
+      await loadPremiumGames();
+      return response.entry;
+    });
+  }
+
+  async function revokePremiumEarlyAccess(appId, licenseId) {
+    return runBusyAction("revoke-premium-early-access", async () => {
+      await apiRequest(`/panel-api/premium/games/${encodeURIComponent(appId)}/early-access/${licenseId}`, {
+        method: "DELETE",
+        mutate: true,
+      });
+      await loadPremiumGames();
+    });
+  }
+
   async function handleSavePoll(mode, pollId, payload) {
     return runBusyAction("save-poll", async () => {
       const response = mode === "edit"
@@ -2269,6 +2296,10 @@ function App() {
             savePremiumGame={handleSavePremiumGame}
             deletePremiumGame={handleDeletePremiumGame}
             uploadPremiumArchive={handlePremiumArchiveUpload}
+            licenses={licenses}
+            loadPremiumEarlyAccess={loadPremiumEarlyAccess}
+            grantPremiumEarlyAccess={grantPremiumEarlyAccess}
+            revokePremiumEarlyAccess={revokePremiumEarlyAccess}
             busyAction={busyAction}
             notify={setToast}
           />

@@ -104,12 +104,20 @@ export default function PremiumPage({
   savePremiumGame,
   deletePremiumGame,
   uploadPremiumArchive,
+  licenses,
+  loadPremiumEarlyAccess,
+  grantPremiumEarlyAccess,
+  revokePremiumEarlyAccess,
   busyAction,
   notify,
 }) {
   const [activeModal, setActiveModal] = useState(null);
   const [draft, setDraft] = useState(createEmptyPremiumDraft());
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [earlyAccessTarget, setEarlyAccessTarget] = useState(null);
+  const [earlyAccessEntries, setEarlyAccessEntries] = useState([]);
+  const [earlyAccessSearch, setEarlyAccessSearch] = useState("");
+  const [loadingEarlyAccess, setLoadingEarlyAccess] = useState(false);
   const fileInputRef = useRef(null);
 
   const query = premiumSearch.trim().toLowerCase();
@@ -132,6 +140,20 @@ export default function PremiumPage({
   const createBusy = busyAction === "save-premium-game";
   const deleteBusy = busyAction === "delete-premium-game";
   const uploadBusy = busyAction === "upload-premium-game-archive";
+  const earlyAccessBusy = busyAction === "grant-premium-early-access" || busyAction === "revoke-premium-early-access";
+  const selectedLicenseIds = useMemo(
+    () => new Set(earlyAccessEntries.map((entry) => entry.licenseId)),
+    [earlyAccessEntries],
+  );
+  const earlyAccessCandidates = useMemo(() => {
+    const search = earlyAccessSearch.trim().toLowerCase();
+    return licenses.filter((license) => {
+      if (selectedLicenseIds.has(license.id) || license.status !== "active") return false;
+      if (!search) return true;
+      return [license.id, license.name, license.contact, license.licenseKey]
+        .some((value) => String(value || "").toLowerCase().includes(search));
+    }).slice(0, 12);
+  }, [earlyAccessSearch, licenses, selectedLicenseIds]);
 
   function openCreateModal() {
     setDraft(createEmptyPremiumDraft());
@@ -148,6 +170,45 @@ export default function PremiumPage({
   function openDeleteModal(entry) {
     setDeleteTarget(entry);
     setActiveModal("delete");
+  }
+
+  async function openEarlyAccessModal(entry) {
+    setEarlyAccessTarget(entry);
+    setEarlyAccessEntries([]);
+    setEarlyAccessSearch("");
+    setActiveModal("early-access");
+    setLoadingEarlyAccess(true);
+    try {
+      setEarlyAccessEntries(await loadPremiumEarlyAccess(entry.appId));
+    } catch (error) {
+      notify(error.message || "Nao foi possivel carregar os acessos antecipados.");
+      setActiveModal(null);
+    } finally {
+      setLoadingEarlyAccess(false);
+    }
+  }
+
+  async function handleGrantEarlyAccess(licenseId) {
+    if (!earlyAccessTarget) return;
+    try {
+      const entry = await grantPremiumEarlyAccess(earlyAccessTarget.appId, licenseId);
+      if (entry) setEarlyAccessEntries((current) => [entry, ...current.filter((item) => item.licenseId !== licenseId)]);
+      setEarlyAccessSearch("");
+      notify("Acesso antecipado liberado.");
+    } catch (error) {
+      notify(error.message || "Nao foi possivel liberar o acesso antecipado.");
+    }
+  }
+
+  async function handleRevokeEarlyAccess(licenseId) {
+    if (!earlyAccessTarget) return;
+    try {
+      await revokePremiumEarlyAccess(earlyAccessTarget.appId, licenseId);
+      setEarlyAccessEntries((current) => current.filter((entry) => entry.licenseId !== licenseId));
+      notify("Acesso antecipado removido.");
+    } catch (error) {
+      notify(error.message || "Nao foi possivel remover o acesso antecipado.");
+    }
   }
 
   async function handleSave() {
@@ -249,6 +310,9 @@ export default function PremiumPage({
                   </div>
 
                   <div className="override-actions premium-card__actions">
+                    <button className="button button--ghost button--sm" onClick={() => openEarlyAccessModal(entry)}>
+                      Antecipado{entry.earlyAccessCount ? ` (${entry.earlyAccessCount})` : ""}
+                    </button>
                     <button className="button button--ghost button--sm" onClick={() => openEditModal(entry)}>
                       Editar
                     </button>
@@ -490,6 +554,67 @@ export default function PremiumPage({
           <p className="plain-copy">
             O cadastro sera removido do painel. Se quiser, o ZIP no bucket pode ser reaproveitado depois criando o mesmo appId novamente.
           </p>
+        </Modal>
+      )}
+
+      {activeModal === "early-access" && earlyAccessTarget && (
+        <Modal
+          title="Acesso antecipado"
+          subtitle={`${earlyAccessTarget.name || earlyAccessTarget.appId}. Essas licencas podem ativar antes da liberacao normal do plano.`}
+          onClose={() => !earlyAccessBusy && setActiveModal(null)}
+          closeDisabled={earlyAccessBusy}
+          actions={
+            <button className="button button--primary" onClick={() => setActiveModal(null)} disabled={earlyAccessBusy}>
+              Concluir
+            </button>
+          }
+        >
+          <label className="field field--wide">
+            <span>Adicionar licenca</span>
+            <input
+              value={earlyAccessSearch}
+              onChange={(event) => setEarlyAccessSearch(event.target.value)}
+              placeholder="Busque por nome, contato, chave ou ID"
+              autoFocus
+            />
+          </label>
+
+          {earlyAccessSearch.trim() && (
+            <div className="premium-early-access__candidates">
+              {earlyAccessCandidates.length ? earlyAccessCandidates.map((license) => (
+                <button
+                  className="premium-early-access__candidate"
+                  key={license.id}
+                  type="button"
+                  disabled={earlyAccessBusy}
+                  onClick={() => handleGrantEarlyAccess(license.id)}
+                >
+                  <strong>{license.name}</strong>
+                  <span>{license.contact || license.licenseKey} · {license.planTier || "teste"}</span>
+                </button>
+              )) : <p className="plain-copy">Nenhuma licenca ativa encontrada.</p>}
+            </div>
+          )}
+
+          <div className="premium-early-access__selected">
+            <p className="field-grid__note">Pessoas com acesso antecipado</p>
+            {loadingEarlyAccess ? <p className="plain-copy">Carregando...</p> : earlyAccessEntries.length ? earlyAccessEntries.map((entry) => (
+              <div className="premium-early-access__entry" key={entry.licenseId}>
+                <div>
+                  <strong>{entry.name}</strong>
+                  <span>{entry.contact || entry.licenseKey} · {entry.planTier || "teste"}</span>
+                </div>
+                <button
+                  className="button button--danger button--soft button--sm"
+                  type="button"
+                  disabled={earlyAccessBusy}
+                  onClick={() => handleRevokeEarlyAccess(entry.licenseId)}
+                >
+                  Remover
+                </button>
+              </div>
+            )) : <p className="plain-copy">Nenhuma licenca com acesso antecipado.</p>}
+          </div>
         </Modal>
       )}
     </section>

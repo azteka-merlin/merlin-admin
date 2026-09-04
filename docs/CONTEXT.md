@@ -27,6 +27,7 @@ The admin does not use an absolute API URL. It calls relative routes such as:
 - `/panel-api/licenses`
 - `/panel-api/overrides`
 - `/panel-api/premium/games`
+- `/panel-api/premium/games/:appId/early-access`
 - `/panel-api/polls`
 - `/panel-api/updates`
 
@@ -50,7 +51,7 @@ The API script `npm run deploy:panel` automates the production panel build, type
 - Activity: inspect user activity.
 - Blocking: inspect and unblock IPs.
 - Overrides: upload, list, download, and remove manifests/fixes by App ID.
-- Premium: manage premium games and uploads.
+- Premium: manage premium games, uploads, and individual early-access grants. The card keeps only a count; selecting licenses happens in the game modal so the main grid remains compact.
 - Polls: create, open, close, vote, and delete polls.
 - Public signup: configure public registration and recovery.
 - Updates: upload the Merlin installer and latest-version metadata.
@@ -60,3 +61,4 @@ The API script `npm run deploy:panel` automates the production panel build, type
 - Auth depends on HttpOnly cookies and CSRF handled by the API; do not move auth into browser storage.
 - Mutating panel calls should keep using the existing request helpers so CSRF and session handling stay consistent.
 - When adding a new panel route, ensure the API protects it with admin session checks and the Worker SPA routing covers it.
+- Individual early access is an exception to release timing only. Do not imply in the UI that it changes a license tier, activation quota, cooldown, or billing state.
