@@ -155,6 +155,7 @@ function App() {
   const [publicFeedbacks, setPublicFeedbacks] = React.useState([]);
   const [merlinUpdate, setMerlinUpdate] = React.useState(null);
   const [manifestSourceSettings, setManifestSourceSettings] = React.useState({ primarySource: "depotbox", updatedAt: null });
+  const [launcherUpdatePolicySettings, setLauncherUpdatePolicySettings] = React.useState({ automaticUpdatesEnabled: true, updatedAt: null });
   const [publicSignup, setPublicSignup] = React.useState({
     settings: { enabled: false, durationAmount: 30, durationUnit: "days", isLifetime: false, description: "" },
     billing: {
@@ -192,6 +193,7 @@ function App() {
   const [loadingPublicFeedbacks, setLoadingPublicFeedbacks] = React.useState(false);
   const [loadingMerlinUpdate, setLoadingMerlinUpdate] = React.useState(false);
   const [loadingManifestSourceSettings, setLoadingManifestSourceSettings] = React.useState(false);
+  const [loadingLauncherUpdatePolicySettings, setLoadingLauncherUpdatePolicySettings] = React.useState(false);
   const [selectedId, setSelectedId] = React.useState(null);
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
@@ -459,6 +461,7 @@ function App() {
       setPublicFeedbacks([]);
       setMerlinUpdate(null);
       setManifestSourceSettings({ primarySource: "depotbox", updatedAt: null });
+      setLauncherUpdatePolicySettings({ automaticUpdatesEnabled: true, updatedAt: null });
       setPublicSignup({
         settings: { enabled: false, durationAmount: 30, durationUnit: "days", isLifetime: false, description: "" },
         billing: {
@@ -1096,6 +1099,18 @@ function App() {
     }
   }
 
+  async function loadLauncherUpdatePolicySettings() {
+    setLoadingLauncherUpdatePolicySettings(true);
+    try {
+      const payload = await apiRequest("/panel-api/launcher-update-policy-settings");
+      setLauncherUpdatePolicySettings(payload.settings || { automaticUpdatesEnabled: true, updatedAt: null });
+    } catch (error) {
+      setToast(error.message);
+    } finally {
+      setLoadingLauncherUpdatePolicySettings(false);
+    }
+  }
+
   async function loadPollResults(pollId) {
     return apiRequest(`/panel-api/polls/${encodeURIComponent(pollId)}/results`);
   }
@@ -1356,6 +1371,23 @@ function App() {
     }
   }
 
+  async function handleSaveLauncherUpdatePolicySettings(automaticUpdatesEnabled) {
+    setBusyAction("save-launcher-update-policy-settings");
+    try {
+      const payload = await apiRequest("/panel-api/launcher-update-policy-settings", {
+        method: "PUT",
+        mutate: true,
+        body: { automaticUpdatesEnabled }
+      });
+      setLauncherUpdatePolicySettings(payload.settings || { automaticUpdatesEnabled, updatedAt: null });
+      setToast(automaticUpdatesEnabled ? "Atualizações automáticas liberadas." : "Atualizações automáticas bloqueadas.");
+    } catch (error) {
+      setToast(error.message);
+    } finally {
+      setBusyAction("");
+    }
+  }
+
   async function handleSaveBillingPlanPrices(prices) {
     setBusyAction("save-billing-plan-prices");
     try {
@@ -1451,6 +1483,7 @@ function App() {
       loadBlockedIps();
       loadMerlinUpdate();
       loadManifestSourceSettings();
+      loadLauncherUpdatePolicySettings();
     }
     if (auth && view === "overrides") {
       loadOverrides();
@@ -2402,6 +2435,10 @@ function App() {
             loadingManifestSourceSettings={loadingManifestSourceSettings}
             loadManifestSourceSettings={loadManifestSourceSettings}
             handleSaveManifestSourceSettings={handleSaveManifestSourceSettings}
+            launcherUpdatePolicySettings={launcherUpdatePolicySettings}
+            loadingLauncherUpdatePolicySettings={loadingLauncherUpdatePolicySettings}
+            loadLauncherUpdatePolicySettings={loadLauncherUpdatePolicySettings}
+            handleSaveLauncherUpdatePolicySettings={handleSaveLauncherUpdatePolicySettings}
           />
         )}
         {view === "public-signup" && (

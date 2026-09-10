@@ -27,15 +27,25 @@ export default function SettingsPage({
   manifestSourceSettings,
   loadingManifestSourceSettings,
   loadManifestSourceSettings,
-  handleSaveManifestSourceSettings
+  handleSaveManifestSourceSettings,
+  launcherUpdatePolicySettings,
+  loadingLauncherUpdatePolicySettings,
+  loadLauncherUpdatePolicySettings,
+  handleSaveLauncherUpdatePolicySettings
 }) {
   const publishingUpdate = busyAction === "publish-merlin-update";
   const savingManifestSourceSettings = busyAction === "save-manifest-source-settings";
+  const savingLauncherUpdatePolicySettings = busyAction === "save-launcher-update-policy-settings";
   const [primarySource, setPrimarySource] = React.useState("depotbox");
+  const [automaticUpdatesEnabled, setAutomaticUpdatesEnabled] = React.useState(true);
 
   React.useEffect(() => {
     setPrimarySource(manifestSourceSettings?.primarySource === "ryuu" ? "ryuu" : "depotbox");
   }, [manifestSourceSettings?.primarySource]);
+
+  React.useEffect(() => {
+    setAutomaticUpdatesEnabled(launcherUpdatePolicySettings?.automaticUpdatesEnabled !== false);
+  }, [launcherUpdatePolicySettings?.automaticUpdatesEnabled]);
 
   return (
     <section className="page">
@@ -100,6 +110,47 @@ export default function SettingsPage({
             disabled={loadingManifestSourceSettings || savingManifestSourceSettings || primarySource === manifestSourceSettings?.primarySource}
           >
             {savingManifestSourceSettings ? "Salvando..." : "Salvar prioridade"}
+          </button>
+        </div>
+      </section>
+
+      <section className="panel panel--audit">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Ativação normal</p>
+            <h2>Atualizações automáticas</h2>
+          </div>
+          <button className="button button--ghost" onClick={loadLauncherUpdatePolicySettings} disabled={loadingLauncherUpdatePolicySettings || savingLauncherUpdatePolicySettings}>
+            {loadingLauncherUpdatePolicySettings ? "Atualizando..." : "Atualizar dados"}
+          </button>
+        </div>
+
+        <p className="field-grid__note">
+          Ao bloquear, novos jogos adicionados pelo launcher terão a atualização automática desativada. Instalações já concluídas não são alteradas.
+        </p>
+
+        <div className="toggle-grid">
+          <label className="toggle-field">
+            <input
+              type="checkbox"
+              checked={automaticUpdatesEnabled}
+              disabled={loadingLauncherUpdatePolicySettings || savingLauncherUpdatePolicySettings}
+              onChange={(event) => setAutomaticUpdatesEnabled(event.target.checked)}
+            />
+            <div>
+              <strong>Permitir atualizações automáticas</strong>
+              <span>{automaticUpdatesEnabled ? "O usuário pode decidir ao adicionar cada jogo." : "O launcher desativa e bloqueia essa opção para novos jogos."}</span>
+            </div>
+          </label>
+        </div>
+
+        <div className="override-upload-card__actions">
+          <button
+            className="button button--primary button--sm"
+            onClick={() => handleSaveLauncherUpdatePolicySettings(automaticUpdatesEnabled)}
+            disabled={loadingLauncherUpdatePolicySettings || savingLauncherUpdatePolicySettings || automaticUpdatesEnabled === (launcherUpdatePolicySettings?.automaticUpdatesEnabled !== false)}
+          >
+            {savingLauncherUpdatePolicySettings ? "Salvando..." : "Salvar política"}
           </button>
         </div>
       </section>
