@@ -14,6 +14,8 @@ export default function LicensesPage({
   setBillingFilter,
   deviceFilter,
   setDeviceFilter,
+  hwidResetFilter,
+  setHwidResetFilter,
   tierFilter,
   setTierFilter,
   accessTypeFilter,
@@ -32,8 +34,10 @@ export default function LicensesPage({
   page,
   setPage,
   selectedLicense,
+  premiumCycleSummary,
   copyLicenseKey,
   openModal,
+  onManagePremiumCycle,
   onSendWelcomeEmail
 }) {
   return (
@@ -125,6 +129,15 @@ export default function LicensesPage({
                 <option value="all">Todos os dispositivos</option>
                 <option value="with">Com dispositivo vinculado</option>
                 <option value="without">Sem dispositivo vinculado</option>
+              </select>
+            </label>
+
+            <label className="field-shell">
+              <span>Reset mensal</span>
+              <select value={hwidResetFilter} onChange={(event) => setHwidResetFilter(event.target.value)} disabled={licenseTab === "test"}>
+                <option value="all">Todos</option>
+                <option value="used">Já utilizado</option>
+                <option value="available">Disponível</option>
               </select>
             </label>
 
@@ -326,12 +339,15 @@ export default function LicensesPage({
         <aside className="panel panel--detail desktop-detail">
           <LicenseDetail
             license={selectedLicense}
+            premiumCycleSummary={premiumCycleSummary}
             onCopy={copyLicenseKey}
             onEdit={() => openModal("edit")}
             onEditTest={() => openModal("edit-test")}
             onResetTestUsage={() => openModal("reset-test-usage")}
             onRenew={() => openModal("renew")}
             onReset={() => openModal("reset")}
+            onManagePremiumCycle={onManagePremiumCycle}
+            onClearHwidResetLimit={() => openModal("clear-hwid-reset-limit")}
             onRevoke={() => openModal("revoke")}
             onReactivate={() => openModal("reactivate")}
             onSendWelcomeEmail={onSendWelcomeEmail}

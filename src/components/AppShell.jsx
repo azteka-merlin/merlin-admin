@@ -12,8 +12,11 @@ export default function AppShell({
   setMenuOpen,
   closePanels,
   selectedLicense,
+  premiumCycleSummary,
   copyLicenseKey,
   openModal,
+  onManagePremiumCycle,
+  onClearHwidResetLimit,
   onSendWelcomeEmail,
   setDetailOpen,
   handleLogout,
@@ -114,12 +117,15 @@ export default function AppShell({
         <div className={`mobile-sheet ${detailOpen ? "is-open" : ""}`}>
           <LicenseDetail
             license={selectedLicense}
+            premiumCycleSummary={premiumCycleSummary}
             onCopy={copyLicenseKey}
             onEdit={() => openModal("edit")}
             onEditTest={() => openModal("edit-test")}
             onResetTestUsage={() => openModal("reset-test-usage")}
             onRenew={() => openModal("renew")}
             onReset={() => openModal("reset")}
+            onManagePremiumCycle={onManagePremiumCycle}
+            onClearHwidResetLimit={onClearHwidResetLimit}
             onRevoke={() => openModal("revoke")}
             onReactivate={() => openModal("reactivate")}
             onSendWelcomeEmail={onSendWelcomeEmail}

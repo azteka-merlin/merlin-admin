@@ -195,9 +195,11 @@ function App() {
   const [loadingManifestSourceSettings, setLoadingManifestSourceSettings] = React.useState(false);
   const [loadingLauncherUpdatePolicySettings, setLoadingLauncherUpdatePolicySettings] = React.useState(false);
   const [selectedId, setSelectedId] = React.useState(null);
+  const [premiumCycleSummary, setPremiumCycleSummary] = React.useState(null);
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [deviceFilter, setDeviceFilter] = React.useState("all");
+  const [hwidResetFilter, setHwidResetFilter] = React.useState("all");
   const [sourceFilter, setSourceFilter] = React.useState("all");
   const [billingFilter, setBillingFilter] = React.useState("all");
   const [licenseTab, setLicenseTab] = React.useState("normal");
@@ -242,6 +244,7 @@ function App() {
     editExpiry: "",
     editHwid: "",
     editPlanTier: "ouro",
+    premiumCycleCredits: "0",
     renewExpiry: "",
     revokeReason: "",
     ...createEmptyOverrideForm()
@@ -252,6 +255,7 @@ function App() {
   });
 
   const selectedLicense = React.useMemo(() => licenses.find((item) => item.id === selectedId) ?? null, [licenses, selectedId]);
+  const selectedPremiumCycleSummary = premiumCycleSummary?.licenseId === selectedLicense?.id ? premiumCycleSummary : null;
 
   const filteredLicenses = React.useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -284,11 +288,16 @@ function App() {
         deviceFilter === "all" ||
         (deviceFilter === "with" && hasDevice) ||
         (deviceFilter === "without" && !hasDevice);
+      const matchesHwidReset =
+        licenseTab === "test" ||
+        hwidResetFilter === "all" ||
+        (hwidResetFilter === "used" && Boolean(license.hwidResetAt)) ||
+        (hwidResetFilter === "available" && !license.hwidResetAt);
       const matchesTier = licenseTab === "test" || tierFilter === "all" || (license.planTier || "ouro") === tierFilter;
       const matchesAccessType = licenseTab === "test" || accessTypeFilter === "all" || (license.accessType || "free") === accessTypeFilter;
-      return matchesSearch && matchesStatus && matchesSource && matchesBilling && matchesDevice && matchesTier && matchesAccessType;
+      return matchesSearch && matchesStatus && matchesSource && matchesBilling && matchesDevice && matchesHwidReset && matchesTier && matchesAccessType;
     });
-  }, [accessTypeFilter, billingFilter, deviceFilter, licenseTab, licenses, search, sourceFilter, statusFilter, tierFilter]);
+  }, [accessTypeFilter, billingFilter, deviceFilter, hwidResetFilter, licenseTab, licenses, search, sourceFilter, statusFilter, tierFilter]);
 
   const auditAdminOptions = React.useMemo(
     () =>
@@ -404,7 +413,7 @@ function App() {
 
   React.useEffect(() => {
     setPage(1);
-  }, [accessTypeFilter, search, statusFilter, sourceFilter, billingFilter, deviceFilter, tierFilter, licenseTab]);
+  }, [accessTypeFilter, search, statusFilter, sourceFilter, billingFilter, deviceFilter, hwidResetFilter, tierFilter, licenseTab]);
 
   React.useEffect(() => {
     if (safePage !== page) setPage(safePage);
@@ -2106,6 +2115,65 @@ function App() {
     });
   }
 
+  async function handleClearHwidResetLimit() {
+    if (!selectedLicense) return;
+
+    await runBusyAction("clear-hwid-reset-limit", async () => {
+      try {
+        const updated = await apiRequest(`/panel-api/licenses/${selectedLicense.id}/clear-hwid-reset-limit`, {
+          method: "POST",
+          mutate: true
+        });
+
+        setActiveModal(null);
+        setSelectedId(updated.id);
+        await Promise.all([loadLicenses(), loadAuditLogs()]);
+        setToast("Reset mensal liberado com sucesso.");
+      } catch (error) {
+        setToast(error.message);
+      }
+    });
+  }
+
+  async function openPremiumActivationCycleModal() {
+    if (!selectedLicense) return;
+    setPremiumCycleSummary(null);
+    setActiveModal("premium-activation-cycle");
+    try {
+      const payload = await apiRequest(`/panel-api/licenses/${selectedLicense.id}/premium-activation-cycle`);
+      setPremiumCycleSummary({ licenseId: selectedLicense.id, ...payload.summary });
+      setFormState((current) => ({ ...current, premiumCycleCredits: String(payload.summary.credits) }));
+    } catch (error) {
+      setActiveModal(null);
+      setToast(error.message);
+    }
+  }
+
+  async function handleUpdatePremiumActivationCycle() {
+    if (!selectedLicense || !premiumCycleSummary) return;
+    const creditCount = Number(formState.premiumCycleCredits);
+    if (!Number.isInteger(creditCount) || creditCount < 0 || creditCount > 100) {
+      setToast("Informe de 0 a 100 créditos extras.");
+      return;
+    }
+
+    await runBusyAction("update-premium-cycle", async () => {
+      try {
+        const payload = await apiRequest(`/panel-api/licenses/${selectedLicense.id}/premium-activation-cycle`, {
+          method: "PUT",
+          mutate: true,
+          body: { creditCount }
+        });
+        setPremiumCycleSummary({ licenseId: selectedLicense.id, ...payload.summary });
+        setActiveModal(null);
+        await loadAuditLogs();
+        setToast("Disponibilidade premium atualizada para este ciclo.");
+      } catch (error) {
+        setToast(error.message);
+      }
+    });
+  }
+
   async function loadPremiumEarlyAccess(appId) {
     const payload = await apiRequest(`/panel-api/premium/games/${encodeURIComponent(appId)}/early-access`);
     return payload.entries || [];
@@ -2254,8 +2322,11 @@ function App() {
         setMenuOpen={setMenuOpen}
         closePanels={closePanels}
         selectedLicense={selectedLicense}
+        premiumCycleSummary={selectedPremiumCycleSummary}
         copyLicenseKey={copyLicenseKey}
         openModal={openModal}
+        onManagePremiumCycle={openPremiumActivationCycleModal}
+        onClearHwidResetLimit={() => openModal("clear-hwid-reset-limit")}
         onSendWelcomeEmail={handleSendWelcomeEmail}
         setDetailOpen={setDetailOpen}
         handleLogout={handleLogout}
@@ -2284,6 +2355,8 @@ function App() {
             setBillingFilter={setBillingFilter}
             deviceFilter={deviceFilter}
             setDeviceFilter={setDeviceFilter}
+            hwidResetFilter={hwidResetFilter}
+            setHwidResetFilter={setHwidResetFilter}
             tierFilter={tierFilter}
             setTierFilter={setTierFilter}
             accessTypeFilter={accessTypeFilter}
@@ -2302,8 +2375,10 @@ function App() {
             page={page}
             setPage={setPage}
             selectedLicense={selectedLicense}
+            premiumCycleSummary={selectedPremiumCycleSummary}
             copyLicenseKey={copyLicenseKey}
             openModal={openModal}
+            onManagePremiumCycle={openPremiumActivationCycleModal}
             onSendWelcomeEmail={handleSendWelcomeEmail}
           />
         )}
@@ -2474,12 +2549,15 @@ function App() {
         formState={formState}
         setFormState={setFormState}
         selectedLicense={selectedLicense}
+        premiumCycleSummary={selectedPremiumCycleSummary}
         handleCreateLicense={handleCreateLicense}
         handleUpdateLicense={handleUpdateLicense}
         handleUpdateTestLicense={handleUpdateTestLicense}
         handleRenewLicense={handleRenewLicense}
         handleReactivateLicense={handleReactivateLicense}
         handleResetHwid={handleResetHwid}
+        handleUpdatePremiumCycle={handleUpdatePremiumActivationCycle}
+        handleClearHwidResetLimit={handleClearHwidResetLimit}
         handleResetTestLicenseUsage={handleResetTestLicenseUsage}
         handleRevokeLicense={handleRevokeLicense}
         handleSaveOverride={handleSaveOverride}

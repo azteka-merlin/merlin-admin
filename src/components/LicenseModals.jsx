@@ -21,12 +21,15 @@ export default function LicenseModals({
   formState,
   setFormState,
   selectedLicense,
+  premiumCycleSummary,
   handleCreateLicense,
   handleUpdateLicense,
   handleUpdateTestLicense,
   handleRenewLicense,
   handleReactivateLicense,
   handleResetHwid,
+  handleUpdatePremiumCycle,
+  handleClearHwidResetLimit,
   handleResetTestLicenseUsage,
   handleRevokeLicense,
   handleSaveOverride,
@@ -45,6 +48,8 @@ export default function LicenseModals({
   const renewBusy = busyAction === "renew-license";
   const reactivateBusy = busyAction === "reactivate-license";
   const resetBusy = busyAction === "reset-hwid";
+  const premiumCycleBusy = busyAction === "update-premium-cycle";
+  const clearHwidResetLimitBusy = busyAction === "clear-hwid-reset-limit";
   const resetTestUsageBusy = busyAction === "reset-test-license-usage";
   const revokeBusy = busyAction === "revoke-license";
   const saveOverrideBusy = busyAction === "save-override";
@@ -435,6 +440,57 @@ export default function LicenseModals({
           }
         >
           <p className="plain-copy">Na próxima ativação, um novo dispositivo poderá ser vinculado.</p>
+        </Modal>
+      )}
+
+      {activeModal === "clear-hwid-reset-limit" && selectedLicense && (
+        <Modal
+          title="Liberar reset mensal"
+          subtitle={`${selectedLicense.name} poderá solicitar outro reset de dispositivo imediatamente.`}
+          onClose={() => setActiveModal(null)}
+          closeDisabled={clearHwidResetLimitBusy}
+          actions={
+            <>
+              <button className="button button--ghost" onClick={() => setActiveModal(null)} disabled={clearHwidResetLimitBusy}>
+                Cancelar
+              </button>
+              <button className="button button--primary" onClick={handleClearHwidResetLimit} disabled={clearHwidResetLimitBusy}>
+                {clearHwidResetLimitBusy ? "Liberando..." : "Liberar reset"}
+              </button>
+            </>
+          }
+        >
+          <p className="plain-copy">O HWID atual não será removido. Esta ação apenas libera uma nova cota mensal de reset para a licença.</p>
+        </Modal>
+      )}
+
+      {activeModal === "premium-activation-cycle" && selectedLicense && (
+        <Modal
+          title="Ativações premium Bronze"
+          subtitle="O ajuste vale somente até o próximo ciclo mensal desta licença."
+          onClose={() => setActiveModal(null)}
+          closeDisabled={premiumCycleBusy}
+          actions={
+            <>
+              <button className="button button--ghost" onClick={() => setActiveModal(null)} disabled={premiumCycleBusy}>Cancelar</button>
+              <button className="button button--primary" onClick={handleUpdatePremiumCycle} disabled={premiumCycleBusy || !premiumCycleSummary}>
+                {premiumCycleBusy ? "Salvando..." : "Salvar créditos"}
+              </button>
+            </>
+          }
+        >
+          {premiumCycleSummary ? (
+            <div className="form-grid">
+              <div className="plain-copy">
+                Já usadas: <strong>{premiumCycleSummary.used}</strong> · Limite atual: <strong>{premiumCycleSummary.totalLimit}</strong> · Créditos extras: <strong>+{premiumCycleSummary.credits}</strong>.
+              </div>
+              <label className="field">
+                <span>Créditos extras neste ciclo</span>
+                <input type="number" min="0" max="100" value={formState.premiumCycleCredits} onChange={(event) => setFormState((current) => ({ ...current, premiumCycleCredits: event.target.value }))} />
+              </label>
+              <p className="plain-copy">Exemplo: com 3 usadas, definir 2 créditos libera mais 2 agora. O histórico não será apagado e, no próximo ciclo, a licença volta automaticamente ao padrão Bronze de 3.</p>
+            </div>
+          ) : <p className="plain-copy">Carregando uso do ciclo atual...</p>}
         </Modal>
       )}
 

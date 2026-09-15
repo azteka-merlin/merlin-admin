@@ -3,7 +3,7 @@ import CopyIcon from "./CopyIcon";
 import DetailField from "./DetailField";
 import { formatActivationUsage, formatContact, formatDate, formatDateTime, getAccessType, getBillingStatus, getLicenseContact, getLicenseContactType, getLicenseType, getRevokedOriginLabel, getSourceLabel, getStatus, initials, maskTechnicalValue } from "../lib/admin-ui";
 
-export default function LicenseDetail({ license, onCopy, onEdit, onEditTest, onResetTestUsage, onRenew, onReset, onRevoke, onReactivate, onSendWelcomeEmail, onClose, mobile }) {
+export default function LicenseDetail({ license, premiumCycleSummary, onCopy, onEdit, onEditTest, onResetTestUsage, onManagePremiumCycle, onRenew, onReset, onClearHwidResetLimit, onRevoke, onReactivate, onSendWelcomeEmail, onClose, mobile }) {
   if (!license) {
     return (
       <div className="detail-empty">
@@ -86,6 +86,20 @@ export default function LicenseDetail({ license, onCopy, onEdit, onEditTest, onR
             title={license.hwid || "Sem dispositivo vinculado"}
           />
         )}
+        {licenseType !== "test" && license.planTier === "bronze" && premiumCycleSummary && (
+          <DetailField
+            label="Ativações premium neste ciclo"
+            value={`${premiumCycleSummary.used} usadas de ${premiumCycleSummary.totalLimit} · ${premiumCycleSummary.available} disponíveis`}
+            wide
+          />
+        )}
+        {licenseType !== "test" && (
+          <DetailField
+            label="Reset mensal de dispositivo"
+            value={license.hwidResetAt ? `Usado em ${formatDateTime(license.hwidResetAt)}` : "Disponível"}
+            wide
+          />
+        )}
 
         <div className="detail-field detail-field--wide">
           <span>Chave da licença</span>
@@ -145,6 +159,16 @@ export default function LicenseDetail({ license, onCopy, onEdit, onEditTest, onR
         {licenseType !== "test" && (
           <button className="button button--ghost" onClick={onReset} disabled={!license.hwid}>
             Redefinir dispositivo
+          </button>
+        )}
+        {licenseType !== "test" && license.planTier === "bronze" && (
+          <button className="button button--ghost" onClick={onManagePremiumCycle}>
+            Gerenciar ativações premium
+          </button>
+        )}
+        {licenseType !== "test" && license.hwidResetAt && (
+          <button className="button button--ghost" onClick={onClearHwidResetLimit}>
+            Liberar reset mensal
           </button>
         )}
         {licenseType !== "test" && contactType === "email" && (

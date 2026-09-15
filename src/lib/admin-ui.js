@@ -188,6 +188,8 @@ export function actionLabel(action) {
     license_reactivated: "Licença reativada",
     license_revoked: "Licença revogada",
     license_hwid_reset: "HWID redefinido",
+    license_hwid_reset_limit_cleared: "Reset mensal de dispositivo liberado",
+    license_bronze_premium_cycle_updated: "Ativações premium Bronze ajustadas",
     payment_checkout_synced: "Checkout sincronizado",
     payment_license_synced: "Licenca sincronizada"
   };
@@ -220,6 +222,8 @@ export function describeAuditLog(log) {
   if (log.action === "license_renewed") return `Renovou a licença #${log.entityId || "--"}`;
   if (log.action === "license_reactivated") return `Reativou a licença #${log.entityId || "--"}`;
   if (log.action === "license_hwid_reset") return `Redefiniu o HWID da licença #${log.entityId || "--"}`;
+  if (log.action === "license_hwid_reset_limit_cleared") return `Liberou o reset mensal da licença #${log.entityId || "--"}`;
+  if (log.action === "license_bronze_premium_cycle_updated") return `Ajustou as ativações premium Bronze da licença #${log.entityId || "--"}`;
   if (log.action === "payment_checkout_synced") return `Sincronizou o checkout ${log.entityId || "--"} com a Stripe`;
   if (log.action === "payment_license_synced") return `Sincronizou a licenca #${log.entityId || "--"} com a Stripe`;
   if (log.action === "license_revoked") {
@@ -241,6 +245,7 @@ export function describeAuditLog(log) {
 export function userActivityLabel(action) {
   const labels = {
     user_login_success: "Login do usuário",
+    hwid_reset_success: "Reset de dispositivo",
     game_activation_success: "Ativação liberada",
     game_activation_denied: "Ativação negada",
     premium_activation_success: "Ativação premium liberada",
