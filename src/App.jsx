@@ -7,6 +7,7 @@ import ActivityPage from "./pages/ActivityPage";
 import AnnouncementsPage from "./pages/AnnouncementsPage";
 import PartnersPage from "./pages/PartnersPage";
 import AuditPage from "./pages/AuditPage";
+import CatalogQueuePage from "./pages/CatalogQueuePage";
 import LicensesPage from "./pages/LicensesPage";
 import OverviewPage from "./pages/OverviewPage";
 import OverridesPage from "./pages/OverridesPage";
@@ -155,6 +156,8 @@ function App() {
   const [publicFeedbacks, setPublicFeedbacks] = React.useState([]);
   const [merlinUpdate, setMerlinUpdate] = React.useState(null);
   const [manifestSourceSettings, setManifestSourceSettings] = React.useState({ primarySource: "depotbox", updatedAt: null });
+  const [catalogEnrichmentStatus, setCatalogEnrichmentStatus] = React.useState({ totalGames: 0, withReleaseDate: 0, withoutReleaseDate: 0, pending: 0, processing: 0, retry: 0, paused: 0, failed: 0, queuePaused: false, lastActivityAt: null });
+  const [catalogQueue, setCatalogQueue] = React.useState({ status: "missing", page: 1, limit: 50, total: 0, items: [] });
   const [launcherUpdatePolicySettings, setLauncherUpdatePolicySettings] = React.useState({ automaticUpdatesEnabled: true, updatedAt: null });
   const [publicSignup, setPublicSignup] = React.useState({
     settings: { enabled: false, durationAmount: 30, durationUnit: "days", isLifetime: false, description: "" },
@@ -193,6 +196,8 @@ function App() {
   const [loadingPublicFeedbacks, setLoadingPublicFeedbacks] = React.useState(false);
   const [loadingMerlinUpdate, setLoadingMerlinUpdate] = React.useState(false);
   const [loadingManifestSourceSettings, setLoadingManifestSourceSettings] = React.useState(false);
+  const [loadingCatalogEnrichmentStatus, setLoadingCatalogEnrichmentStatus] = React.useState(false);
+  const [loadingCatalogQueue, setLoadingCatalogQueue] = React.useState(false);
   const [loadingLauncherUpdatePolicySettings, setLoadingLauncherUpdatePolicySettings] = React.useState(false);
   const [selectedId, setSelectedId] = React.useState(null);
   const [premiumCycleSummary, setPremiumCycleSummary] = React.useState(null);
@@ -1108,6 +1113,75 @@ function App() {
     }
   }
 
+  async function loadCatalogEnrichmentStatus() {
+    setLoadingCatalogEnrichmentStatus(true);
+    try {
+      const payload = await apiRequest("/panel-api/catalog-enrichment-status");
+      setCatalogEnrichmentStatus(payload.status || { totalGames: 0, withReleaseDate: 0, withoutReleaseDate: 0, pending: 0, processing: 0, retry: 0, paused: 0, failed: 0, queuePaused: false, lastActivityAt: null });
+    } catch (error) {
+      setToast(error.message);
+    } finally {
+      setLoadingCatalogEnrichmentStatus(false);
+    }
+  }
+
+  async function loadCatalogQueue(status = "missing", page = 1, limit = 50) {
+    setLoadingCatalogQueue(true);
+    try {
+      const params = new URLSearchParams({ status, page: String(page), limit: String(limit) });
+      const [payload, statusPayload] = await Promise.all([
+        apiRequest(`/panel-api/catalog-enrichment-queue?${params}`),
+        apiRequest("/panel-api/catalog-enrichment-status"),
+      ]);
+      setCatalogQueue(payload.queue || { status, page, limit, total: 0, items: [] });
+      setCatalogEnrichmentStatus(statusPayload.status || { totalGames: 0, withReleaseDate: 0, withoutReleaseDate: 0, pending: 0, processing: 0, retry: 0, paused: 0, failed: 0, queuePaused: false, lastActivityAt: null });
+    } catch (error) {
+      setToast(error.message);
+    } finally {
+      setLoadingCatalogQueue(false);
+    }
+  }
+
+  async function handleCatalogQueuePause(paused) {
+    setBusyAction("catalog-queue-pause");
+    try {
+      await apiRequest("/panel-api/catalog-enrichment-settings", { method: "PUT", body: { paused }, mutate: true });
+      setToast(paused ? "Fila automática pausada." : "Fila automática retomada.");
+      await loadCatalogQueue(catalogQueue.status || "missing", catalogQueue.page || 1, catalogQueue.limit || 50);
+    } catch (error) {
+      setToast(error.message);
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function handleCatalogQueueJobAction(appId, action, status, page, limit) {
+    setBusyAction(`catalog-job-${appId}`);
+    try {
+      await apiRequest(`/panel-api/catalog-enrichment-queue/${encodeURIComponent(appId)}/action`, { method: "POST", body: { action }, mutate: true });
+      setToast(action === "delete" ? "Job excluído da fila." : action === "reprocess" ? "Job voltou para a fila com o contador zerado." : action === "pause" ? "Job pausado." : "Job retomado.");
+      await loadCatalogQueue(status, page, limit);
+    } catch (error) {
+      setToast(error.message);
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function handleCatalogQueueBulkAction(appIds, action, status, page, limit) {
+    setBusyAction("catalog-jobs-bulk");
+    try {
+      const payload = await apiRequest("/panel-api/catalog-enrichment-queue/actions", { method: "POST", body: { appIds, action }, mutate: true });
+      const changed = Number(payload.changed || 0);
+      setToast(action === "delete" ? `${changed} jobs excluídos.` : action === "reprocess" || action === "resume" ? `${changed} jobs voltaram para a fila.` : `${changed} jobs pausados.`);
+      await loadCatalogQueue(status, page, limit);
+    } catch (error) {
+      setToast(error.message);
+    } finally {
+      setBusyAction("");
+    }
+  }
+
   async function loadLauncherUpdatePolicySettings() {
     setLoadingLauncherUpdatePolicySettings(true);
     try {
@@ -1459,6 +1533,18 @@ function App() {
     });
   }
 
+  async function handleSyncMercadoPagoCheckout(sessionId) {
+    if (!sessionId) return;
+    await runBusyAction(`sync-mercadopago-${sessionId}`, async () => {
+      await apiRequest(`/panel-api/payments/checkouts/${encodeURIComponent(sessionId)}/sync-mercadopago`, {
+        method: "POST",
+        mutate: true
+      });
+      await Promise.all([loadPaymentLogs(), loadLicenses(), loadAuditLogs()]);
+      setToast("Checkout sincronizado com o Mercado Pago.");
+    });
+  }
+
   async function handleSyncPaymentLicense(licenseId) {
     if (!licenseId) return;
     await runBusyAction(`sync-license-${licenseId}`, async () => {
@@ -1517,6 +1603,9 @@ function App() {
     }
     if (auth && view === "public-feedbacks") {
       loadPublicFeedbacks();
+    }
+    if (auth && view === "catalog-queue") {
+      loadCatalogQueue();
     }
   }, [auth, view]);
 
@@ -2459,6 +2548,7 @@ function App() {
             loadingPaymentLogs={loadingPaymentLogs}
             loadPaymentLogs={loadPaymentLogs}
             onSyncCheckout={handleSyncPaymentCheckout}
+            onSyncMercadoPagoCheckout={handleSyncMercadoPagoCheckout}
             onSyncLicense={handleSyncPaymentLicense}
             busyAction={busyAction}
           />
@@ -2489,6 +2579,18 @@ function App() {
             loadingAuditLogs={loadingAuditLogs}
             filteredAuditLogs={filteredAuditLogs}
             loadAuditLogs={loadAuditLogs}
+          />
+        )}
+        {view === "catalog-queue" && (
+          <CatalogQueuePage
+            summary={catalogEnrichmentStatus}
+            queue={catalogQueue}
+            loading={loadingCatalogQueue || loadingCatalogEnrichmentStatus}
+            actionBusy={Boolean(busyAction)}
+            onLoad={loadCatalogQueue}
+            onTogglePause={handleCatalogQueuePause}
+            onJobAction={handleCatalogQueueJobAction}
+            onBulkAction={handleCatalogQueueBulkAction}
           />
         )}
         {view === "settings" && (

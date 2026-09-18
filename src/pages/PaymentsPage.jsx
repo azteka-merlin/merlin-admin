@@ -94,6 +94,7 @@ export default function PaymentsPage({
   loadingPaymentLogs,
   loadPaymentLogs,
   onSyncCheckout,
+  onSyncMercadoPagoCheckout,
   onSyncLicense,
   busyAction
 }) {
@@ -138,6 +139,8 @@ export default function PaymentsPage({
               const licenseActionKey = `sync-license-${payment.licenseId}`;
               const evidence = payment.checkoutEvidence || {};
               const isStripe = payment.provider === "stripe";
+              const isMercadoPago = payment.provider === "mercadopago";
+              const mercadoPagoActionKey = `sync-mercadopago-${payment.providerSessionId}`;
               return (
                 <article className="audit-card payment-card" key={`${payment.checkoutId}-${payment.paymentId || "checkout"}`}>
                   <div className="audit-card__head payment-card__head">
@@ -248,6 +251,16 @@ export default function PaymentsPage({
                           {busyAction === licenseActionKey ? "Sincronizando..." : "Sincronizar licenca"}
                         </button>
                       )}
+                    </div>}
+                    {isMercadoPago && <div className="payment-actions">
+                      <button
+                        className="button button--ghost"
+                        onClick={() => onSyncMercadoPagoCheckout(payment.providerSessionId)}
+                        disabled={Boolean(busyAction)}
+                        title="Consulta a order diretamente no Mercado Pago; nao confirma pagamentos manualmente."
+                      >
+                        {busyAction === mercadoPagoActionKey ? "Sincronizando..." : "Sincronizar Mercado Pago"}
+                      </button>
                     </div>}
                   </div>
                 </article>

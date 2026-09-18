@@ -779,6 +779,89 @@ h3 {
   background: linear-gradient(90deg, rgba(159, 89, 255, 0.13), rgba(159, 89, 255, 0.03));
 }
 
+.catalog-queue__summary {
+  margin: 22px 0;
+}
+
+.catalog-queue__top-actions,
+.catalog-queue__bulk-actions,
+.catalog-queue__row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.catalog-queue__top-actions { justify-content: flex-end; }
+.catalog-queue__bulk-actions {
+  margin: 0 0 16px;
+  padding: 12px;
+  border: 1px solid rgba(159, 89, 255, 0.28);
+  border-radius: 12px;
+  background: rgba(159, 89, 255, 0.08);
+}
+.catalog-queue__bulk-actions strong { margin-right: auto; }
+.catalog-queue__row-actions { min-width: 180px; }
+.catalog-queue__table input[type="checkbox"] { accent-color: var(--primary); cursor: pointer; }
+.catalog-queue__page-size { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.catalog-queue__page-size label { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 0.86rem; }
+.catalog-queue__page-size select { min-width: 68px; padding: 7px 28px 7px 9px; font-size: 0.86rem; }
+.notice {
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  line-height: 1.45;
+}
+.notice--warning {
+  color: #ffe2a4;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  background: rgba(251, 191, 36, 0.09);
+}
+
+.catalog-queue__tabs {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.catalog-queue__tab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 0 150px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--muted);
+  cursor: pointer;
+  text-align: left;
+}
+
+.catalog-queue__tab strong { color: var(--text); margin-left: auto; }
+.catalog-queue__tab.is-active { border-color: var(--primary); background: rgba(159, 89, 255, 0.1); color: var(--text); }
+.catalog-queue__heading { margin: 24px 0 16px; }
+.catalog-queue__heading h2 { margin: 0 0 6px; }
+
+.catalog-queue__table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+}
+
+.catalog-queue__table th,
+.catalog-queue__table td {
+  padding: 14px 16px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.catalog-queue__table th { color: var(--muted); font-size: 0.84rem; font-weight: 500; }
+.catalog-queue__game { display: flex; align-items: center; gap: 12px; min-width: 230px; }
+.catalog-queue__game strong, .catalog-queue__game small { display: block; }
+.catalog-queue__game small { margin-top: 4px; color: var(--muted); }
+
 .user-cell {
   display: flex;
   align-items: center;
@@ -1207,6 +1290,10 @@ h3 {
 
   .table-shell {
     display: none;
+  }
+
+  .catalog-queue__table-wrap {
+    display: block;
   }
 
   .license-cards {

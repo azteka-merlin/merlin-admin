@@ -40,7 +40,8 @@ export default function SettingsPage({
   const [automaticUpdatesEnabled, setAutomaticUpdatesEnabled] = React.useState(true);
 
   React.useEffect(() => {
-    setPrimarySource(manifestSourceSettings?.primarySource === "ryuu" ? "ryuu" : "depotbox");
+    const configuredSource = manifestSourceSettings?.primarySource;
+    setPrimarySource(["depotbox", "ryuu", "contrary"].includes(configuredSource) ? configuredSource : "depotbox");
   }, [manifestSourceSettings?.primarySource]);
 
   React.useEffect(() => {
@@ -68,7 +69,7 @@ export default function SettingsPage({
         </div>
 
         <p className="field-grid__note">
-          Overrides sempre têm prioridade. A fonte não selecionada continua como o próximo fallback antes das demais fontes.
+          Overrides sempre têm prioridade. As fontes não selecionadas continuam como fallback antes das demais fontes.
         </p>
 
         <div className="toggle-grid">
@@ -99,6 +100,21 @@ export default function SettingsPage({
             <div>
               <strong>Ryuu primeiro</strong>
               <span>Consulta o Ryuu antes do DepotBox para ativações normais.</span>
+            </div>
+          </label>
+
+          <label className="toggle-field">
+            <input
+              type="radio"
+              name="manifest-primary-source"
+              value="contrary"
+              checked={primarySource === "contrary"}
+              disabled={loadingManifestSourceSettings || savingManifestSourceSettings}
+              onChange={() => setPrimarySource("contrary")}
+            />
+            <div>
+              <strong>ContraryCDN primeiro</strong>
+              <span>Consulta o ContraryCDN antes do DepotBox e do Ryuu para ativações normais.</span>
             </div>
           </label>
         </div>
