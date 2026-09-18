@@ -35,10 +35,12 @@ export default function LicensesPage({
   setPage,
   selectedLicense,
   premiumCycleSummary,
+  expirationReminderEligibility,
   copyLicenseKey,
   openModal,
   onManagePremiumCycle,
-  onSendWelcomeEmail
+  onSendWelcomeEmail,
+  onSendExpirationReminder
 }) {
   return (
     <section className="page">
@@ -340,6 +342,7 @@ export default function LicensesPage({
           <LicenseDetail
             license={selectedLicense}
             premiumCycleSummary={premiumCycleSummary}
+            expirationReminderEligibility={expirationReminderEligibility}
             onCopy={copyLicenseKey}
             onEdit={() => openModal("edit")}
             onEditTest={() => openModal("edit-test")}
@@ -351,6 +354,7 @@ export default function LicensesPage({
             onRevoke={() => openModal("revoke")}
             onReactivate={() => openModal("reactivate")}
             onSendWelcomeEmail={onSendWelcomeEmail}
+            onSendExpirationReminder={onSendExpirationReminder}
             mobile={false}
           />
         </aside>

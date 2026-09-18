@@ -3,7 +3,7 @@ import CopyIcon from "./CopyIcon";
 import DetailField from "./DetailField";
 import { formatActivationUsage, formatContact, formatDate, formatDateTime, getAccessType, getBillingStatus, getLicenseContact, getLicenseContactType, getLicenseType, getRevokedOriginLabel, getSourceLabel, getStatus, initials, maskTechnicalValue } from "../lib/admin-ui";
 
-export default function LicenseDetail({ license, premiumCycleSummary, onCopy, onEdit, onEditTest, onResetTestUsage, onManagePremiumCycle, onRenew, onReset, onClearHwidResetLimit, onRevoke, onReactivate, onSendWelcomeEmail, onClose, mobile }) {
+export default function LicenseDetail({ license, premiumCycleSummary, expirationReminderEligibility, onCopy, onEdit, onEditTest, onResetTestUsage, onManagePremiumCycle, onRenew, onReset, onClearHwidResetLimit, onRevoke, onReactivate, onSendWelcomeEmail, onSendExpirationReminder, onClose, mobile }) {
   if (!license) {
     return (
       <div className="detail-empty">
@@ -20,6 +20,10 @@ export default function LicenseDetail({ license, premiumCycleSummary, onCopy, on
   const licenseType = getLicenseType(license);
   const sourceLabel = getSourceLabel(license.source);
   const hasBilling = billingStatus.key !== "none" || license.stripeCustomerId || license.stripeSubscriptionId || license.stripeCheckoutSessionId;
+  const isStripeSubscription = Boolean(license.stripeCustomerId || license.stripeSubscriptionId);
+  const renewalLabel = isStripeSubscription
+    ? (license.billingCancelAtPeriodEnd ? "Cancelada ao fim do período" : "Automática")
+    : (hasBilling ? "Manual via Pix" : "--");
   const tierLabel = ({ bronze: "Bronze", prata: "Prata", ouro: "Ouro" })[license.planTier] || "Ouro";
 
   return (
@@ -74,7 +78,7 @@ export default function LicenseDetail({ license, premiumCycleSummary, onCopy, on
         <DetailField label="Plano" value={getAccessType(license)} />
         {licenseType !== "test" && <DetailField label="Cobrança" value={billingStatus.label} />}
         {hasBilling && <DetailField label="Fim do período" value={license.billingCurrentPeriodEnd ? formatDate(license.billingCurrentPeriodEnd) : "--"} />}
-        {hasBilling && <DetailField label="Renovação" value={license.billingCancelAtPeriodEnd ? "Cancelada ao fim do período" : "Automática"} />}
+        {hasBilling && <DetailField label="Renovação" value={renewalLabel} />}
         <DetailField label="Criada em" value={formatDateTime(license.createdAt)} />
         <DetailField label="Atualizada em" value={formatDateTime(license.updatedAt)} />
         {licenseType !== "test" && (
@@ -174,6 +178,11 @@ export default function LicenseDetail({ license, premiumCycleSummary, onCopy, on
         {licenseType !== "test" && contactType === "email" && (
           <button className="button button--ghost" onClick={onSendWelcomeEmail}>
             Reenviar boas-vindas
+          </button>
+        )}
+        {expirationReminderEligibility?.eligible && (
+          <button className="button button--ghost" onClick={onSendExpirationReminder}>
+            Enviar aviso de vencimento
           </button>
         )}
         <button className="button button--danger button--soft" onClick={onRevoke}>

@@ -95,7 +95,8 @@ export function getStatus(license) {
 
 export function getBillingStatus(license) {
   const value = license?.billingStatus || "none";
-  if (value === "active" && license?.billingCancelAtPeriodEnd) {
+  const isStripeSubscription = Boolean(license?.stripeCustomerId || license?.stripeSubscriptionId);
+  if (value === "active" && isStripeSubscription && license?.billingCancelAtPeriodEnd) {
     return { key: "cancel_at_period_end", label: "Cancela no fim do período", shortLabel: "Cancela no fim", tone: "warning" };
   }
   const labels = {

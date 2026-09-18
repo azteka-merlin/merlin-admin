@@ -201,6 +201,7 @@ function App() {
   const [loadingLauncherUpdatePolicySettings, setLoadingLauncherUpdatePolicySettings] = React.useState(false);
   const [selectedId, setSelectedId] = React.useState(null);
   const [premiumCycleSummary, setPremiumCycleSummary] = React.useState(null);
+  const [expirationReminderEligibility, setExpirationReminderEligibility] = React.useState(null);
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [deviceFilter, setDeviceFilter] = React.useState("all");
@@ -429,6 +430,24 @@ function App() {
       setSelectedId(licenses[0].id);
     }
   }, [licenses, selectedLicense]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    setExpirationReminderEligibility(null);
+    if (!selectedLicense || selectedLicense.licenseType === "test") return undefined;
+
+    apiRequest(`/panel-api/licenses/${selectedLicense.id}/expiration-reminder`)
+      .then((payload) => {
+        if (!cancelled) setExpirationReminderEligibility(payload);
+      })
+      .catch(() => {
+        if (!cancelled) setExpirationReminderEligibility({ eligible: false });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedLicense?.id]);
 
   React.useEffect(() => {
     if (!filteredLicenses.length) {
@@ -1959,6 +1978,24 @@ function App() {
     });
   }
 
+  async function handleSendExpirationReminder() {
+    if (!selectedLicense || !expirationReminderEligibility?.eligible) return;
+
+    await runBusyAction("send-expiration-reminder", async () => {
+      try {
+        await apiRequest(`/panel-api/licenses/${selectedLicense.id}/send-expiration-reminder`, {
+          method: "POST",
+          mutate: true
+        });
+        setExpirationReminderEligibility({ eligible: false, reason: "Aviso enviado." });
+        await loadAuditLogs();
+        setToast("Aviso de vencimento enviado.");
+      } catch (error) {
+        setToast(error.message);
+      }
+    });
+  }
+
   async function handleRenewLicense() {
     if (!selectedLicense) return;
 
@@ -2412,11 +2449,13 @@ function App() {
         closePanels={closePanels}
         selectedLicense={selectedLicense}
         premiumCycleSummary={selectedPremiumCycleSummary}
+        expirationReminderEligibility={expirationReminderEligibility}
         copyLicenseKey={copyLicenseKey}
         openModal={openModal}
         onManagePremiumCycle={openPremiumActivationCycleModal}
         onClearHwidResetLimit={() => openModal("clear-hwid-reset-limit")}
         onSendWelcomeEmail={handleSendWelcomeEmail}
+        onSendExpirationReminder={handleSendExpirationReminder}
         setDetailOpen={setDetailOpen}
         handleLogout={handleLogout}
         loggingOut={busyAction === "logout"}
@@ -2465,10 +2504,12 @@ function App() {
             setPage={setPage}
             selectedLicense={selectedLicense}
             premiumCycleSummary={selectedPremiumCycleSummary}
+            expirationReminderEligibility={expirationReminderEligibility}
             copyLicenseKey={copyLicenseKey}
             openModal={openModal}
             onManagePremiumCycle={openPremiumActivationCycleModal}
             onSendWelcomeEmail={handleSendWelcomeEmail}
+            onSendExpirationReminder={handleSendExpirationReminder}
           />
         )}
         {view === "overrides" && (

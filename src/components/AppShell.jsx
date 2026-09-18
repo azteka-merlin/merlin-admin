@@ -13,11 +13,13 @@ export default function AppShell({
   closePanels,
   selectedLicense,
   premiumCycleSummary,
+  expirationReminderEligibility,
   copyLicenseKey,
   openModal,
   onManagePremiumCycle,
   onClearHwidResetLimit,
   onSendWelcomeEmail,
+  onSendExpirationReminder,
   setDetailOpen,
   handleLogout,
   loggingOut,
@@ -121,6 +123,7 @@ export default function AppShell({
           <LicenseDetail
             license={selectedLicense}
             premiumCycleSummary={premiumCycleSummary}
+            expirationReminderEligibility={expirationReminderEligibility}
             onCopy={copyLicenseKey}
             onEdit={() => openModal("edit")}
             onEditTest={() => openModal("edit-test")}
@@ -132,6 +135,7 @@ export default function AppShell({
             onRevoke={() => openModal("revoke")}
             onReactivate={() => openModal("reactivate")}
             onSendWelcomeEmail={onSendWelcomeEmail}
+            onSendExpirationReminder={onSendExpirationReminder}
             onClose={() => setDetailOpen(false)}
             mobile
           />
