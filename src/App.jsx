@@ -2203,6 +2203,7 @@ function App() {
               accessBronzeEnabled: payload.accessBronzeEnabled,
               accessPrataEnabled: payload.accessPrataEnabled,
               accessOuroEnabled: payload.accessOuroEnabled,
+              featured: payload.featured,
               enabled: payload.enabled,
             }
           })
