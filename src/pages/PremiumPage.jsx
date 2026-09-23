@@ -16,6 +16,7 @@ function createEmptyPremiumDraft() {
     accessBronzeEnabled: false,
     accessPrataEnabled: false,
     accessOuroEnabled: true,
+    featured: false,
     enabled: false,
   };
 }
@@ -39,6 +40,7 @@ function createPremiumDraft(entry) {
     accessBronzeEnabled: Boolean(entry.accessBronzeEnabled),
     accessPrataEnabled: Boolean(entry.accessPrataEnabled),
     accessOuroEnabled: entry.accessOuroEnabled !== false,
+    featured: Boolean(entry.featured),
     enabled: Boolean(entry.enabled),
   };
 }
@@ -67,6 +69,7 @@ function normalizePremiumPayload(draft) {
     accessBronzeEnabled: Boolean(draft.accessBronzeEnabled),
     accessPrataEnabled: Boolean(draft.accessPrataEnabled),
     accessOuroEnabled: draft.accessOuroEnabled !== false,
+    featured: Boolean(draft.featured),
     enabled: Boolean(draft.enabled),
   };
 
@@ -330,6 +333,7 @@ export default function PremiumPage({
                         <span className={`badge ${entry.enabled ? "badge--emerald" : "badge--muted"}`}>
                           {entry.enabled ? "Ativo" : "Oculto"}
                         </span>
+                        {entry.featured && <span className="badge badge--info">Destaque</span>}
                       </dd>
                     </div>
                     <div>
@@ -400,6 +404,16 @@ export default function PremiumPage({
                 checked={draft.enabled}
                 onChange={(event) => setDraft((current) => ({ ...current, enabled: event.target.checked }))}
               />
+            </label>
+
+            <label className="field field--toggle">
+              <span>Destacar no topo da aba Premium</span>
+              <input
+                type="checkbox"
+                checked={draft.featured}
+                onChange={(event) => setDraft((current) => ({ ...current, featured: event.target.checked }))}
+              />
+              <small>Os destaques aparecem primeiro; o último marcado fica acima dos demais.</small>
             </label>
 
             <label className="field field--toggle">
