@@ -1244,7 +1244,8 @@ h3 {
   }
 
   .field-grid,
-  .billing-plan-grid {
+  .billing-plan-grid,
+  .premium-editor__toggle-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -4043,6 +4044,105 @@ h3 {
 .field--toggle input {
   width: 20px;
   height: 20px;
+}
+
+.modal--premium-editor {
+  width: min(92vw, 760px);
+}
+
+.premium-editor {
+  display: grid;
+  gap: 22px;
+}
+
+.premium-editor__section {
+  display: grid;
+  gap: 14px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.premium-editor__section:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.premium-editor__section-heading h4 {
+  margin: 0;
+  font-size: 0.96rem;
+}
+
+.premium-editor__section-heading p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.premium-editor__toggle-grid,
+.premium-editor__tier-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.premium-editor__toggle-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.premium-editor__tier-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.premium-toggle-card,
+.premium-tier-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.premium-toggle-card {
+  min-height: 78px;
+  padding: 14px;
+}
+
+.premium-toggle-card--featured {
+  border-color: rgba(159, 89, 255, 0.34);
+  background: rgba(159, 89, 255, 0.08);
+}
+
+.premium-toggle-card strong,
+.premium-tier-toggle span {
+  display: block;
+  font-size: 0.88rem;
+}
+
+.premium-toggle-card small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.premium-toggle-card input,
+.premium-tier-toggle input {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+
+.premium-tier-toggle {
+  padding: 12px 14px;
+}
+
+.premium-upload-box--editor {
+  margin-top: 22px;
+  border-color: rgba(159, 89, 255, 0.22);
+  background: rgba(159, 89, 255, 0.06);
 }
 
 .split-inputs {

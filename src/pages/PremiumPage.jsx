@@ -360,8 +360,9 @@ export default function PremiumPage({
 
       {activeModal === "upsert" && (
         <Modal
+          className="modal--premium-editor"
           title={draft.mode === "edit" ? "Editar premium" : "Novo premium"}
-          subtitle="Informe o appId, envie o ZIP e ajuste o limite e cooldown das ativações. Nome e capa tentam ser preenchidos automaticamente."
+          subtitle="Configure a exibição no catálogo, as regras de ativação e os arquivos do jogo."
           onClose={() => !createBusy && !uploadBusy && setActiveModal(null)}
           closeDisabled={createBusy || uploadBusy}
           actions={
@@ -375,149 +376,114 @@ export default function PremiumPage({
             </>
           }
         >
-          <div className="field-grid">
-            <label className="field">
-              <span>App ID</span>
-              <input
-                value={draft.appId}
-                onChange={(event) => setDraft((current) => ({ ...current, appId: event.target.value }))}
-                placeholder="990080"
-                readOnly={draft.mode === "edit"}
-                autoFocus
-              />
-            </label>
+          <div className="premium-editor">
+            <section className="premium-editor__section">
+              <div className="premium-editor__section-heading">
+                <h4>Identificação</h4>
+                <p>Dados usados para localizar o jogo e exibi-lo no catálogo.</p>
+              </div>
+              <div className="field-grid">
+                <label className="field">
+                  <span>App ID</span>
+                  <input value={draft.appId} onChange={(event) => setDraft((current) => ({ ...current, appId: event.target.value }))} placeholder="990080" readOnly={draft.mode === "edit"} autoFocus />
+                </label>
+                <label className="field">
+                  <span>Nome do jogo</span>
+                  <input value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} placeholder="Preenchido automaticamente se vazio" />
+                </label>
+              </div>
+            </section>
 
-            <label className="field">
-              <span>Limite de ativacoes</span>
-              <input
-                value={draft.activationLimit}
-                onChange={(event) => setDraft((current) => ({ ...current, activationLimit: event.target.value }))}
-                inputMode="numeric"
-                placeholder="5"
-              />
-            </label>
+            <section className="premium-editor__section">
+              <div className="premium-editor__section-heading">
+                <h4>Catálogo Premium</h4>
+                <p>Defina a visibilidade e o destaque do jogo no Launcher.</p>
+              </div>
+              <div className="premium-editor__toggle-grid">
+                <label className="premium-toggle-card">
+                  <span><strong>Exibir na aba Premium</strong><small>Deixa o jogo visível para os usuários elegíveis.</small></span>
+                  <input type="checkbox" checked={draft.enabled} onChange={(event) => setDraft((current) => ({ ...current, enabled: event.target.checked }))} />
+                </label>
+                <label className="premium-toggle-card premium-toggle-card--featured">
+                  <span><strong>Destacar no topo</strong><small>Destaques aparecem primeiro; o último marcado fica acima dos demais.</small></span>
+                  <input type="checkbox" checked={draft.featured} onChange={(event) => setDraft((current) => ({ ...current, featured: event.target.checked }))} />
+                </label>
+              </div>
+            </section>
 
-            <label className="field field--toggle">
-              <span>Exibir na aba Premium</span>
-              <input
-                type="checkbox"
-                checked={draft.enabled}
-                onChange={(event) => setDraft((current) => ({ ...current, enabled: event.target.checked }))}
-              />
-            </label>
+            <section className="premium-editor__section">
+              <div className="premium-editor__section-heading">
+                <h4>Disponibilidade por plano</h4>
+                <p>Libere imediatamente para o tier ou mantenha o cronograma normal de lançamentos.</p>
+              </div>
+              <div className="premium-editor__tier-grid">
+                {[
+                  ["Bronze", "accessBronzeEnabled"],
+                  ["Prata", "accessPrataEnabled"],
+                  ["Ouro", "accessOuroEnabled"],
+                ].map(([tier, field]) => (
+                  <label className="premium-tier-toggle" key={field}>
+                    <span>{tier}</span>
+                    <input type="checkbox" checked={Boolean(draft[field])} onChange={(event) => setDraft((current) => ({ ...current, [field]: event.target.checked }))} />
+                  </label>
+                ))}
+              </div>
+            </section>
 
-            <label className="field field--toggle">
-              <span>Destacar no topo da aba Premium</span>
-              <input
-                type="checkbox"
-                checked={draft.featured}
-                onChange={(event) => setDraft((current) => ({ ...current, featured: event.target.checked }))}
-              />
-              <small>Os destaques aparecem primeiro; o último marcado fica acima dos demais.</small>
-            </label>
+            <section className="premium-editor__section">
+              <div className="premium-editor__section-heading">
+                <h4>Ativação</h4>
+                <p>Configure como o jogo será ativado e os limites aplicados.</p>
+              </div>
+              <div className="field-grid">
+                <label className="field">
+                  <span>Tipo de ativação</span>
+                  <select value={draft.activationType} onChange={(event) => setDraft((current) => ({ ...current, activationType: event.target.value }))}>
+                    <option value="steam_ticket">Ativação Premium</option>
+                    <option value="third_party">Third-party</option>
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Limite de ativações</span>
+                  <input value={draft.activationLimit} onChange={(event) => setDraft((current) => ({ ...current, activationLimit: event.target.value }))} inputMode="numeric" placeholder="5" />
+                </label>
+                <label className="field">
+                  <span>Cooldown da ativação (dias)</span>
+                  <input value={draft.activationCooldownDays} onChange={(event) => setDraft((current) => ({ ...current, activationCooldownDays: event.target.value }))} inputMode="numeric" placeholder="Padrão: 1" />
+                  <small>Vazio usa 24 horas. Mínimo: 1 dia.</small>
+                </label>
+                {draft.activationType === "third_party" && (
+                  <label className="field">
+                    <span>Executável de ativação</span>
+                    <input value={draft.launchExecutablePath} onChange={(event) => setDraft((current) => ({ ...current, launchExecutablePath: event.target.value }))} placeholder="Ex.: EAC.exe ou bin/EAC.exe" />
+                  </label>
+                )}
+              </div>
+            </section>
 
-            <label className="field field--toggle">
-              <span>Liberar imediatamente no Bronze</span>
-              <input
-                type="checkbox"
-                checked={draft.accessBronzeEnabled}
-                onChange={(event) => setDraft((current) => ({ ...current, accessBronzeEnabled: event.target.checked }))}
-              />
-            </label>
-
-            <label className="field">
-              <span>Cooldown da ativação (dias)</span>
-              <input
-                value={draft.activationCooldownDays}
-                onChange={(event) => setDraft((current) => ({ ...current, activationCooldownDays: event.target.value }))}
-                inputMode="numeric"
-                placeholder="Padrão: 1"
-              />
-              <small>Vazio usa 24 horas. Mínimo: 1 dia.</small>
-            </label>
-
-            <label className="field field--toggle">
-              <span>Liberar imediatamente no Prata</span>
-              <input
-                type="checkbox"
-                checked={draft.accessPrataEnabled}
-                onChange={(event) => setDraft((current) => ({ ...current, accessPrataEnabled: event.target.checked }))}
-              />
-            </label>
-
-            <label className="field field--toggle">
-              <span>Liberar imediatamente no Ouro</span>
-              <input
-                type="checkbox"
-                checked={draft.accessOuroEnabled}
-                onChange={(event) => setDraft((current) => ({ ...current, accessOuroEnabled: event.target.checked }))}
-              />
-            </label>
-
-            <p className="field-grid__note field--wide">
-              Quando um tier não recebe liberação imediata, o jogo continua visível no Launcher e é liberado conforme a janela de lançamentos do plano.
-            </p>
-
-            <label className="field">
-              <span>Tipo de ativacao</span>
-              <select
-                value={draft.activationType}
-                onChange={(event) => setDraft((current) => ({ ...current, activationType: event.target.value }))}
-              >
-                <option value="steam_ticket">Ativação Premium</option>
-                <option value="third_party">Third-party</option>
-              </select>
-            </label>
-
-            <label className="field">
-              <span>Nome do jogo</span>
-              <input
-                value={draft.name}
-                onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
-                placeholder="Deixe em branco para preencher automaticamente"
-              />
-            </label>
-
-            <label className="field">
-              <span>Cover URL</span>
-              <input
-                value={draft.coverUrl}
-                onChange={(event) => setDraft((current) => ({ ...current, coverUrl: event.target.value }))}
-                placeholder="Deixe em branco para preencher automaticamente"
-              />
-            </label>
-
-            <label className="field">
-              <span>Archive key</span>
-              <input
-                value={draft.archiveKey}
-                onChange={(event) => setDraft((current) => ({ ...current, archiveKey: event.target.value }))}
-                placeholder="Sera gerada como appId/appId.zip"
-              />
-            </label>
-
-            <label className="field">
-              <span>Subpasta de instalacao</span>
-              <input
-                value={draft.installSubpath}
-                onChange={(event) => setDraft((current) => ({ ...current, installSubpath: event.target.value }))}
-                placeholder="Opcional. Ex.: bin64 ou bin64/teste/app"
-              />
-            </label>
-
-            {draft.activationType === "third_party" && (
-              <label className="field">
-                <span>Executavel de ativacao</span>
-                <input
-                  value={draft.launchExecutablePath}
-                  onChange={(event) => setDraft((current) => ({ ...current, launchExecutablePath: event.target.value }))}
-                  placeholder="Ex.: EAC.exe ou bin/EAC.exe"
-                />
-              </label>
-            )}
+            <section className="premium-editor__section">
+              <div className="premium-editor__section-heading">
+                <h4>Arquivos</h4>
+                <p>Opcionalmente ajuste a capa, o destino do ZIP e a subpasta de instalação.</p>
+              </div>
+              <div className="field-grid">
+                <label className="field">
+                  <span>Cover URL</span>
+                  <input value={draft.coverUrl} onChange={(event) => setDraft((current) => ({ ...current, coverUrl: event.target.value }))} placeholder="Preenchida automaticamente se vazio" />
+                </label>
+                <label className="field">
+                  <span>Archive key</span>
+                  <input value={draft.archiveKey} onChange={(event) => setDraft((current) => ({ ...current, archiveKey: event.target.value }))} placeholder="Gerada como appId/appId.zip" />
+                </label>
+                <label className="field field--wide">
+                  <span>Subpasta de instalação</span>
+                  <input value={draft.installSubpath} onChange={(event) => setDraft((current) => ({ ...current, installSubpath: event.target.value }))} placeholder="Opcional. Ex.: bin64 ou bin64/teste/app" />
+                </label>
+              </div>
+            </section>
           </div>
 
-          <div className="premium-upload-box">
+          <div className="premium-upload-box premium-upload-box--editor">
             <div>
               <strong>ZIP da ativacao</strong>
               <p>
@@ -541,7 +507,7 @@ export default function PremiumPage({
                 disabled={uploadBusy}
                 type="button"
               >
-                {uploadBusy ? "Enviando ZIP..." : "Enviar ZIP"}
+                {uploadBusy ? "Enviando ZIP..." : "Selecionar ZIP"}
               </button>
             </div>
           </div>
