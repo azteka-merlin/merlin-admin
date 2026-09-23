@@ -1,7 +1,7 @@
 import React from "react";
 import CopyIcon from "./CopyIcon";
 import DetailField from "./DetailField";
-import { formatActivationUsage, formatContact, formatDate, formatDateTime, getAccessType, getBillingStatus, getLicenseContact, getLicenseContactType, getLicenseType, getRevokedOriginLabel, getSourceLabel, getStatus, initials, maskTechnicalValue } from "../lib/admin-ui";
+import { formatActivationUsage, formatContact, formatDate, formatDateTime, formatDateTimeBrt, getAccessType, getBillingStatus, getLicenseContact, getLicenseContactType, getLicenseType, getRevokedOriginLabel, getSourceLabel, getStatus, initials, maskTechnicalValue } from "../lib/admin-ui";
 
 export default function LicenseDetail({ license, premiumCycleSummary, expirationReminderEligibility, onCopy, onEdit, onEditTest, onResetTestUsage, onManagePremiumCycle, onRenew, onReset, onClearHwidResetLimit, onRevoke, onReactivate, onSendWelcomeEmail, onSendExpirationReminder, onClose, mobile }) {
   if (!license) {
@@ -77,7 +77,7 @@ export default function LicenseDetail({ license, premiumCycleSummary, expiration
         {licenseType !== "test" && <DetailField label="Tier" value={tierLabel} />}
         <DetailField label="Plano" value={getAccessType(license)} />
         {licenseType !== "test" && <DetailField label="Cobrança" value={billingStatus.label} />}
-        {hasBilling && <DetailField label="Fim do período" value={license.billingCurrentPeriodEnd ? formatDate(license.billingCurrentPeriodEnd) : "--"} />}
+        {hasBilling && <DetailField label="Fim do período" value={formatDateTimeBrt(license.billingCurrentPeriodEnd)} />}
         {hasBilling && <DetailField label="Renovação" value={renewalLabel} />}
         <DetailField label="Criada em" value={formatDateTime(license.createdAt)} />
         <DetailField label="Atualizada em" value={formatDateTime(license.updatedAt)} />

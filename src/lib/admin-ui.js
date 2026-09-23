@@ -14,6 +14,24 @@ export function formatDateTime(dateString) {
   return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}, ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+export function formatDateTimeBrt(dateString) {
+  if (!dateString) return "--";
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return "--";
+
+  const parts = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23"
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.day}/${values.month}/${values.year}, ${values.hour}:${values.minute} BRT`;
+}
+
 export function normalizeBrazilPhone(value) {
   const digits = String(value || "").replace(/\D/g, "");
   if ((digits.length === 12 || digits.length === 13) && digits.startsWith("55")) {
