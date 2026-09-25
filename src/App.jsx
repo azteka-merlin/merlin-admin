@@ -207,6 +207,11 @@ function App() {
   const [expirationReminderEligibility, setExpirationReminderEligibility] = React.useState(null);
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
+  const [usagePeriod, setUsagePeriod] = React.useState("month");
+  const [usageSearch, setUsageSearch] = React.useState("");
+  const [usageStatusFilter, setUsageStatusFilter] = React.useState("all");
+  const [usageExpiryDays, setUsageExpiryDays] = React.useState("30");
+  const [usageIncludeAutoRenewing, setUsageIncludeAutoRenewing] = React.useState(false);
   const [deviceFilter, setDeviceFilter] = React.useState("all");
   const [hwidResetFilter, setHwidResetFilter] = React.useState("all");
   const [sourceFilter, setSourceFilter] = React.useState("all");
@@ -2631,6 +2636,16 @@ function App() {
             analytics={usageAnalytics}
             loading={loadingUsageAnalytics}
             loadAnalytics={loadUsageAnalytics}
+            period={usagePeriod}
+            setPeriod={setUsagePeriod}
+            search={usageSearch}
+            setSearch={setUsageSearch}
+            statusFilter={usageStatusFilter}
+            setStatusFilter={setUsageStatusFilter}
+            expiryDays={usageExpiryDays}
+            setExpiryDays={setUsageExpiryDays}
+            includeAutoRenewing={usageIncludeAutoRenewing}
+            setIncludeAutoRenewing={setUsageIncludeAutoRenewing}
           />
         )}
         {view === "audit" && (

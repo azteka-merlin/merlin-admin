@@ -1,4 +1,3 @@
-import React from "react";
 import { formatDate, getStatus } from "../lib/admin-ui";
 
 const PERIODS = [
@@ -46,12 +45,7 @@ function UserTable({ users, period, emptyText }) {
   </table></div>;
 }
 
-export default function UsageBiPage({ analytics, loading, loadAnalytics }) {
-  const [period, setPeriod] = React.useState("month");
-  const [search, setSearch] = React.useState("");
-  const [statusFilter, setStatusFilter] = React.useState("all");
-  const [expiryDays, setExpiryDays] = React.useState("30");
-  const [includeAutoRenewing, setIncludeAutoRenewing] = React.useState(false);
+export default function UsageBiPage({ analytics, loading, loadAnalytics, period, setPeriod, search, setSearch, statusFilter, setStatusFilter, expiryDays, setExpiryDays, includeAutoRenewing, setIncludeAutoRenewing }) {
   const query = search.trim().toLowerCase();
   const users = (analytics?.users || []).filter((user) => {
     const matchesSearch = !query || [user.name, user.licenseKey, user.tier, user.billingStatus].join(" ").toLowerCase().includes(query);
