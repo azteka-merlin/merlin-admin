@@ -1,3 +1,4 @@
+import React from "react";
 import { formatDate, getStatus } from "../lib/admin-ui";
 
 const PERIODS = [
