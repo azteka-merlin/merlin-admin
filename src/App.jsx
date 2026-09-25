@@ -4,6 +4,7 @@ import LicenseModals from "./components/LicenseModals";
 import LoadingScreen from "./components/LoadingScreen";
 import LoginScreen from "./components/LoginScreen";
 import ActivityPage from "./pages/ActivityPage";
+import UsageBiPage from "./pages/UsageBiPage";
 import AnnouncementsPage from "./pages/AnnouncementsPage";
 import PartnersPage from "./pages/PartnersPage";
 import AuditPage from "./pages/AuditPage";
@@ -145,6 +146,7 @@ function App() {
   const [licenses, setLicenses] = React.useState([]);
   const [auditLogs, setAuditLogs] = React.useState([]);
   const [userActivityLogs, setUserActivityLogs] = React.useState([]);
+  const [usageAnalytics, setUsageAnalytics] = React.useState(null);
   const [blockedIps, setBlockedIps] = React.useState([]);
   const [overrides, setOverrides] = React.useState([]);
   const [premiumGames, setPremiumGames] = React.useState([]);
@@ -186,6 +188,7 @@ function App() {
   const [loadingLicenses, setLoadingLicenses] = React.useState(false);
   const [loadingAuditLogs, setLoadingAuditLogs] = React.useState(false);
   const [loadingUserActivityLogs, setLoadingUserActivityLogs] = React.useState(false);
+  const [loadingUsageAnalytics, setLoadingUsageAnalytics] = React.useState(false);
   const [loadingBlockedIps, setLoadingBlockedIps] = React.useState(false);
   const [loadingOverrides, setLoadingOverrides] = React.useState(false);
   const [loadingPremiumGames, setLoadingPremiumGames] = React.useState(false);
@@ -1072,6 +1075,18 @@ function App() {
     }
   }
 
+  async function loadUsageAnalytics({ expiryDays = 30, includeAutoRenewing = false } = {}) {
+    setLoadingUsageAnalytics(true);
+    try {
+      const query = new URLSearchParams({ expiryDays: String(expiryDays), includeAutoRenewing: String(includeAutoRenewing) });
+      setUsageAnalytics(await apiRequest(`/panel-api/usage-analytics?${query.toString()}`));
+    } catch (error) {
+      setToast(error.message);
+    } finally {
+      setLoadingUsageAnalytics(false);
+    }
+  }
+
   async function loadBlockedIps() {
     setLoadingBlockedIps(true);
     try {
@@ -1616,6 +1631,9 @@ function App() {
     }
     if (auth && view === "payments") {
       loadPaymentLogs();
+    }
+    if (auth && view === "usage") {
+      loadUsageAnalytics();
     }
     if (auth && view === "public-signup") {
       loadPublicSignup();
@@ -2606,6 +2624,13 @@ function App() {
             loadingUserActivityLogs={loadingUserActivityLogs}
             filteredUserActivityLogs={filteredUserActivityLogs}
             loadUserActivityLogs={loadUserActivityLogs}
+          />
+        )}
+        {view === "usage" && (
+          <UsageBiPage
+            analytics={usageAnalytics}
+            loading={loadingUsageAnalytics}
+            loadAnalytics={loadUsageAnalytics}
           />
         )}
         {view === "audit" && (

@@ -48,6 +48,9 @@ export default function AppShell({
             <button className={`nav-button ${view === "licenses" ? "is-active" : ""}`} onClick={() => navigate("licenses")}>
               Licenças
             </button>
+            <button className={`nav-button ${view === "usage" ? "is-active" : ""}`} onClick={() => navigate("usage")}>
+              BI de uso
+            </button>
             <button className={`nav-button ${view === "overrides" ? "is-active" : ""}`} onClick={() => navigate("overrides")}>
               Overrides
             </button>
