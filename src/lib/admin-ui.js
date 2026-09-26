@@ -209,6 +209,7 @@ export function actionLabel(action) {
     license_hwid_reset: "HWID redefinido",
     license_hwid_reset_limit_cleared: "Reset mensal de dispositivo liberado",
     license_bronze_premium_cycle_updated: "Ativações premium Bronze ajustadas",
+    premium_activation_cooldown_released: "Cooldown de ativação premium liberado",
     payment_checkout_synced: "Checkout sincronizado",
     payment_license_synced: "Licenca sincronizada"
   };
@@ -243,6 +244,7 @@ export function describeAuditLog(log) {
   if (log.action === "license_hwid_reset") return `Redefiniu o HWID da licença #${log.entityId || "--"}`;
   if (log.action === "license_hwid_reset_limit_cleared") return `Liberou o reset mensal da licença #${log.entityId || "--"}`;
   if (log.action === "license_bronze_premium_cycle_updated") return `Ajustou as ativações premium Bronze da licença #${log.entityId || "--"}`;
+  if (log.action === "premium_activation_cooldown_released") return `Liberou o cooldown da ativação premium #${log.entityId || "--"}`;
   if (log.action === "payment_checkout_synced") return `Sincronizou o checkout ${log.entityId || "--"} com a Stripe`;
   if (log.action === "payment_license_synced") return `Sincronizou a licenca #${log.entityId || "--"} com a Stripe`;
   if (log.action === "license_revoked") {

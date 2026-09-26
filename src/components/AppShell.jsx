@@ -57,6 +57,9 @@ export default function AppShell({
             <button className={`nav-button ${view === "premium" ? "is-active" : ""}`} onClick={() => navigate("premium")}>
               Premium
             </button>
+            <button className={`nav-button ${view === "premium-activations" ? "is-active" : ""}`} onClick={() => navigate("premium-activations")}>
+              Ativações Premium
+            </button>
             <button className={`nav-button ${view === "polls" ? "is-active" : ""}`} onClick={() => navigate("polls")}>
               Enquetes
             </button>

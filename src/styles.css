@@ -4136,6 +4136,12 @@ h3 {
   align-self: flex-start;
 }
 
+.premium-activation__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
 .premium-early-access__candidates,
 .premium-early-access__selected {
   display: grid;

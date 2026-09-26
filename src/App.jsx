@@ -15,6 +15,7 @@ import OverridesPage from "./pages/OverridesPage";
 import PaymentsPage from "./pages/PaymentsPage";
 import PollsPage from "./pages/PollsPage";
 import PremiumPage from "./pages/PremiumPage";
+import PremiumActivationsPage from "./pages/PremiumActivationsPage";
 import PublicFeedbacksPage from "./pages/PublicFeedbacksPage";
 import PublicSignupPage from "./pages/PublicSignupPage";
 import SettingsPage from "./pages/SettingsPage";
@@ -150,6 +151,7 @@ function App() {
   const [blockedIps, setBlockedIps] = React.useState([]);
   const [overrides, setOverrides] = React.useState([]);
   const [premiumGames, setPremiumGames] = React.useState([]);
+  const [premiumActivations, setPremiumActivations] = React.useState([]);
   const [polls, setPolls] = React.useState([]);
   const [announcements, setAnnouncements] = React.useState([]);
   const [partners, setPartners] = React.useState([]);
@@ -192,6 +194,7 @@ function App() {
   const [loadingBlockedIps, setLoadingBlockedIps] = React.useState(false);
   const [loadingOverrides, setLoadingOverrides] = React.useState(false);
   const [loadingPremiumGames, setLoadingPremiumGames] = React.useState(false);
+  const [loadingPremiumActivations, setLoadingPremiumActivations] = React.useState(false);
   const [loadingPolls, setLoadingPolls] = React.useState(false);
   const [loadingAnnouncements, setLoadingAnnouncements] = React.useState(false);
   const [loadingPartners, setLoadingPartners] = React.useState(false);
@@ -227,6 +230,8 @@ function App() {
   const [activityStatusFilter, setActivityStatusFilter] = React.useState("all");
   const [overrideSearch, setOverrideSearch] = React.useState("");
   const [premiumSearch, setPremiumSearch] = React.useState("");
+  const [premiumActivationSearch, setPremiumActivationSearch] = React.useState("");
+  const [premiumActivationStatusFilter, setPremiumActivationStatusFilter] = React.useState("all");
   const [pollSearch, setPollSearch] = React.useState("");
   const [paymentSearch, setPaymentSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
@@ -494,6 +499,7 @@ function App() {
       setBlockedIps([]);
       setOverrides([]);
       setPremiumGames([]);
+      setPremiumActivations([]);
       setPolls([]);
       setAnnouncements([]);
       setPartners([]);
@@ -1128,6 +1134,16 @@ function App() {
     }
   }
 
+  async function loadPremiumActivations() {
+    setLoadingPremiumActivations(true);
+    try {
+      const payload = await apiRequest("/panel-api/premium/activations");
+      setPremiumActivations(payload.activations || []);
+    } finally {
+      setLoadingPremiumActivations(false);
+    }
+  }
+
   async function loadPolls() {
     setLoadingPolls(true);
     try {
@@ -1624,6 +1640,9 @@ function App() {
     }
     if (auth && view === "premium") {
       loadPremiumGames();
+    }
+    if (auth && view === "premium-activations") {
+      loadPremiumActivations();
     }
     if (auth && view === "polls") {
       loadPolls();
@@ -2252,6 +2271,13 @@ function App() {
     });
   }
 
+  async function handleReleasePremiumActivation(activationId) {
+    return runBusyAction(`release-premium-activation-${activationId}`, async () => {
+      await apiRequest(`/panel-api/premium/activations/${activationId}/release`, { method: "POST", mutate: true });
+      await loadPremiumActivations();
+    });
+  }
+
   async function handlePremiumArchiveUpload(appId, file) {
     return runBusyAction("upload-premium-game-archive", async () => {
       const formData = new FormData();
@@ -2562,6 +2588,20 @@ function App() {
             loadPremiumEarlyAccess={loadPremiumEarlyAccess}
             grantPremiumEarlyAccess={grantPremiumEarlyAccess}
             revokePremiumEarlyAccess={revokePremiumEarlyAccess}
+            busyAction={busyAction}
+            notify={setToast}
+          />
+        )}
+        {view === "premium-activations" && (
+          <PremiumActivationsPage
+            activations={premiumActivations}
+            loading={loadingPremiumActivations}
+            search={premiumActivationSearch}
+            setSearch={setPremiumActivationSearch}
+            statusFilter={premiumActivationStatusFilter}
+            setStatusFilter={setPremiumActivationStatusFilter}
+            loadActivations={loadPremiumActivations}
+            releaseActivation={handleReleasePremiumActivation}
             busyAction={busyAction}
             notify={setToast}
           />

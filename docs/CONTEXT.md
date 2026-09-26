@@ -28,6 +28,7 @@ The admin does not use an absolute API URL. It calls relative routes such as:
 - `/panel-api/overrides`
 - `/panel-api/premium/games`
 - `/panel-api/premium/games/:appId/early-access`
+- `/panel-api/premium/activations`
 - `/panel-api/polls`
 - `/panel-api/updates`
 
@@ -52,6 +53,7 @@ The API script `npm run deploy:panel` automates the production panel build, type
 - Blocking: inspect and unblock IPs.
 - Overrides: upload, list, download, and remove manifests/fixes by App ID.
 - Premium: manage premium games, uploads, and individual early-access grants. The card keeps only a count; selecting licenses happens in the game modal so the main grid remains compact.
+- Premium activations: inspect the activation history and manually release an active cooldown after an operational failure. This ends the cooldown but preserves the activation in the quota and cycle history.
 - Polls: create, open, close, vote, and delete polls.
 - Public signup: configure public registration and recovery.
 - Updates: upload the Merlin installer and latest-version metadata.
