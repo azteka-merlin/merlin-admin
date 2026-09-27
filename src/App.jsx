@@ -6,6 +6,7 @@ import LoginScreen from "./components/LoginScreen";
 import ActivityPage from "./pages/ActivityPage";
 import UsageBiPage from "./pages/UsageBiPage";
 import AnnouncementsPage from "./pages/AnnouncementsPage";
+import HomePage from "./pages/HomePage";
 import PartnersPage from "./pages/PartnersPage";
 import AuditPage from "./pages/AuditPage";
 import CatalogQueuePage from "./pages/CatalogQueuePage";
@@ -2633,6 +2634,12 @@ function App() {
             saveAnnouncement={handleSaveAnnouncement}
             deleteAnnouncement={handleDeleteAnnouncement}
             busyAction={busyAction}
+            notify={setToast}
+          />
+        )}
+        {view === "home" && (
+          <HomePage
+            apiRequest={apiRequest}
             notify={setToast}
           />
         )}
