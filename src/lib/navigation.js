@@ -13,6 +13,7 @@ export const VIEW_PATHS = {
   "premium-activations": "/premium/activations",
   polls: "/polls",
   announcements: "/announcements",
+  "release-notes": "/release-notes",
   home: "/home",
   payments: "/payments",
   "public-signup": "/public-signup",
@@ -33,6 +34,7 @@ export function getViewFromPath(pathname) {
   if (pathname === "/premium/activations") return "premium-activations";
   if (pathname === "/polls") return "polls";
   if (pathname === "/announcements") return "announcements";
+  if (pathname === "/release-notes") return "release-notes";
   if (pathname === "/home") return "home";
   if (pathname === "/payments") return "payments";
   if (pathname === "/public-signup") return "public-signup";

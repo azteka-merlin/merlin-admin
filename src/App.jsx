@@ -7,6 +7,7 @@ import ActivityPage from "./pages/ActivityPage";
 import UsageBiPage from "./pages/UsageBiPage";
 import AnnouncementsPage from "./pages/AnnouncementsPage";
 import HomePage from "./pages/HomePage";
+import ReleaseNotesPage from "./pages/ReleaseNotesPage";
 import PartnersPage from "./pages/PartnersPage";
 import AuditPage from "./pages/AuditPage";
 import CatalogQueuePage from "./pages/CatalogQueuePage";
@@ -2634,6 +2635,12 @@ function App() {
             saveAnnouncement={handleSaveAnnouncement}
             deleteAnnouncement={handleDeleteAnnouncement}
             busyAction={busyAction}
+            notify={setToast}
+          />
+        )}
+        {view === "release-notes" && (
+          <ReleaseNotesPage
+            apiRequest={apiRequest}
             notify={setToast}
           />
         )}

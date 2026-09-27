@@ -66,6 +66,9 @@ export default function AppShell({
             <button className={`nav-button ${view === "announcements" ? "is-active" : ""}`} onClick={() => navigate("announcements")}>
               Comunicados
             </button>
+            <button className={`nav-button ${view === "release-notes" ? "is-active" : ""}`} onClick={() => navigate("release-notes")}>
+              Novidades / Changelog
+            </button>
             <button className={`nav-button ${view === "home" ? "is-active" : ""}`} onClick={() => navigate("home")}>
               Home do Launcher
             </button>
