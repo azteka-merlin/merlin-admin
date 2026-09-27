@@ -51,7 +51,8 @@ The API script `npm run deploy:panel` automates the production panel build, type
 - Audit: inspect admin events.
 - Activity: inspect user activity.
 - Blocking: inspect and unblock IPs.
-- Overrides: upload, list, download, and remove manifests/fixes by App ID.
+- Overrides: upload, list, download, and remove manifests/fixes by App ID; an optional HTTPS cover URL controls the correction card image.
+- Override do AppID `4407750`: o painel apenas informa o contrato especial. O ZIP de fix deve conter exatamente um `token.ini` e um `anadius.cfg`, ambos com `RETORNO_TOKEN_MERLIN`; paths e tipo de ativacao nao sao configuraveis no Admin.
 - Premium: manage premium games, uploads, and individual early-access grants. The card keeps only a count; selecting licenses happens in the game modal so the main grid remains compact.
 - Premium activations: inspect the activation history and manually release an active cooldown after an operational failure. This ends the cooldown but preserves the activation in the quota and cycle history.
 - Polls: create, open, close, vote, and delete polls.

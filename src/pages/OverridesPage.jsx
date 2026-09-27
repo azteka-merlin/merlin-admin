@@ -72,6 +72,9 @@ export default function OverridesPage({
                     <p className="eyebrow">App ID</p>
                     <h2>{entry.appId}</h2>
                     <p className="override-card__value" title={entry.name || "--"}>{entry.name || "--"}</p>
+                    {entry.appId === "4407750" && (
+                      <span className="badge badge--warning override-special-badge">Token de licença</span>
+                    )}
                   </div>
                   <div className="override-actions">
                     <button className="button button--ghost button--sm" onClick={() => openOverrideEditModal(entry)}>
@@ -97,6 +100,12 @@ export default function OverridesPage({
                       <dt>Game name</dt>
                       <dd className="override-card__value override-card__value--wrap" title={entry.name || "--"}>
                         {entry.name || "--"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Cover image</dt>
+                      <dd className="override-card__value override-card__value--wrap" title={entry.coverUrl || "--"}>
+                        {entry.coverUrl || "--"}
                       </dd>
                     </div>
                   </dl>

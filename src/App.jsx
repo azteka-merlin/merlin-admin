@@ -34,6 +34,7 @@ function createEmptyOverrideForm() {
     overrideMode: "create",
     overrideAppId: "",
     overrideName: "",
+    overrideCoverUrl: "",
     overrideHidden: false,
     overrideManifestEnabled: false,
     overrideManifestFile: "",
@@ -50,6 +51,7 @@ function mapOverridesDocument(overridesMap) {
     .map(([appId, entry]) => ({
       appId,
       name: entry.name || entry.fixOverride?.gameName || "",
+      coverUrl: entry.coverUrl || "",
       adminNote: entry.adminNote || "",
       hidden: Boolean(entry.hidden),
       manifestOverride: entry.manifestOverride || null,
@@ -67,6 +69,7 @@ function createOverrideForm(entry) {
     overrideMode: "edit",
     overrideAppId: entry.appId,
     overrideName: entry.name || entry.fixOverride?.gameName || "",
+    overrideCoverUrl: entry.coverUrl || "",
     overrideHidden: Boolean(entry.hidden),
     overrideManifestEnabled: Boolean(entry.manifestOverride?.enabled),
     overrideManifestFile: entry.manifestOverride?.file || "",
@@ -92,6 +95,7 @@ function buildOverridePayload(formState) {
   const payload = {
     appId,
     name,
+    ...(formState.overrideCoverUrl.trim() ? { coverUrl: formState.overrideCoverUrl.trim() } : {}),
     hidden: Boolean(formState.overrideHidden),
     ...(formState.overrideAdminNote.trim() ? { adminNote: formState.overrideAdminNote.trim() } : {})
   };

@@ -552,12 +552,33 @@ export default function LicenseModals({
               />
             </label>
 
+            {String(formState.overrideAppId || "").trim() === "4407750" && (
+              <div className="notice notice--warning override-special-notice" role="note">
+                <strong>Correção com token de licença</strong>
+                <span>
+                  O ZIP deve conter exatamente um <code>token.ini</code> e um <code>anadius.cfg</code>,
+                  cada um com o placeholder <code>RETORNO_TOKEN_MERLIN</code>. O launcher 1.6.8 ou mais
+                  recente prepara esses arquivos durante “Baixar e instalar”.
+                </span>
+              </div>
+            )}
+
             <label className="field">
               <span>Game name</span>
               <input
                 value={formState.overrideName}
                 onChange={(event) => setFormState((current) => ({ ...current, overrideName: event.target.value }))}
                 placeholder="Counter-Strike 2"
+              />
+            </label>
+
+            <label className="field">
+              <span>Cover image URL</span>
+              <input
+                type="url"
+                value={formState.overrideCoverUrl}
+                onChange={(event) => setFormState((current) => ({ ...current, overrideCoverUrl: event.target.value }))}
+                placeholder="https://.../cover.jpg"
               />
             </label>
 

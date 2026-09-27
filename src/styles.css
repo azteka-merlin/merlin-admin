@@ -5283,6 +5283,19 @@ h3 {
   }
 }
 
+.override-special-notice {
+  display: grid;
+  gap: 6px;
+}
+
+.override-special-notice code {
+  overflow-wrap: anywhere;
+}
+
+.override-special-badge {
+  margin-top: 10px;
+}
+
 /* ---- final mobile drawer fit ---- */
 @media (max-width: 900px) {
   .sidebar {
