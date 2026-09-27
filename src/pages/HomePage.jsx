@@ -212,7 +212,24 @@ export default function HomePage({ apiRequest, notify }) {
                 <label className="field"><span>Imagem</span><select value={draft.imageMode} onChange={(event) => setDraft((current) => ({ ...current, imageMode: event.target.value, file: null }))}><option value="steam">Steam / automática</option><option value="custom">Personalizada</option></select></label>
                 {draft.slotType === "hero" && <><label className="field"><span>Ação principal</span><select value={draft.primaryAction} onChange={(event) => setDraft((current) => ({ ...current, primaryAction: event.target.value }))}><option value="premium">Catálogo Premium</option><option value="add_game">Adicionar por link</option><option value="none">Nenhuma</option></select></label><label className="field"><span>Ação secundária</span><select value={draft.secondaryAction} onChange={(event) => setDraft((current) => ({ ...current, secondaryAction: event.target.value }))}><option value="add_game">Adicionar por link</option><option value="premium">Catálogo Premium</option><option value="none">Nenhuma</option></select></label></>}
               </div>
-              {draft.imageMode === "custom" && <label className="override-upload-card"><input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => setDraft((current) => ({ ...current, file: event.target.files?.[0] || null, removeImage: false }))} /><div><span className="override-upload-card__label">Imagem personalizada</span><strong>{draft.file?.name || draft.imageFilename || (draft.imageUrl ? "Imagem atual reutilizada" : "Selecione uma imagem")}</strong><p>JPG, PNG ou WebP até 8 MB.</p></div></label>}
+              {draft.imageMode === "custom" && (
+                <div className={`override-upload-card home-admin-upload ${draft.file || draft.imageUrl ? "is-ready" : ""}`}>
+                  <div className="override-upload-card__top">
+                    <div className="override-upload-card__copy">
+                      <span className="override-upload-card__label">Imagem personalizada</span>
+                      <strong>{draft.file?.name || draft.imageFilename || (draft.imageUrl ? "Imagem atual reutilizada" : "Nenhuma imagem selecionada")}</strong>
+                      <small>JPG, PNG ou WebP até 8 MB.</small>
+                    </div>
+                    <span className={`override-upload-card__status ${draft.file || draft.imageUrl ? "is-ready" : "is-empty"}`}>{draft.file || draft.imageUrl ? "Configurada" : "Pendente"}</span>
+                  </div>
+                  <div className="override-upload-card__actions">
+                    <label className="button button--ghost button--sm override-upload-card__picker">
+                      {draft.file || draft.imageUrl ? "Trocar imagem" : "Escolher imagem"}
+                      <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => setDraft((current) => ({ ...current, file: event.target.files?.[0] || null, removeImage: false }))} />
+                    </label>
+                  </div>
+                </div>
+              )}
               {(draft.file || draft.imageUrl) && <div className="announcement-crop-action"><div><span className="override-upload-card__label">Enquadramento</span><strong>X {Math.round(draft.imagePositionX)}% · Y {Math.round(draft.imagePositionY)}%</strong></div><button className="button button--ghost" type="button" onClick={() => setCropOpen(true)}>Ajustar imagem</button></div>}
               <label className="checkbox-row"><input type="checkbox" checked={draft.enabled} onChange={(event) => setDraft((current) => ({ ...current, enabled: event.target.checked }))} /><span>Ativo</span></label>
             </div>
