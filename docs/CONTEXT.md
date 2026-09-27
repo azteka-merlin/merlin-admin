@@ -1,6 +1,6 @@
 # Context - Merlin Admin
 
-Merlin Admin is the operational panel for the Merlin ecosystem. It centralizes licenses, audit logs, user activity, overrides, premium games, polls, public signup, and update publishing.
+Merlin Admin is the operational panel for the Merlin ecosystem. It centralizes licenses, audit logs, user activity, overrides, premium games, polls, release notes, public signup, and update publishing.
 
 ## Stack
 
@@ -30,6 +30,7 @@ The admin does not use an absolute API URL. It calls relative routes such as:
 - `/panel-api/premium/games/:appId/early-access`
 - `/panel-api/premium/activations`
 - `/panel-api/polls`
+- `/panel-api/release-notes`
 - `/panel-api/updates`
 
 In production, these routes are served by the same `Merlin-api` Worker on `api-merlin.com`.
@@ -56,6 +57,7 @@ The API script `npm run deploy:panel` automates the production panel build, type
 - Premium: manage premium games, uploads, and individual early-access grants. The card keeps only a count; selecting licenses happens in the game modal so the main grid remains compact.
 - Premium activations: inspect the activation history and manually release an active cooldown after an operational failure. This ends the cooldown but preserves the activation in the quota and cycle history.
 - Polls: create, open, close, vote, and delete polls.
+- Release notes: criar, editar, publicar, despublicar e excluir conteudo localizado e arte do changelog do Launcher.
 - Public signup: configure public registration and recovery.
 - Updates: upload the Merlin installer and latest-version metadata.
 

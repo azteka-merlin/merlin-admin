@@ -2,7 +2,7 @@
 
 ## Referencia
 
-A POC visual esta em `C:\Users\Usuario\Videos\merlin-planos`. Ela serve exclusivamente como referencia de cards:
+A POC visual de planos, quando presente ao lado dos projetos Merlin, serve exclusivamente como referencia de cards:
 
 - composicao, hierarquia, espacamento e tipografia;
 - toggle Mensal/Anual;
