@@ -10,6 +10,16 @@ const LOCALES = [
 ];
 
 const ICON_OPTIONS = ["home", "steam", "library", "settings", "sparkles", "wrench", "gift", "megaphone"];
+const ICON_LABELS = {
+  home: "Início",
+  steam: "Steam",
+  library: "Biblioteca",
+  settings: "Configurações",
+  sparkles: "Brilho",
+  wrench: "Ferramenta",
+  gift: "Presente",
+  megaphone: "Comunicado",
+};
 
 function emptyLocalization(locale) {
   return {
@@ -261,10 +271,10 @@ export default function ReleaseNotesPage({ apiRequest, notify }) {
             <section className="release-admin-highlights-editor">
               <header><div><strong>Destaques</strong><small>Ordem exibida na modal.</small></div><button className="button button--ghost button--sm" type="button" onClick={() => setLocalization({ highlights: [...content.highlights, { icon: "sparkles", title: "", description: "" }] })}>+ Destaque</button></header>
               {content.highlights.map((item, index) => <div className="release-admin-highlight-row" key={index}>
-                <select aria-label="Ícone" value={item.icon} onChange={(event) => setHighlight(index, { icon: event.target.value })}>{ICON_OPTIONS.map((icon) => <option key={icon}>{icon}</option>)}</select>
+                <select aria-label="Ícone" value={item.icon} onChange={(event) => setHighlight(index, { icon: event.target.value })}>{ICON_OPTIONS.map((icon) => <option key={icon} value={icon}>{ICON_LABELS[icon]}</option>)}</select>
                 <input aria-label="Título" placeholder="Título" value={item.title} onChange={(event) => setHighlight(index, { title: event.target.value })} />
                 <textarea aria-label="Descrição" rows="2" placeholder="Descrição" value={item.description} onChange={(event) => setHighlight(index, { description: event.target.value })} />
-                <div><button type="button" onClick={() => moveHighlight(index, -1)} disabled={index === 0}>↑</button><button type="button" onClick={() => moveHighlight(index, 1)} disabled={index === content.highlights.length - 1}>↓</button><button type="button" onClick={() => setLocalization({ highlights: content.highlights.filter((_, itemIndex) => itemIndex !== index) })}>×</button></div>
+                <div><button type="button" title="Mover destaque para cima" aria-label="Mover destaque para cima" onClick={() => moveHighlight(index, -1)} disabled={index === 0}>↑</button><button type="button" title="Mover destaque para baixo" aria-label="Mover destaque para baixo" onClick={() => moveHighlight(index, 1)} disabled={index === content.highlights.length - 1}>↓</button><button type="button" title="Remover destaque" aria-label="Remover destaque" onClick={() => setLocalization({ highlights: content.highlights.filter((_, itemIndex) => itemIndex !== index) })}>×</button></div>
               </div>)}
             </section>
             <label className="field"><span>Changelog completo · um item por linha</span><textarea rows="8" value={content.fullContent.join("\n")} onChange={(event) => setLocalization({ fullContent: event.target.value.split("\n") })} /></label>
