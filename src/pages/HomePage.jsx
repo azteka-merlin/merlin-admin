@@ -3,7 +3,10 @@ import Modal from "../components/Modal";
 import merlinWatermark from "../../../Merlin-luncher/assets/merlin-wizard-logo.png";
 
 const SLOT_META = {
-  hero: { label: "Carrossel", aspect: 1008.48 / 367.2, limit: 30 },
+  // At the launcher breakpoint where the side cards move below the hero, the
+  // carousel viewport is 795px × 367.2px. The editor must use that viewport
+  // so an approved frame has the same visible crop in Merlin.
+  hero: { label: "Carrossel", aspect: 795 / 367.2, limit: 30 },
   side: { label: "Cards laterais", aspect: 366.72 / 189, limit: 2 },
   showcase: { label: "Campanhas em vitrine", aspect: 16 / 9, limit: 4 },
 };
