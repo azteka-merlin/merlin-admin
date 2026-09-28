@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from "react";
-import Cropper from "react-easy-crop";
 import Modal from "../components/Modal";
 import merlinWatermark from "../../../Merlin-luncher/assets/merlin-wizard-logo.png";
 
@@ -13,7 +12,7 @@ function emptyDraft(slotType, position) {
   return {
     mode: "create", id: null, slotType, position, appId: "", title: "", description: "",
     secondaryText: "", displayLabel: "", imageMode: "steam", imageUrl: "", imageFilename: "",
-    imagePositionX: 50, imagePositionY: 50, primaryAction: "premium", secondaryAction: "add_game",
+    imagePositionX: 50, imagePositionY: 50, imageZoom: 1, primaryAction: "premium", secondaryAction: "add_game",
     enabled: true, file: null, removeImage: false,
   };
 }
@@ -22,7 +21,7 @@ function editDraft(item) {
   return {
     mode: "edit", ...item, appId: item.appId || "", description: item.description || "",
     secondaryText: item.secondaryText || "", displayLabel: item.displayLabel || "",
-    imageFilename: item.imageFilename || "", file: null, removeImage: false,
+    imageFilename: item.imageFilename || "", imageZoom: Number(item.imageZoom) || 1, file: null, removeImage: false,
   };
 }
 
@@ -31,7 +30,7 @@ function previewUrl(draft) {
 }
 
 function appendForm(formData, draft) {
-  ["slotType", "position", "appId", "title", "description", "secondaryText", "displayLabel", "imageMode", "imagePositionX", "imagePositionY", "primaryAction", "secondaryAction"]
+  ["slotType", "position", "appId", "title", "description", "secondaryText", "displayLabel", "imageMode", "imagePositionX", "imagePositionY", "imageZoom", "primaryAction", "secondaryAction"]
     .forEach((key) => formData.append(key, String(draft[key] ?? "")));
   formData.append("enabled", draft.enabled ? "true" : "false");
   formData.append("removeImage", draft.removeImage ? "true" : "false");
@@ -47,15 +46,18 @@ function validateDraft(draft) {
 function HomeSlotPreview({ draft, compact = false }) {
   const imageUrl = useMemo(() => previewUrl(draft), [draft.file, draft.imageUrl]);
   useEffect(() => () => { if (draft.file && imageUrl) URL.revokeObjectURL(imageUrl); }, [draft.file, imageUrl]);
-  const style = imageUrl ? {
+  const mediaStyle = imageUrl ? {
     backgroundImage: `url("${imageUrl}")`,
     backgroundPosition: `${draft.imagePositionX}% ${draft.imagePositionY}%`,
+    transform: `scale(${Number(draft.imageZoom) || 1})`,
+    transformOrigin: `${draft.imagePositionX}% ${draft.imagePositionY}%`,
   } : undefined;
   const className = `home-admin-preview home-admin-preview--${draft.slotType}${compact ? " is-compact" : ""}`;
   const actionLabels = { premium: "Ver catálogo Premium", add_game: "Adicionar por link" };
   const actions = [draft.primaryAction, draft.secondaryAction].filter((action) => actionLabels[action]);
   return (
-    <div className={className} style={style}>
+    <div className={className}>
+      {imageUrl && <div className="home-admin-preview__media" style={mediaStyle} />}
       <div className="home-admin-preview__shade" />
       {draft.slotType === "hero" && <img className="home-admin-preview__watermark" src={merlinWatermark} alt="" aria-hidden="true" />}
       <div className="home-admin-preview__copy">
@@ -72,33 +74,31 @@ function HomeSlotPreview({ draft, compact = false }) {
 }
 
 function FocalPointEditor({ draft, imageUrl, onApply, onClose }) {
-  const [crop, setCrop] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
   const [point, setPoint] = useState({ x: draft.imagePositionX, y: draft.imagePositionY });
+  const [zoom, setZoom] = useState(Number(draft.imageZoom) || 1);
+  const previewStyle = {
+    backgroundImage: `url("${imageUrl}")`,
+    backgroundPosition: `${point.x}% ${point.y}%`,
+    transform: `scale(${zoom})`,
+    transformOrigin: `${point.x}% ${point.y}%`,
+  };
   return (
     <Modal
       className="modal--home-cropper"
       title="Ajustar enquadramento"
       subtitle={`O frame usa a proporção de ${SLOT_META[draft.slotType].label.toLowerCase()} do Launcher.`}
       onClose={onClose}
-      actions={<><button className="button button--ghost" onClick={onClose}>Cancelar</button><button className="button button--primary" onClick={() => onApply(point)}>Aplicar</button></>}
+      actions={<><button className="button button--ghost" onClick={onClose}>Cancelar</button><button className="button button--primary" onClick={() => onApply({ ...point, zoom })}>Aplicar</button></>}
     >
       <div className={`home-admin-cropper home-admin-cropper--${draft.slotType}`}>
-        <Cropper
-          image={imageUrl}
-          crop={crop}
-          zoom={zoom}
-          aspect={SLOT_META[draft.slotType].aspect}
-          minZoom={1}
-          maxZoom={4}
-          objectFit="cover"
-          showGrid={false}
-          onCropChange={setCrop}
-          onZoomChange={setZoom}
-          onCropComplete={(area) => setPoint({ x: Math.max(0, Math.min(100, area.x + area.width / 2)), y: Math.max(0, Math.min(100, area.y + area.height / 2)) })}
-        />
+        <div className="home-admin-cropper__media" style={previewStyle} />
+        <span>Prévia do enquadramento no Launcher</span>
       </div>
-      <label className="home-admin-zoom"><span>Zoom</span><input type="range" min="1" max="4" step="0.01" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} /></label>
+      <div className="home-admin-position-controls">
+        <label><span>Horizontal <strong>{Math.round(point.x)}%</strong></span><input type="range" min="0" max="100" step="1" value={point.x} onChange={(event) => setPoint((current) => ({ ...current, x: Number(event.target.value) }))} /></label>
+        <label><span>Vertical <strong>{Math.round(point.y)}%</strong></span><input type="range" min="0" max="100" step="1" value={point.y} onChange={(event) => setPoint((current) => ({ ...current, y: Number(event.target.value) }))} /></label>
+        <label className="home-admin-position-controls__zoom"><span>Zoom <strong>{zoom.toFixed(2)}×</strong></span><input type="range" min="1" max="4" step="0.01" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} /></label>
+      </div>
     </Modal>
   );
 }
@@ -132,7 +132,13 @@ export default function HomePage({ apiRequest, notify }) {
     setBusy("resolve");
     try {
       const payload = await apiRequest(`/panel-api/home/steam/${encodeURIComponent(appId)}`);
-      setDraft((current) => ({ ...current, title: current.title || payload.game.name, imageUrl: payload.game.coverUrl || current.imageUrl, imageMode: "steam", removeImage: false }));
+      setDraft((current) => ({
+        ...current,
+        title: current.title || payload.game.name,
+        imageUrl: `/panel-api/home/steam/${encodeURIComponent(appId)}/image?v=${encodeURIComponent(payload.game.coverUrl || "")}`,
+        imageMode: "steam",
+        removeImage: false,
+      }));
     } catch (error) { notify(error.message); } finally { setBusy(""); }
   }
 
@@ -230,14 +236,14 @@ export default function HomePage({ apiRequest, notify }) {
                   </div>
                 </div>
               )}
-              {(draft.file || draft.imageUrl) && <div className="announcement-crop-action"><div><span className="override-upload-card__label">Enquadramento</span><strong>X {Math.round(draft.imagePositionX)}% · Y {Math.round(draft.imagePositionY)}%</strong></div><button className="button button--ghost" type="button" onClick={() => setCropOpen(true)}>Ajustar imagem</button></div>}
+              {(draft.file || draft.imageUrl) && <div className="announcement-crop-action"><div><span className="override-upload-card__label">Enquadramento</span><strong>X {Math.round(draft.imagePositionX)}% · Y {Math.round(draft.imagePositionY)}% · Zoom {(Number(draft.imageZoom) || 1).toFixed(2)}×</strong></div><button className="button button--ghost" type="button" onClick={() => setCropOpen(true)}>Ajustar imagem</button></div>}
               <label className="checkbox-row"><input type="checkbox" checked={draft.enabled} onChange={(event) => setDraft((current) => ({ ...current, enabled: event.target.checked }))} /><span>Ativo</span></label>
             </div>
             <HomeSlotPreview draft={draft} />
           </div>
         </Modal>
       )}
-      {draft && cropOpen && cropImageUrl && <FocalPointEditor draft={draft} imageUrl={cropImageUrl} onClose={() => setCropOpen(false)} onApply={(point) => { setDraft((current) => ({ ...current, imagePositionX: point.x, imagePositionY: point.y })); setCropOpen(false); }} />}
+      {draft && cropOpen && cropImageUrl && <FocalPointEditor draft={draft} imageUrl={cropImageUrl} onClose={() => setCropOpen(false)} onApply={(point) => { setDraft((current) => ({ ...current, imagePositionX: point.x, imagePositionY: point.y, imageZoom: point.zoom })); setCropOpen(false); }} />}
     </section>
   );
 }

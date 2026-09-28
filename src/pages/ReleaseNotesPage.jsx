@@ -20,6 +20,12 @@ const ICON_LABELS = {
   gift: "Presente",
   megaphone: "Comunicado",
 };
+const EDITOR_TABS = [
+  ["content", "Conteúdo"],
+  ["highlights", "Destaques"],
+  ["changelog", "Changelog"],
+  ["visual", "Visual"],
+];
 
 function emptyLocalization(locale) {
   return {
@@ -142,6 +148,8 @@ export default function ReleaseNotesPage({ apiRequest, notify }) {
   const [draft, setDraft] = useState(null);
   const [locale, setLocale] = useState("ptbr");
   const [busy, setBusy] = useState("");
+  const [editorTab, setEditorTab] = useState("content");
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -156,6 +164,13 @@ export default function ReleaseNotesPage({ apiRequest, notify }) {
   }
 
   useEffect(() => { void load(); }, []);
+
+  function openDraft(nextDraft) {
+    setLocale("ptbr");
+    setEditorTab("content");
+    setPreviewOpen(false);
+    setDraft(nextDraft);
+  }
 
   function setLocalization(patch) {
     setDraft((current) => ({
@@ -226,7 +241,7 @@ export default function ReleaseNotesPage({ apiRequest, notify }) {
     <section className="page page--release-notes">
       <div className="page__header page__header--split">
         <div><p className="eyebrow">Launcher</p><h1>Novidades / Changelog</h1><p>Gerencie releases Major e Standard exibidas no Merlin.</p></div>
-        <div className="page__actions"><button className="button button--ghost" onClick={load} disabled={loading}>{loading ? "Atualizando..." : "Atualizar"}</button><button className="button button--primary" onClick={() => { setLocale("ptbr"); setDraft(emptyDraft()); }}>+ Nova release</button></div>
+        <div className="page__actions"><button className="button button--ghost" onClick={load} disabled={loading}>{loading ? "Atualizando..." : "Atualizar"}</button><button className="button button--primary" onClick={() => openDraft(emptyDraft())}>+ Nova release</button></div>
       </div>
       <section className="panel panel--release-notes">
         {loading ? <div className="empty-state"><h3>Carregando novidades</h3></div> : !releases.length ? <div className="empty-state"><h3>Nenhuma release cadastrada</h3><p>Crie a primeira novidade do Merlin.</p></div> : (
@@ -237,7 +252,7 @@ export default function ReleaseNotesPage({ apiRequest, notify }) {
                 <div className={`release-admin-card__kind is-${release.type}`}>{release.type === "major" ? "MAJOR" : "STANDARD"}</div>
                 <div><p className="eyebrow">Versão {release.version}</p><h2>{pt?.title || "Sem título"}</h2><p>{pt?.summary || pt?.subtitle}</p></div>
                 <span className={`badge ${release.published ? "badge--emerald" : "badge--muted"}`}>{release.published ? "Publicada" : "Rascunho"}</span>
-                <div className="release-admin-card__actions"><button className="button button--ghost button--sm" onClick={() => { setLocale("ptbr"); setDraft(editDraft(release)); }}>Editar</button><button className="button button--danger button--soft button--sm" disabled={busy === `delete-${release.id}`} onClick={() => remove(release)}>Excluir</button></div>
+                <div className="release-admin-card__actions"><button className="button button--ghost button--sm" onClick={() => openDraft(editDraft(release))}>Editar</button><button className="button button--danger button--soft button--sm" disabled={busy === `delete-${release.id}`} onClick={() => remove(release)}>Excluir</button></div>
               </article>;
             })}
           </div>
@@ -247,6 +262,7 @@ export default function ReleaseNotesPage({ apiRequest, notify }) {
       {draft && <Modal
         className="modal--release-editor"
         title={draft.mode === "edit" ? `Editar Merlin ${draft.version}` : "Nova novidade do Merlin"}
+        headerMeta={<div className="release-admin-modal-meta"><span className={`release-admin-status release-admin-status--${draft.type}`}>{draft.type === "major" ? "MAJOR" : "STANDARD"}</span><span className={`release-admin-status ${draft.published ? "release-admin-status--published" : "release-admin-status--draft"}`}>{draft.published ? "PUBLICADA" : "RASCUNHO"}</span></div>}
         subtitle="Conteúdo, arte e preview da experiência exibida no Launcher."
         onClose={() => !busy && setDraft(null)}
         closeDisabled={Boolean(busy)}
@@ -254,38 +270,51 @@ export default function ReleaseNotesPage({ apiRequest, notify }) {
       >
         <div className="release-admin-editor">
           <div className="release-admin-editor__form">
-            <div className="field-grid">
-              <label className="field"><span>Versão</span><input value={draft.version} placeholder="2.1.0" onChange={(event) => setDraft((current) => ({ ...current, version: event.target.value }))} /></label>
-              <label className="field"><span>Tipo</span><select value={draft.type} onChange={(event) => setDraft((current) => ({ ...current, type: event.target.value }))}><option value="major">Major</option><option value="standard">Standard</option></select></label>
-              <label className="field field--wide"><span>Publicar em</span><input type="datetime-local" value={draft.publishedAt} onChange={(event) => setDraft((current) => ({ ...current, publishedAt: event.target.value }))} /></label>
-            </div>
-            <label className="checkbox-row"><input type="checkbox" checked={draft.published} onChange={(event) => setDraft((current) => ({ ...current, published: event.target.checked }))} /><span>Publicada</span></label>
-            <div className="release-admin-locales" role="tablist" aria-label="Idiomas">
-              {LOCALES.map(([key, label]) => <button type="button" key={key} className={locale === key ? "is-active" : ""} onClick={() => setLocale(key)}>{label}</button>)}
-            </div>
-            <div className="field-grid">
-              <label className="field field--wide"><span>Título</span><input value={content.title} onChange={(event) => setLocalization({ title: event.target.value })} /></label>
-              <label className="field field--wide"><span>Subtítulo</span><input value={content.subtitle} onChange={(event) => setLocalization({ subtitle: event.target.value })} /></label>
-              <label className="field field--wide"><span>Resumo</span><textarea rows="3" value={content.summary} onChange={(event) => setLocalization({ summary: event.target.value })} /></label>
-            </div>
-            <section className="release-admin-highlights-editor">
-              <header><div><strong>Destaques</strong><small>Ordem exibida na modal.</small></div><button className="button button--ghost button--sm" type="button" onClick={() => setLocalization({ highlights: [...content.highlights, { icon: "sparkles", title: "", description: "" }] })}>+ Destaque</button></header>
-              {content.highlights.map((item, index) => <div className="release-admin-highlight-row" key={index}>
-                <select aria-label="Ícone" value={item.icon} onChange={(event) => setHighlight(index, { icon: event.target.value })}>{ICON_OPTIONS.map((icon) => <option key={icon} value={icon}>{ICON_LABELS[icon]}</option>)}</select>
-                <input aria-label="Título" placeholder="Título" value={item.title} onChange={(event) => setHighlight(index, { title: event.target.value })} />
-                <textarea aria-label="Descrição" rows="2" placeholder="Descrição" value={item.description} onChange={(event) => setHighlight(index, { description: event.target.value })} />
-                <div><button type="button" title="Mover destaque para cima" aria-label="Mover destaque para cima" onClick={() => moveHighlight(index, -1)} disabled={index === 0}>↑</button><button type="button" title="Mover destaque para baixo" aria-label="Mover destaque para baixo" onClick={() => moveHighlight(index, 1)} disabled={index === content.highlights.length - 1}>↓</button><button type="button" title="Remover destaque" aria-label="Remover destaque" onClick={() => setLocalization({ highlights: content.highlights.filter((_, itemIndex) => itemIndex !== index) })}>×</button></div>
-              </div>)}
-            </section>
-            <label className="field"><span>Changelog completo · um item por linha</span><textarea rows="8" value={content.fullContent.join("\n")} onChange={(event) => setLocalization({ fullContent: event.target.value.split("\n") })} /></label>
-            <label className={`override-upload-card release-admin-upload ${draft.file || (draft.heroAssetUrl && !draft.removeHeroAsset) ? "is-ready" : ""}`}>
-              <input type="file" accept="image/png,image/webp,image/jpeg" onChange={(event) => setDraft((current) => ({ ...current, file: event.target.files?.[0] || null, removeHeroAsset: false }))} />
-              <div><span className="override-upload-card__label">Arte da release</span><strong>{draft.file?.name || draft.heroAssetFilename || "Nenhuma arte selecionada"}</strong><p>PNG transparente recomendado. Sem crop; exibida proporcionalmente.</p></div>
-            </label>
-            {draft.heroAssetUrl && !draft.file && <label className="checkbox-row"><input type="checkbox" checked={draft.removeHeroAsset} onChange={(event) => setDraft((current) => ({ ...current, removeHeroAsset: event.target.checked }))} /><span>Remover arte atual</span></label>}
+            <nav className="release-admin-editor-tabs" role="tablist" aria-label="Seções da release">
+              {EDITOR_TABS.map(([key, label]) => <button key={key} type="button" role="tab" aria-selected={editorTab === key} className={editorTab === key ? "is-active" : ""} onClick={() => setEditorTab(key)}>{label}</button>)}
+            </nav>
+            {editorTab === "content" && <section className="release-admin-editor-section" aria-label="Conteúdo">
+              <div className="field-grid release-admin-content-grid">
+                <label className="field"><span>Versão</span><input value={draft.version} placeholder="2.1.0" onChange={(event) => setDraft((current) => ({ ...current, version: event.target.value }))} /></label>
+                <label className="field"><span>Tipo</span><select value={draft.type} onChange={(event) => setDraft((current) => ({ ...current, type: event.target.value }))}><option value="major">Major</option><option value="standard">Standard</option></select></label>
+                <label className="field field--wide"><span>Publicar em</span><input type="datetime-local" value={draft.publishedAt} onChange={(event) => setDraft((current) => ({ ...current, publishedAt: event.target.value }))} /></label>
+              </div>
+              <label className="checkbox-row"><input type="checkbox" checked={draft.published} onChange={(event) => setDraft((current) => ({ ...current, published: event.target.checked }))} /><span>Publicada</span></label>
+              <div className="release-admin-locales" role="tablist" aria-label="Idiomas">
+                {LOCALES.map(([key, label]) => <button type="button" key={key} className={locale === key ? "is-active" : ""} onClick={() => setLocale(key)}>{label}</button>)}
+              </div>
+              <div className="field-grid release-admin-copy-grid">
+                <label className="field field--wide"><span>Título</span><input value={content.title} onChange={(event) => setLocalization({ title: event.target.value })} /></label>
+                <label className="field field--wide"><span>Subtítulo</span><input value={content.subtitle} onChange={(event) => setLocalization({ subtitle: event.target.value })} /></label>
+                <label className="field field--wide"><span>Resumo</span><textarea rows="5" value={content.summary} onChange={(event) => setLocalization({ summary: event.target.value })} /></label>
+              </div>
+            </section>}
+            {editorTab === "highlights" && <section className="release-admin-editor-section release-admin-highlights-editor" aria-label="Destaques">
+              <header><div><strong>Destaques da modal</strong><small>Use os botões para definir a ordem exibida.</small></div><button className="button button--ghost button--sm" type="button" onClick={() => setLocalization({ highlights: [...content.highlights, { icon: "sparkles", title: "", description: "" }] })}>+ Destaque</button></header>
+              <div className="release-admin-highlight-list">{content.highlights.map((item, index) => <article className="release-admin-highlight-card" key={index}>
+                <header><strong>Destaque {index + 1}</strong><div><button type="button" title="Mover destaque para cima" aria-label="Mover destaque para cima" onClick={() => moveHighlight(index, -1)} disabled={index === 0}>↑</button><button type="button" title="Mover destaque para baixo" aria-label="Mover destaque para baixo" onClick={() => moveHighlight(index, 1)} disabled={index === content.highlights.length - 1}>↓</button><button type="button" className="is-danger" title="Remover destaque" aria-label="Remover destaque" onClick={() => setLocalization({ highlights: content.highlights.filter((_, itemIndex) => itemIndex !== index) })}>×</button></div></header>
+                <label className="field"><span>Ícone</span><select value={item.icon} onChange={(event) => setHighlight(index, { icon: event.target.value })}>{ICON_OPTIONS.map((icon) => <option key={icon} value={icon}>{ICON_LABELS[icon]}</option>)}</select></label>
+                <label className="field"><span>Título</span><input placeholder="Título do destaque" value={item.title} onChange={(event) => setHighlight(index, { title: event.target.value })} /></label>
+                <label className="field"><span>Descrição</span><textarea rows="3" placeholder="Explique esta mudança para o usuário" value={item.description} onChange={(event) => setHighlight(index, { description: event.target.value })} /></label>
+              </article>)}</div>
+            </section>}
+            {editorTab === "changelog" && <section className="release-admin-editor-section" aria-label="Changelog">
+              <label className="field"><span>Changelog completo · um item por linha</span><textarea className="release-admin-changelog-textarea" rows="18" value={content.fullContent.join("\n")} onChange={(event) => setLocalization({ fullContent: event.target.value.split("\n") })} /></label>
+              <p className="release-admin-field-help">Cada linha aparece como uma mudança no histórico completo da release.</p>
+            </section>}
+            {editorTab === "visual" && <section className="release-admin-editor-section" aria-label="Visual">
+              <label className={`override-upload-card release-admin-upload ${draft.file || (draft.heroAssetUrl && !draft.removeHeroAsset) ? "is-ready" : ""}`}>
+                <input type="file" accept="image/png,image/webp,image/jpeg" onChange={(event) => setDraft((current) => ({ ...current, file: event.target.files?.[0] || null, removeHeroAsset: false }))} />
+                <div><span className="override-upload-card__label">Arte da release</span><strong>{draft.file?.name || draft.heroAssetFilename || "Nenhuma arte selecionada"}</strong><p>PNG transparente recomendado. Sem crop; exibida proporcionalmente.</p></div>
+              </label>
+              {draft.heroAssetUrl && !draft.file && <label className="checkbox-row"><input type="checkbox" checked={draft.removeHeroAsset} onChange={(event) => setDraft((current) => ({ ...current, removeHeroAsset: event.target.checked }))} /><span>Remover arte atual</span></label>}
+            </section>}
           </div>
-          <div className="release-admin-editor__preview"><p className="eyebrow">Preview {draft.type === "major" ? "Major" : "Standard"}</p><ReleasePreview draft={draft} locale={locale} /></div>
+          <aside className="release-admin-editor__preview"><div className="release-admin-preview-heading"><p className="eyebrow">Preview {draft.type === "major" ? "Major" : "Standard"}</p><button className="button button--ghost button--sm" type="button" onClick={() => setPreviewOpen(true)}>Abrir preview em tamanho real</button></div><div className="release-admin-preview-frame"><ReleasePreview draft={draft} locale={locale} /></div></aside>
         </div>
+      </Modal>}
+      {previewOpen && draft && <Modal className="modal--release-preview-full" title={`Preview Merlin ${draft.version || "2.0.0"}`} subtitle="Visualização somente leitura da experiência exibida no Launcher." actions={<button className="button button--primary" onClick={() => setPreviewOpen(false)}>Fechar preview</button>} onClose={() => setPreviewOpen(false)}>
+        <div className="release-admin-preview-full-frame"><ReleasePreview draft={draft} locale={locale} /></div>
       </Modal>}
     </section>
   );

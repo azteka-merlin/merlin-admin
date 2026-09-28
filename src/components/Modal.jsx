@@ -1,6 +1,6 @@
 import React from "react";
 
-export default function Modal({ title, subtitle, children, actions, onClose, closeDisabled = false, closeConfirmMessage = "", className = "" }) {
+export default function Modal({ title, subtitle, headerMeta = null, children, actions, onClose, closeDisabled = false, closeConfirmMessage = "", className = "" }) {
   function handleClose() {
     if (closeDisabled) return;
     if (closeConfirmMessage && !window.confirm(closeConfirmMessage)) return;
@@ -13,6 +13,7 @@ export default function Modal({ title, subtitle, children, actions, onClose, clo
         <div className="modal__header">
           <div>
             <h3>{title}</h3>
+            {headerMeta}
             <p>{subtitle}</p>
           </div>
           <button className="icon-button" onClick={handleClose} aria-label="Fechar" disabled={closeDisabled}>
