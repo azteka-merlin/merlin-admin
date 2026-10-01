@@ -19,6 +19,7 @@ O Merlin Admin centraliza a operacao do ecossistema Merlin:
 - visualizar atividade de usuarios e eventos administrativos;
 - consultar dispositivos vinculados e redefinir HWIDs;
 - gerenciar overrides de manifests e fixes por App ID;
+- escolher a primeira fonte de manifests entre DepotBox, Ryuu e steam-api (as outras seguem como fallback);
 - gerenciar jogos premium;
 - publicar e acompanhar updates do Merlin;
 - revisar bloqueios e ajustes basicos de seguranca.

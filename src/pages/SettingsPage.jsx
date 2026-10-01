@@ -41,7 +41,7 @@ export default function SettingsPage({
 
   React.useEffect(() => {
     const configuredSource = manifestSourceSettings?.primarySource;
-    setPrimarySource(["depotbox", "ryuu", "contrary"].includes(configuredSource) ? configuredSource : "depotbox");
+    setPrimarySource(["depotbox", "ryuu", "steam-api"].includes(configuredSource) ? configuredSource : "depotbox");
   }, [manifestSourceSettings?.primarySource]);
 
   React.useEffect(() => {
@@ -107,14 +107,14 @@ export default function SettingsPage({
             <input
               type="radio"
               name="manifest-primary-source"
-              value="contrary"
-              checked={primarySource === "contrary"}
+              value="steam-api"
+              checked={primarySource === "steam-api"}
               disabled={loadingManifestSourceSettings || savingManifestSourceSettings}
-              onChange={() => setPrimarySource("contrary")}
+              onChange={() => setPrimarySource("steam-api")}
             />
             <div>
-              <strong>ContraryCDN primeiro</strong>
-              <span>Consulta o ContraryCDN antes do DepotBox e do Ryuu para ativações normais.</span>
+              <strong>Steam API primeiro</strong>
+              <span>Consulta a Steam API antes do DepotBox e do Ryuu para ativações normais.</span>
             </div>
           </label>
         </div>
