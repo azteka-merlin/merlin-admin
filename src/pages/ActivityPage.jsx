@@ -1,6 +1,17 @@
 import React from "react";
 import { formatDateTime, initials, maskTechnicalValue, userActivityLabel } from "../lib/admin-ui";
 
+function manifestSourceLabel(source) {
+  return ({
+    depotbox: "DepotBox",
+    ryu: "Ryuu",
+    "steam-api": "Steam API",
+    "r2-override": "Override",
+    hubcap: "Hubcap",
+    skyflare: "Skyflare",
+  })[source] || source || "--";
+}
+
 export default function ActivityPage({
   activitySearch,
   setActivitySearch,
@@ -106,8 +117,10 @@ export default function ActivityPage({
                       </dd>
                     </div>
                     <div>
-                      <dt>Motivo</dt>
-                      <dd className="truncate-text" title={log.reason || "--"}>{log.reason || "--"}</dd>
+                      <dt>{log.action === "game_activation_success" ? "Fonte do ZIP" : "Motivo"}</dt>
+                      <dd className="truncate-text" title={log.action === "game_activation_success" ? manifestSourceLabel(log.metadata?.source) : log.reason || "--"}>
+                        {log.action === "game_activation_success" ? manifestSourceLabel(log.metadata?.source) : log.reason || "--"}
+                      </dd>
                     </div>
                     <div>
                       <dt>Data</dt>
