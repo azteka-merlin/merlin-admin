@@ -1,5 +1,6 @@
 import React from "react";
 import { formatDateTime } from "../lib/admin-ui";
+import Modal from "../components/Modal";
 
 function formatProgressBytes(bytes) {
   const value = Number(bytes) || 0;
@@ -11,6 +12,8 @@ function formatProgressBytes(bytes) {
 }
 
 export default function SettingsPage({
+  apiRequest,
+  notify,
   loadingBlockedIps,
   blockedIps,
   loadBlockedIps,
@@ -38,6 +41,51 @@ export default function SettingsPage({
   const savingLauncherUpdatePolicySettings = busyAction === "save-launcher-update-policy-settings";
   const [primarySource, setPrimarySource] = React.useState("depotbox");
   const [automaticUpdatesEnabled, setAutomaticUpdatesEnabled] = React.useState(true);
+  const [voteSummary, setVoteSummary] = React.useState(null);
+  const [loadingVoteSummary, setLoadingVoteSummary] = React.useState(true);
+  const [resetConfirmOpen, setResetConfirmOpen] = React.useState(false);
+  const [resettingVotes, setResettingVotes] = React.useState(false);
+
+  async function loadVoteSummary() {
+    setLoadingVoteSummary(true);
+    try {
+      const summary = await apiRequest("/panel-api/community-voting/summary");
+      setVoteSummary(summary);
+      return summary;
+    } catch (error) {
+      notify(error.message);
+      return null;
+    } finally {
+      setLoadingVoteSummary(false);
+    }
+  }
+
+  async function openResetConfirm() {
+    const summary = await loadVoteSummary();
+    if (summary) setResetConfirmOpen(true);
+  }
+
+  async function handleResetVotes() {
+    setResettingVotes(true);
+    try {
+      const result = await apiRequest("/panel-api/community-voting/reset", {
+        method: "POST",
+        body: { confirm: "RESETAR VOTACAO" },
+        mutate: true
+      });
+      setVoteSummary({ votes: 0, networkClaims: 0 });
+      setResetConfirmOpen(false);
+      notify(`Votação resetada: ${result.removedVotes} voto(s) removido(s).`);
+    } catch (error) {
+      notify(error.message);
+    } finally {
+      setResettingVotes(false);
+    }
+  }
+
+  React.useEffect(() => {
+    loadVoteSummary();
+  }, []);
 
   React.useEffect(() => {
     const configuredSource = manifestSourceSettings?.primarySource;
@@ -56,6 +104,25 @@ export default function SettingsPage({
           <h1>Gerencie segurança básica, IPs bloqueados e o update do Merlin.</h1>
         </div>
       </div>
+
+      <section className="panel panel--audit">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Votação da comunidade</p>
+            <h2>Reset para testes</h2>
+          </div>
+          <button className="button button--ghost" onClick={loadVoteSummary} disabled={loadingVoteSummary || resettingVotes}>
+            {loadingVoteSummary ? "Atualizando..." : "Atualizar total"}
+          </button>
+        </div>
+        <p className="field-grid__note">
+          {voteSummary ? `${voteSummary.votes} voto(s) registrados. ${voteSummary.networkClaims} trava(s) de rede ativas.` : loadingVoteSummary ? "Carregando votação..." : "Não foi possível carregar o total de votos."}
+        </p>
+        <p className="field-grid__note">O reset apaga todos os votos e libera as redes para votar novamente.</p>
+        <button className="button button--danger" onClick={openResetConfirm} disabled={loadingVoteSummary || !voteSummary || resettingVotes}>
+          Resetar votação
+        </button>
+      </section>
 
       <section className="panel panel--audit">
         <div className="section-heading">
@@ -337,6 +404,22 @@ export default function SettingsPage({
           </div>
         )}
       </section>
+      {resetConfirmOpen && (
+        <Modal
+          title="Resetar votação?"
+          subtitle="Esta ação apaga os votos de todos os jogos e libera as travas de rede. Não pode ser desfeita."
+          onClose={() => setResetConfirmOpen(false)}
+          closeDisabled={resettingVotes}
+          actions={<>
+            <button className="button button--ghost" onClick={() => setResetConfirmOpen(false)} disabled={resettingVotes}>Cancelar</button>
+            <button className="button button--danger" onClick={handleResetVotes} disabled={resettingVotes}>
+              {resettingVotes ? "Resetando..." : "Confirmar reset"}
+            </button>
+          </>}
+        >
+          <p className="plain-copy">Neste momento há {voteSummary?.votes ?? 0} voto(s) e {voteSummary?.networkClaims ?? 0} trava(s) de rede. Todos serão apagados.</p>
+        </Modal>
+      )}
     </section>
   );
 }

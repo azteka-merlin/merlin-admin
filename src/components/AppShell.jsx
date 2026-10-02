@@ -84,6 +84,9 @@ export default function AppShell({
             <button className={`nav-button ${view === "payments" ? "is-active" : ""}`} onClick={() => navigate("payments")}>
               Pagamentos
             </button>
+            <button className={`nav-button ${view === "billing-notifications" ? "is-active" : ""}`} onClick={() => navigate("billing-notifications")}>
+              Avisos por e-mail
+            </button>
             <button className={`nav-button ${view === "activity" ? "is-active" : ""}`} onClick={() => navigate("activity")}>
               Atividade
             </button>

@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#07101d" />
+    <meta name="description" content="Vote nos jogos que você quer ver no Merlin Premium." />
+    <title>Votação da comunidade | Merlin</title>
+    <link rel="icon" href="/votacao/merlin-mark.png" type="image/png" />
+    <link rel="stylesheet" href="/votacao/style.css" />
+    <script src="/votacao/app.js" defer></script>
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="site-header" id="inicio">
+        <a class="brand" href="#inicio" aria-label="Merlin — topo da votação">
+          <img src="/votacao/merlin-mark.png" alt="" width="48" height="48" />
+          <span>MERLIN</span>
+        </a>
+        <nav class="desktop-nav" aria-label="Navegação principal">
+          <a href="/votacao" aria-current="page">Votação</a>
+          <a href="#sobre">Sobre</a>
+        </nav>
+        <button class="menu-toggle" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="mobile-nav">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+        </button>
+        <nav class="mobile-nav" id="mobile-nav" aria-label="Navegação mobile" hidden>
+          <a href="/votacao" aria-current="page">Votação</a>
+          <a href="#sobre">Sobre</a>
+        </nav>
+      </header>
+
+      <main>
+        <section class="hero" aria-labelledby="page-title">
+          <div class="hero-copy">
+            <span class="eyebrow">VOTAÇÃO DA COMUNIDADE</span>
+            <h1 id="page-title">Quais jogos você quer<br class="desktop-break" /> no <span>Merlin?</span></h1>
+            <p class="hero-description">Vote nos jogos que você mais quer ver disponíveis<br class="desktop-break" /> na biblioteca Premium.</p>
+            <div class="info-strip" id="sobre">
+              <div class="info-item">
+                <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="20" width="5" height="9" rx="1"/><rect x="13" y="13" width="5" height="16" rx="1"/><rect x="23" y="5" width="5" height="24" rx="1"/></svg>
+                <span>Apenas jogos <br />ainda não disponíveis <br />no Premium</span>
+              </div>
+              <div class="info-item">
+                <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="11" cy="10" r="5"/><circle cx="23" cy="11" r="4"/><path d="M2 25c0-5 4-8 9-8s9 3 9 8v2H2zM20 19c5-1 10 2 10 7v1h-7v-2c0-2-1-4-3-6z"/></svg>
+                <span>Ajude a priorizar <br />as próximas compras <br />da equipe</span>
+              </div>
+              <div class="info-item">
+                <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="5" width="25" height="4" rx="1"/><rect x="3" y="14" width="20" height="4" rx="1"/><rect x="3" y="23" width="13" height="4" rx="1"/></svg>
+                <span>Você pode votar <br />em até 3 jogos <br />por dia</span>
+              </div>
+            </div>
+          </div>
+          <div class="hero-card" aria-hidden="true">
+            <img src="/votacao/merlin-mark.png" alt="" width="92" height="92" />
+            <strong>Votação da comunidade</strong>
+            <p>Sua opinião ajuda a escolher os<br /> próximos jogos Premium.</p>
+            <span class="card-rule"></span>
+          </div>
+        </section>
+
+        <section class="catalog" aria-label="Jogos para votação">
+          <div class="vote-tabs" role="tablist" aria-label="Tipo de jogo">
+            <button class="vote-tab is-active" id="tab-indisponiveis" type="button" role="tab" aria-selected="true" aria-controls="vote-panel" data-view="indisponiveis">Jogos indisponíveis</button>
+            <button class="vote-tab" id="tab-correcoes" type="button" role="tab" aria-selected="false" aria-controls="vote-panel" data-view="correcoes" tabindex="-1">Jogos por correção</button>
+          </div>
+          <div class="vote-panel" id="vote-panel" role="tabpanel" aria-labelledby="tab-indisponiveis" tabindex="0">
+            <div class="tab-intro" id="intro-indisponiveis">
+              <h2>Jogos ainda indisponíveis</h2>
+              <p>Estes jogos ainda não estão no Merlin. Os votos desta aba terão prioridade na escolha dos próximos jogos.</p>
+            </div>
+            <div class="tab-intro tab-intro--correcoes" id="intro-correcoes" hidden>
+              <h2>Jogos disponíveis por correção</h2>
+              <p>Os jogos abaixo já estão no Merlin, mas fora do Premium. Eles funcionam por correções que os mantêm na versão compatível com cada correção. Atualizações e DLCs lançadas depois podem não estar disponíveis.</p>
+              <p><strong>Quando votar aqui?</strong> Apenas se você souber de uma atualização, DLC ou outro conteúdo que falta na versão corrigida. Se o jogo não recebeu novidades, use seus votos em <strong>Jogos indisponíveis</strong>, que serão priorizados. Os 3 votos diários são compartilhados entre as abas.</p>
+            </div>
+          <div class="catalog-controls">
+            <label class="search-field">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.7"/><path d="m16 16 5 5"/></svg>
+              <span class="sr-only">Buscar um jogo</span>
+              <input id="game-search" type="search" placeholder="Buscar um jogo..." autocomplete="off" />
+            </label>
+            <div class="filter-wrap">
+              <div class="filters" role="group" aria-label="Filtrar por categoria"></div>
+              <button class="more-filters" type="button" aria-label="Mais categorias" aria-expanded="false" aria-controls="extra-filters">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="10" cy="18" r="2"/></svg>
+              </button>
+              <div class="extra-filters" id="extra-filters" hidden></div>
+            </div>
+          </div>
+          <p class="catalog-status" id="catalog-status" role="status" hidden></p>
+          <p class="network-status" id="network-status" hidden></p>
+          <div class="game-list" id="game-list" aria-live="polite"></div>
+          <p class="empty-state" id="empty-state" hidden>Nenhum jogo encontrado.</p>
+          </div>
+        </section>
+      </main>
+    </div>
+    <div class="sr-only" id="vote-announcement" aria-live="polite"></div>
+  </body>
+</html>

@@ -15,6 +15,7 @@ import LicensesPage from "./pages/LicensesPage";
 import OverviewPage from "./pages/OverviewPage";
 import OverridesPage from "./pages/OverridesPage";
 import PaymentsPage from "./pages/PaymentsPage";
+import BillingNotificationsPage from "./pages/BillingNotificationsPage";
 import PollsPage from "./pages/PollsPage";
 import PremiumPage from "./pages/PremiumPage";
 import PremiumActivationsPage from "./pages/PremiumActivationsPage";
@@ -2676,6 +2677,9 @@ function App() {
             busyAction={busyAction}
           />
         )}
+        {view === "billing-notifications" && (
+          <BillingNotificationsPage apiRequest={apiRequest} notify={setToast} />
+        )}
         {view === "activity" && (
           <ActivityPage
             activitySearch={activitySearch}
@@ -2735,6 +2739,8 @@ function App() {
         )}
         {view === "settings" && (
           <SettingsPage
+            apiRequest={apiRequest}
+            notify={setToast}
             loadingBlockedIps={loadingBlockedIps}
             blockedIps={blockedIps}
             loadBlockedIps={loadBlockedIps}
