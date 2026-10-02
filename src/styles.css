@@ -5666,6 +5666,7 @@ h3 {
 .billing-mail-error-detail { font-size: .8rem; color: var(--muted); }
 .billing-mail-error-detail summary { cursor: pointer; }
 .billing-mail-error-detail code { display: block; margin-top: 8px; overflow-wrap: anywhere; color: var(--danger); }
+.billing-mail-covered-note { margin: 0; padding: 11px 13px; border: 1px solid rgba(159, 89, 255, .22); border-radius: 10px; background: rgba(159, 89, 255, .07); color: var(--muted); font-size: .84rem; line-height: 1.5; }
 @media (max-width: 960px) {
   .billing-mail-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .billing-mail-toolbar { align-items: stretch; flex-direction: column; }

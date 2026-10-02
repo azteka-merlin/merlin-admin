@@ -7,7 +7,7 @@ const STATUS = {
   sent: ["Aceito pelo Resend", "success"],
   failed: ["Falhou", "danger"],
   missing: ["Sem registro", "danger"],
-  covered: ["Coberto por aviso anterior", "muted"],
+  covered: ["Envio de hoje dispensado", "muted"],
 };
 
 function localDate(date = new Date()) {
@@ -173,6 +173,7 @@ export default function BillingNotificationsPage({ apiRequest, notify }) {
               {item.sentAt && <span>Enviado às {formatTime(item.sentAt)}</span>}
               {item.status === "failed" && <button className="button button--primary button--sm" disabled={retrying === item.notificationId} onClick={() => retry(item)}>{retrying === item.notificationId ? "Reenviando..." : "Reenviar"}</button>}
             </div>
+            {item.status === "covered" && <p className="billing-mail-covered-note">Nenhum e-mail será enviado neste horário: um aviso deste vencimento já foi aceito pelo Resend em {formatDate(item.previousSentAt)}, às {formatTime(item.previousSentAt)}.{item.nextScheduledAt ? ` Próximo aviso previsto: ${formatDate(item.nextScheduledAt)}, às ${formatTime(item.nextScheduledAt)}, se não houver renovação.` : ""}</p>}
             {item.status === "failed" && latestFailure.get(item.notificationId) && <details className="billing-mail-error-detail"><summary>Ver motivo técnico da falha</summary><code>{latestFailure.get(item.notificationId)}</code></details>}
           </article>)}
       </section>}
