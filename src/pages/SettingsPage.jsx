@@ -31,6 +31,7 @@ export default function SettingsPage({
   loadingManifestSourceSettings,
   loadManifestSourceSettings,
   handleSaveManifestSourceSettings,
+  handleSaveManifestDepotValidation,
   launcherUpdatePolicySettings,
   loadingLauncherUpdatePolicySettings,
   loadLauncherUpdatePolicySettings,
@@ -38,6 +39,7 @@ export default function SettingsPage({
 }) {
   const publishingUpdate = busyAction === "publish-merlin-update";
   const savingManifestSourceSettings = busyAction === "save-manifest-source-settings";
+  const savingManifestDepotValidation = busyAction.startsWith("save-manifest-depot-validation:");
   const savingLauncherUpdatePolicySettings = busyAction === "save-launcher-update-policy-settings";
   const [primarySource, setPrimarySource] = React.useState("depotbox");
   const [automaticUpdatesEnabled, setAutomaticUpdatesEnabled] = React.useState(true);
@@ -194,6 +196,36 @@ export default function SettingsPage({
           >
             {savingManifestSourceSettings ? "Salvando..." : "Salvar prioridade"}
           </button>
+        </div>
+
+        <div className="section-heading" style={{ marginTop: 28 }}>
+          <div>
+            <p className="eyebrow">Verificação de depots</p>
+            <h3>Validar ZIP com a Steam</h3>
+          </div>
+        </div>
+        <p className="field-grid__note">
+          Cada fonte pode ser ligada separadamente. Se faltar um depot confirmado pela Steam, o Merlin tenta a próxima fonte. Falhas na consulta não bloqueiam o ZIP. A mudança vale para novos pedidos imediatamente.
+        </p>
+        <div className="toggle-grid">
+          {[
+            ["depotbox", "DepotBox"],
+            ["ryuu", "Ryuu"],
+            ["steam-api", "Steam API"]
+          ].map(([source, label]) => (
+            <label className="toggle-field" key={source}>
+              <input
+                type="checkbox"
+                checked={manifestSourceSettings?.depotValidation?.[source] === true}
+                disabled={loadingManifestSourceSettings || savingManifestSourceSettings || savingManifestDepotValidation}
+                onChange={(event) => handleSaveManifestDepotValidation(source, event.target.checked)}
+              />
+              <div>
+                <strong>{label}</strong>
+                <span>{manifestSourceSettings?.depotValidation?.[source] ? "Validação ligada" : "Validação desligada"}</span>
+              </div>
+            </label>
+          ))}
         </div>
       </section>
 

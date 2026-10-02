@@ -1516,6 +1516,23 @@ function App() {
     }
   }
 
+  async function handleSaveManifestDepotValidation(source, enabled) {
+    setBusyAction(`save-manifest-depot-validation:${source}`);
+    try {
+      const payload = await apiRequest("/panel-api/manifest-source-settings", {
+        method: "PUT",
+        mutate: true,
+        body: { depotValidation: { [source]: enabled } }
+      });
+      setManifestSourceSettings(payload.settings);
+      setToast(`Validação do ${source === "steam-api" ? "Steam API" : source === "ryuu" ? "Ryuu" : "DepotBox"} ${enabled ? "ativada" : "desativada"}.`);
+    } catch (error) {
+      setToast(error.message);
+    } finally {
+      setBusyAction("");
+    }
+  }
+
   async function handleSaveLauncherUpdatePolicySettings(automaticUpdatesEnabled) {
     setBusyAction("save-launcher-update-policy-settings");
     try {
@@ -2758,6 +2775,7 @@ function App() {
             loadingManifestSourceSettings={loadingManifestSourceSettings}
             loadManifestSourceSettings={loadManifestSourceSettings}
             handleSaveManifestSourceSettings={handleSaveManifestSourceSettings}
+            handleSaveManifestDepotValidation={handleSaveManifestDepotValidation}
             launcherUpdatePolicySettings={launcherUpdatePolicySettings}
             loadingLauncherUpdatePolicySettings={loadingLauncherUpdatePolicySettings}
             loadLauncherUpdatePolicySettings={loadLauncherUpdatePolicySettings}
