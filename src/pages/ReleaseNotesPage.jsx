@@ -9,7 +9,7 @@ const LOCALES = [
   ["de", "Deutsch"],
 ];
 
-const ICON_OPTIONS = ["home", "steam", "library", "settings", "sparkles", "wrench", "gift", "megaphone"];
+const ICON_OPTIONS = ["home", "steam", "library", "settings", "sparkles", "wrench", "gift", "megaphone", "cloud", "database-backup", "refresh-cw", "credit-card", "shield-check"];
 const ICON_LABELS = {
   home: "Início",
   steam: "Steam",
@@ -19,6 +19,11 @@ const ICON_LABELS = {
   wrench: "Ferramenta",
   gift: "Presente",
   megaphone: "Comunicado",
+  cloud: "Nuvem",
+  "database-backup": "Backup",
+  "refresh-cw": "Atualização",
+  "credit-card": "Pagamento",
+  "shield-check": "Proteção",
 };
 const EDITOR_TABS = [
   ["content", "Conteúdo"],
@@ -108,6 +113,7 @@ function validate(draft) {
 
 function ReleasePreview({ draft, locale = "ptbr" }) {
   const content = draft.localizations.find((item) => item.locale === locale) || draft.localizations[0];
+  const majorDisplayVersion = (draft.version || "2.0.0").replace(/\.0$/, "");
   const assetUrl = useMemo(() => draft.file ? URL.createObjectURL(draft.file) : draft.removeHeroAsset ? "" : draft.heroAssetUrl, [draft.file, draft.heroAssetUrl, draft.removeHeroAsset]);
   useEffect(() => () => { if (draft.file && assetUrl) URL.revokeObjectURL(assetUrl); }, [draft.file, assetUrl]);
   const highlights = content.highlights.filter((item) => item.title || item.description);
@@ -129,13 +135,13 @@ function ReleasePreview({ draft, locale = "ptbr" }) {
     <div className="release-admin-preview release-admin-preview--major">
       <div className="release-admin-preview__major-copy">
         <div className="release-admin-preview__brand"><span>✦</span><strong>MERLIN</strong></div>
-        <small>VERSÃO {draft.version || "2.0.0"}</small>
+        <small>VERSÃO {majorDisplayVersion}</small>
         <h2>{content.title || "O MERLIN 2.0 CHEGOU"}</h2>
         <p>{content.subtitle || "Uma nova experiência, por dentro e por fora."}</p>
         <div className="release-admin-preview__highlights">
           {highlights.slice(0, 5).map((item, index) => <div key={`${item.title}-${index}`}><span>✦</span><section><strong>{item.title}</strong><p>{item.description}</p></section></div>)}
         </div>
-        <div className="release-admin-preview__actions"><b>✦ Explorar o Merlin {draft.version || "2.0.0"}</b><i>Ver todas as mudanças</i></div>
+        <div className="release-admin-preview__actions"><b>✦ Explorar o Merlin {majorDisplayVersion}</b><i>Ver todas as mudanças</i></div>
       </div>
       <div className="release-admin-preview__art">{assetUrl ? <img src={assetUrl} alt="Preview da arte" /> : <span>Envie a arte da release</span>}</div>
     </div>
