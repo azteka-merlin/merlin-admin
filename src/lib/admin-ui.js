@@ -139,6 +139,8 @@ export function getAccessType(license) {
     legacy_lifetime: "Legada vitalícia",
     paid_lifetime: "Vitalícia paga",
     annual_subscription: "Assinatura anual",
+    semiannual_subscription: "Assinatura semestral",
+    semiannual_manual: "Semestral Pix/manual",
     annual_manual: "Anual manual",
     monthly_subscription: "Assinatura mensal"
   };

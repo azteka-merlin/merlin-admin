@@ -158,6 +158,8 @@ export default function LicensesPage({
               <select value={accessTypeFilter} onChange={(event) => setAccessTypeFilter(event.target.value)} disabled={licenseTab === "test"}>
                 <option value="all">Todos os períodos</option>
                 <option value="monthly_subscription">Mensal</option>
+                <option value="semiannual_subscription">Semestral cartão</option>
+                <option value="semiannual_manual">Semestral Pix/manual</option>
                 <option value="annual_subscription">Anual cartão</option>
                 <option value="annual_manual">Anual Pix/manual</option>
                 <option value="paid_lifetime">Vitalício</option>
@@ -252,7 +254,7 @@ export default function LicensesPage({
                               <td className="cell-phone">{formatContact(getLicenseContact(license), getLicenseContactType(license))}</td>
                               <td className="cell-key" title={license.licenseKey}>{maskKey(license.licenseKey)}</td>
                               <td><span className="badge badge--muted">{({ bronze: "Bronze", prata: "Prata", ouro: "Ouro" })[license.planTier] || "Ouro"}</span></td>
-                              <td><span className="badge badge--muted">{license.accessType === "annual_manual" ? "Anual Pix" : license.accessType === "annual_subscription" ? "Anual" : license.accessType === "monthly_subscription" ? "Mensal" : license.accessType?.includes("lifetime") ? "Vitalício" : "Manual"}</span></td>
+                              <td><span className="badge badge--muted">{license.accessType === "annual_manual" ? "Anual Pix" : license.accessType === "annual_subscription" ? "Anual" : license.accessType === "semiannual_manual" ? "Semestral Pix" : license.accessType === "semiannual_subscription" ? "Semestral" : license.accessType === "monthly_subscription" ? "Mensal" : license.accessType?.includes("lifetime") ? "Vitalício" : "Manual"}</span></td>
                               <td className="cell-date">{formatDate(license.expiresAt)}</td>
                               <td className="cell-device" title={license.hwid || "Sem dispositivo"}>
                                 {license.hwid ? maskTechnicalValue(license.hwid, 10, 4) : "Sem dispositivo"}
@@ -302,7 +304,7 @@ export default function LicensesPage({
                         </div>
                         <div>
                           <dt>{licenseTab === "test" ? "Normais" : "Plano"}</dt>
-                          <dd>{licenseTab === "test" ? formatActivationUsage(license.normalActivationUsed, license.normalActivationLimit) : `${({ bronze: "Bronze", prata: "Prata", ouro: "Ouro" })[license.planTier] || "Ouro"} · ${license.accessType === "annual_manual" ? "Anual Pix" : license.accessType === "annual_subscription" ? "Anual" : license.accessType === "monthly_subscription" ? "Mensal" : license.accessType?.includes("lifetime") ? "Vitalício" : "Manual"}`}</dd>
+                          <dd>{licenseTab === "test" ? formatActivationUsage(license.normalActivationUsed, license.normalActivationLimit) : `${({ bronze: "Bronze", prata: "Prata", ouro: "Ouro" })[license.planTier] || "Ouro"} · ${license.accessType === "annual_manual" ? "Anual Pix" : license.accessType === "annual_subscription" ? "Anual" : license.accessType === "semiannual_manual" ? "Semestral Pix" : license.accessType === "semiannual_subscription" ? "Semestral" : license.accessType === "monthly_subscription" ? "Mensal" : license.accessType?.includes("lifetime") ? "Vitalício" : "Manual"}`}</dd>
                         </div>
                         <div>
                           <dt>{licenseTab === "test" ? "Premium" : "Dispositivo"}</dt>

@@ -21,10 +21,12 @@ const defaultBilling = {
   billingEnabled: false,
   plansEnabled: false,
   monthlyEnabled: true,
+  semiannualEnabled: false,
   annualEnabled: false,
   lifetimeEnabled: true,
   pixEnabled: false,
   pixMonthlyEnabled: true,
+  pixSemiannualEnabled: false,
   pixAnnualEnabled: true,
   pixLifetimeEnabled: true,
   monthlyCardTrialEnabled: false,
@@ -47,6 +49,7 @@ const planTiers = [
 
 const planPeriods = [
   { id: "monthly", label: "Mensal" },
+  { id: "semiannual", label: "Semestral" },
   { id: "annual", label: "Anual" }
 ];
 
@@ -108,7 +111,7 @@ function normalizePlanPriceDraft(prices = []) {
           priceId: current?.priceId || "",
           amount: amountToInput(current?.amountCents),
           currency: current?.currency || "brl",
-          active: current?.active !== false
+          active: current ? current.active !== false : period.id !== "semiannual"
         };
       }
     }
@@ -134,6 +137,7 @@ function formatStripePrice(price) {
   }
 
   const value = formatMoney(price.amountCents, price.currency);
+  if (price.recurringInterval === "month" && price.recurringIntervalCount === 6) return `${value} / 6 meses`;
   if (price.recurringInterval === "month") return `${value} / mês`;
   if (price.recurringInterval === "year") return `${value} / ano`;
   return value;
@@ -144,10 +148,12 @@ function normalizeBilling(billing = {}) {
     billingEnabled: Boolean(billing.billingEnabled),
     plansEnabled: Boolean(billing.plansEnabled),
     monthlyEnabled: Boolean(billing.monthlyEnabled),
+    semiannualEnabled: Boolean(billing.semiannualEnabled),
     annualEnabled: Boolean(billing.annualEnabled),
     lifetimeEnabled: Boolean(billing.lifetimeEnabled),
     pixEnabled: Boolean(billing.pixEnabled),
     pixMonthlyEnabled: Boolean(billing.pixMonthlyEnabled),
+    pixSemiannualEnabled: Boolean(billing.pixSemiannualEnabled),
     pixAnnualEnabled: Boolean(billing.pixAnnualEnabled),
     pixLifetimeEnabled: Boolean(billing.pixLifetimeEnabled),
     monthlyCardTrialEnabled: Boolean(billing.monthlyCardTrialEnabled),
@@ -319,17 +325,21 @@ function configuredPriceLabel(entry, period) {
   if (entry?.active === false) return "Inativo";
   const amountCents = inputToAmountCents(entry?.amount);
   if (!amountCents) return "Configuração incompleta";
-  return `${formatMoney(amountCents, entry.currency)}${period === "monthly" ? " / mês" : " / ano"}`;
+  return `${formatMoney(amountCents, entry.currency)}${period === "monthly" ? " / mês" : period === "semiannual" ? " / 6 meses" : " / ano"}`;
 }
 
 function TierPriceEditorModal({ tier, prices, onClose, onSave, saving }) {
   const [draft, setDraft] = useState(() => normalizePlanPriceDraft(prices));
-  const [advancedOpen, setAdvancedOpen] = useState({ monthly: false, annual: false });
+  const [advancedOpen, setAdvancedOpen] = useState({ monthly: false, semiannual: false, annual: false });
   const monthlyCardKey = planPriceKey("card", tier.id, "monthly");
   const monthlyPixKey = planPriceKey("pix", tier.id, "monthly");
+  const semiannualCardKey = planPriceKey("card", tier.id, "semiannual");
+  const semiannualPixKey = planPriceKey("pix", tier.id, "semiannual");
   const annualCardKey = planPriceKey("card", tier.id, "annual");
   const annualPixKey = planPriceKey("pix", tier.id, "annual");
   const monthly = draft[monthlyCardKey];
+  const semiannualCard = draft[semiannualCardKey];
+  const semiannualPix = draft[semiannualPixKey];
   const annualCard = draft[annualCardKey];
   const annualPix = draft[annualPixKey];
 
@@ -356,10 +366,12 @@ function TierPriceEditorModal({ tier, prices, onClose, onSave, saving }) {
     return buildPlanPricePayload({
       [monthlyCardKey]: monthly,
       [monthlyPixKey]: monthlyPix,
+      [semiannualCardKey]: semiannualCard,
+      [semiannualPixKey]: { ...semiannualPix, priceId: "" },
       [annualCardKey]: annualCard,
       [annualPixKey]: { ...annualPix, priceId: "" }
     });
-  }, [annualCard, annualCardKey, annualPix, annualPixKey, draft, monthly, monthlyCardKey, monthlyPixKey]);
+  }, [annualCard, annualCardKey, annualPix, annualPixKey, draft, monthly, monthlyCardKey, monthlyPixKey, semiannualCard, semiannualCardKey, semiannualPix, semiannualPixKey]);
 
   async function handleSave() {
     if (saving) return;
@@ -414,6 +426,37 @@ function TierPriceEditorModal({ tier, prices, onClose, onSave, saving }) {
               <small>O valor é lido da Stripe ao salvar ou sincronizar.</small>
             </label>
           </AdvancedDisclosure>
+        </section>
+
+        <section className="tier-editor__period">
+          <div className="tier-editor__period-title">
+            <span>Semestral</span>
+            <p>Cartão renova a cada 6 meses; Pix é pago uma vez e renovado manualmente.</p>
+          </div>
+          <div className="tier-editor__method">
+            <div className="tier-editor__period-head">
+              <div><span>Cartão</span><strong>{configuredPriceLabel(semiannualCard, "semiannual")}</strong></div>
+              <SwitchField checked={semiannualCard.active} onChange={(checked) => updateEntry(semiannualCardKey, { active: checked })} title={semiannualCard.active ? "Ativo" : "Inativo"} />
+            </div>
+            <AdvancedDisclosure id={`tier-${tier.id}-semiannual-stripe`} title="Configuração Stripe" open={advancedOpen.semiannual} onToggle={() => setAdvancedOpen((current) => ({ ...current, semiannual: !current.semiannual }))}>
+              <label className="field access-field">
+                <span>Stripe Price ID semestral</span>
+                <input value={semiannualCard.priceId || ""} placeholder="price_..." spellCheck="false" onChange={(event) => updateEntry(semiannualCardKey, { priceId: event.target.value })} />
+                <small>Precisa ser recorrente a cada 6 meses (interval=month, interval_count=6) em BRL.</small>
+              </label>
+            </AdvancedDisclosure>
+          </div>
+          <div className="tier-editor__method">
+            <div className="tier-editor__period-head">
+              <div><span>Pix</span><strong>{configuredPriceLabel(semiannualPix, "semiannual")}</strong></div>
+              <SwitchField checked={semiannualPix.active} onChange={(checked) => updateEntry(semiannualPixKey, { active: checked })} title={semiannualPix.active ? "Ativo" : "Inativo"} />
+            </div>
+            <label className="field access-field">
+              <span>Valor semestral no Pix</span>
+              <input value={semiannualPix.amount || ""} inputMode="decimal" placeholder="0,00" onChange={(event) => updateEntry(semiannualPixKey, { amount: event.target.value })} />
+              <small>Valor manual do Merlin; não depende de Price ID.</small>
+            </label>
+          </div>
         </section>
 
         <section className="tier-editor__period">
@@ -493,7 +536,7 @@ function PlanTierPricesEditor({ prices, onSave, saving }) {
         <div>
           <p className="eyebrow">Bronze, Prata e Ouro</p>
           <h2>Preços por plano</h2>
-          <p>Os valores de cartão vêm da Stripe. O Pix anual é definido manualmente no Merlin.</p>
+          <p>Os valores de cartão vêm da Stripe. O Pix semestral e anual são definidos manualmente no Merlin.</p>
         </div>
       </div>
 
@@ -501,18 +544,24 @@ function PlanTierPricesEditor({ prices, onSave, saving }) {
         <div className="access-tier-summary__head" aria-hidden="true">
           <span>Plano</span>
           <span>Mensal</span>
+          <span>Semestral cartão</span>
+          <span>Semestral Pix</span>
           <span>Anual cartão</span>
           <span>Anual Pix</span>
           <span>Ações</span>
         </div>
         {planTiers.map((tier) => {
           const monthly = draft[planPriceKey("card", tier.id, "monthly")];
+          const semiannualCard = draft[planPriceKey("card", tier.id, "semiannual")];
+          const semiannualPix = draft[planPriceKey("pix", tier.id, "semiannual")];
           const annualCard = draft[planPriceKey("card", tier.id, "annual")];
           const annualPix = draft[planPriceKey("pix", tier.id, "annual")];
           return (
             <article className="access-tier-summary__row" key={tier.id}>
               <strong data-label="Plano">{tier.label}</strong>
               <span data-label="Mensal">{configuredPriceLabel(monthly, "monthly")}</span>
+              <span data-label="Semestral cartão">{configuredPriceLabel(semiannualCard, "semiannual")}</span>
+              <span data-label="Semestral Pix">{configuredPriceLabel(semiannualPix, "semiannual")}</span>
               <span data-label="Anual cartão">{configuredPriceLabel(annualCard, "annual")}</span>
               <span data-label="Anual Pix">{configuredPriceLabel(annualPix, "annual")}</span>
               <button className="button button--ghost" type="button" onClick={() => setEditingTier(tier)}>
@@ -523,7 +572,7 @@ function PlanTierPricesEditor({ prices, onSave, saving }) {
         })}
       </div>
       <p className="access-muted-note access-tier-summary__note">
-        O Pix mensal utiliza o mesmo valor do plano mensal. Apenas o Pix anual possui valor configurado separadamente.
+        O Pix mensal utiliza o mesmo valor do plano mensal. Pix semestral e anual possuem valores configurados separadamente.
       </p>
 
       {editingTier && (
@@ -571,9 +620,9 @@ export default function PublicSignupPage({ publicSignup, planPrices = [], onSave
   const pixLifetimePrice = billing.prices?.pixLifetime;
   const tierPriceDraft = useMemo(() => normalizePlanPriceDraft(planPrices), [planPrices]);
   const activeTierCardPrices = useMemo(() => planTiers.flatMap((tier) => planPeriods
-    .filter((period) => period.id === "monthly" ? billing.monthlyEnabled : billing.annualEnabled)
+    .filter((period) => period.id === "monthly" ? billing.monthlyEnabled : period.id === "semiannual" ? billing.semiannualEnabled : billing.annualEnabled)
     .map((period) => tierPriceDraft[planPriceKey("card", tier.id, period.id)]))
-    .filter((price) => price?.active !== false), [billing.annualEnabled, billing.monthlyEnabled, tierPriceDraft]);
+    .filter((price) => price?.active !== false), [billing.annualEnabled, billing.semiannualEnabled, billing.monthlyEnabled, tierPriceDraft]);
   const legacyStripeConfigured = (!billing.monthlyEnabled || priceIsConfigured(monthlyPrice)) && (!billing.annualEnabled || priceIsConfigured(annualPrice)) && (!billing.lifetimeEnabled || priceIsConfigured(lifetimePrice));
   const tierStripeConfigured = activeTierCardPrices.length > 0 && activeTierCardPrices.every((price) => Boolean(price.priceId) && Number(inputToAmountCents(price.amount)) > 0);
   const stripeConfigured = billing.plansEnabled ? tierStripeConfigured : legacyStripeConfigured;
@@ -729,6 +778,12 @@ export default function PublicSignupPage({ publicSignup, planPrices = [], onSave
                   description="Disponibiliza o período mensal nos tiers ativos."
                 />
                 <SwitchField
+                  checked={billing.semiannualEnabled}
+                  onChange={(checked) => updateBilling({ semiannualEnabled: checked })}
+                  title="Planos semestrais"
+                  description="Disponibiliza o período de 6 meses nos tiers ativos. Configure os preços antes de ativar."
+                />
+                <SwitchField
                   checked={billing.annualEnabled}
                   onChange={(checked) => updateBilling({ annualEnabled: checked })}
                   title="Planos anuais"
@@ -857,7 +912,7 @@ export default function PublicSignupPage({ publicSignup, planPrices = [], onSave
               provider="Stripe"
               statusTone={stripeConfigured ? "success" : "warning"}
               statusText={stripeConfigured ? "Configurado" : "Configuração incompleta"}
-              description="Renovação automática disponível nos acessos mensal e anual."
+              description="Renovação automática disponível nos acessos mensal, semestral e anual."
             >
               {billing.plansEnabled && billing.monthlyEnabled && (
                 <div className="access-payment-options">
@@ -903,6 +958,13 @@ export default function PublicSignupPage({ publicSignup, planPrices = [], onSave
                   onChange={(checked) => updateBilling({ pixMonthlyEnabled: checked })}
                   title="Pix mensal"
                   description="Acesso avulso por 30 dias, sem renovação automática."
+                />
+                <SwitchField
+                  checked={billing.pixSemiannualEnabled}
+                  disabled={!billing.pixEnabled || !billing.plansEnabled}
+                  onChange={(checked) => updateBilling({ pixSemiannualEnabled: checked })}
+                  title="Pix semestral"
+                  description="Pagamento por 6 meses, com renovação manual."
                 />
                 <SwitchField
                   checked={billing.pixAnnualEnabled}
@@ -954,7 +1016,7 @@ export default function PublicSignupPage({ publicSignup, planPrices = [], onSave
               </AdvancedDisclosure>}
               {billing.plansEnabled && (
                 <p className="access-technical-note">
-                  Nos tiers, o Pix mensal acompanha o valor mensal do cartão. O valor anual do Pix é configurado dentro de cada plano.
+                  Nos tiers, o Pix mensal acompanha o valor mensal do cartão. Os valores semestral e anual do Pix são configurados dentro de cada plano.
                 </p>
               )}
             </PaymentCard>

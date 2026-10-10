@@ -2092,7 +2092,7 @@ h3 {
 .access-tier-summary__head,
 .access-tier-summary__row {
   display: grid;
-  grid-template-columns: minmax(100px, 0.75fr) repeat(3, minmax(145px, 1fr)) minmax(138px, 0.72fr);
+  grid-template-columns: minmax(100px, 0.75fr) repeat(5, minmax(135px, 1fr)) minmax(138px, 0.72fr);
   gap: 14px;
   align-items: center;
 }

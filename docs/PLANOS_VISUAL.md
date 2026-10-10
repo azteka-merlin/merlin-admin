@@ -5,11 +5,13 @@
 A POC visual de planos, quando presente ao lado dos projetos Merlin, serve exclusivamente como referencia de cards:
 
 - composicao, hierarquia, espacamento e tipografia;
-- toggle Mensal/Anual;
+- seleção Mensal/Semestral/Anual;
 - badges, hover e estado selecionado;
 - icones `Check`, `Clock`, `Zap` e comparacao expansivel.
 
 Nomes comerciais e beneficios exibidos no Merlin podem diferir dos dados ficticios da POC. Precos, disponibilidade e regras sempre vem da API/Admin.
+
+Na operação atual, os três períodos são configurados por tier e método. Cartão semestral exige um Price recorrente `month` com `interval_count=6`; Pix semestral possui valor próprio, assim como anual. Somente Pix mensal espelha o cartão mensal. As flags de período e Pix devem ser respeitadas mesmo quando existe um preço cadastrado.
 
 ## Erro A Evitar
 
