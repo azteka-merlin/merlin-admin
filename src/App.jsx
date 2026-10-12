@@ -7,6 +7,7 @@ import ActivityPage from "./pages/ActivityPage";
 import UsageBiPage from "./pages/UsageBiPage";
 import AnnouncementsPage from "./pages/AnnouncementsPage";
 import HomePage from "./pages/HomePage";
+import CustomGamesPage from "./pages/CustomGamesPage";
 import ReleaseNotesPage from "./pages/ReleaseNotesPage";
 import PartnersPage from "./pages/PartnersPage";
 import AuditPage from "./pages/AuditPage";
@@ -2604,6 +2605,9 @@ function App() {
             busyAction={busyAction}
             notify={setToast}
           />
+        )}
+        {view === "custom-games" && (
+          <CustomGamesPage apiRequest={apiRequest} apiUpload={apiUpload} notify={setToast} />
         )}
         {view === "premium-activations" && (
           <PremiumActivationsPage

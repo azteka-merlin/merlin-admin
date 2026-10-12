@@ -5686,3 +5686,16 @@ h3 {
   .billing-mail-card__top { align-items: flex-start; }
   .billing-mail-card__foot .button { width: 100%; margin: 2px 0 0; }
 }
+.custom-games-admin-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; margin-top: 20px; }
+.custom-games-admin-card { display: flex; flex-direction: column; gap: 12px; padding: 12px; border: 1px solid var(--border, #34304b); border-radius: 14px; background: rgba(18, 19, 31, .8); }
+.custom-games-admin-image { aspect-ratio: 16 / 9; overflow: hidden; border-radius: 9px; background: #1b1728; }
+.custom-games-admin-image img { width: 100%; height: 100%; object-fit: cover; }
+.custom-games-admin-card h2 { font-size: 1rem; margin: 0 0 5px; }
+.custom-games-admin-card p { margin: 0 0 10px; color: #a6a4bb; font-size: .85rem; }
+.custom-games-admin-actions { display: flex; gap: 8px; margin-top: auto; }
+.custom-games-admin-form { display: grid; gap: 16px; min-width: min(100%, 500px); }
+.custom-games-admin-preview { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 12px; background: #1b1728; }
+.custom-games-admin-preview > div { position: absolute; inset: 0; background-size: cover; background-repeat: no-repeat; }
+.custom-games-admin-progress { display: grid; gap: 5px; color: #d6c0ff; }
+.custom-games-admin-progress progress { width: 100%; accent-color: #9b4cf6; }
+@media (max-width: 700px) { .custom-games-admin-grid { grid-template-columns: 1fr; } }

@@ -10,6 +10,7 @@ export const VIEW_PATHS = {
   settings: "/settings",
   overrides: "/overrides",
   premium: "/premium",
+  "custom-games": "/custom-games",
   "premium-activations": "/premium/activations",
   polls: "/polls",
   announcements: "/announcements",
@@ -32,6 +33,7 @@ export function getViewFromPath(pathname) {
   if (pathname === "/settings") return "settings";
   if (pathname === "/overrides") return "overrides";
   if (pathname === "/premium") return "premium";
+  if (pathname === "/custom-games") return "custom-games";
   if (pathname === "/premium/activations") return "premium-activations";
   if (pathname === "/polls") return "polls";
   if (pathname === "/announcements") return "announcements";
