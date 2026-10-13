@@ -5695,6 +5695,7 @@ h3 {
 .custom-games-admin-card p { margin: 0 0 10px; color: #a6a4bb; font-size: .85rem; }
 .custom-games-admin-actions { display: flex; gap: 8px; margin-top: auto; }
 .custom-games-admin-form { display: grid; gap: 16px; min-width: min(100%, 500px); }
+.custom-games-admin-error { margin: 0; padding: 12px 14px; border: 1px solid rgba(239, 97, 120, .4); border-radius: 10px; background: rgba(239, 97, 120, .1); color: var(--danger); overflow-wrap: anywhere; }
 .custom-games-admin-preview { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 12px; background: #1b1728; }
 .custom-games-admin-preview > div { position: absolute; inset: 0; background-size: cover; background-repeat: no-repeat; }
 .custom-games-admin-progress { display: grid; gap: 5px; color: #d6c0ff; }

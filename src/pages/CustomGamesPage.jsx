@@ -86,7 +86,10 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
   const [cropOpen, setCropOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(null);
+  const [uploadError, setUploadError] = useState("");
   const uploadController = useRef(null);
+  const folderAttempts = useRef(new Map());
+  const stagedPackages = useRef(new Map());
   const [search, setSearch] = useState("");
   const imageUrl = useMemo(() => {
     if (!draft) return "";
@@ -269,16 +272,27 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
     // Start with the byte-heavy files so early throughput represents the actual transfer.
     descriptors.sort((left, right) => right.file.size - left.file.size);
 
-    const completed = new Array(descriptors.length).fill(0);
-    const uploaded = new Array(descriptors.length);
-    const checksums = new Array(descriptors.length);
-    const allocatedKeys = new Set();
+    const fingerprint = descriptors.map(({ file, path }) => `${path}\0${file.size}\0${file.lastModified}`).join("\n");
+    let attempt = folderAttempts.current.get(gameId);
+    if (attempt && attempt.fingerprint !== fingerprint) {
+      throw new Error("A pasta selecionada mudou. Cancele o envio anterior antes de substituir os arquivos.");
+    }
+    if (!attempt) {
+      attempt = {
+        fingerprint, completed: new Array(descriptors.length).fill(0),
+        uploaded: new Array(descriptors.length), allocatedKeys: new Set(),
+        pendingKeys: new Array(descriptors.length), pendingResults: new Array(descriptors.length),
+        manifestId: crypto.randomUUID(),
+      };
+      folderAttempts.current.set(gameId, attempt);
+    }
+    const { completed, uploaded, allocatedKeys } = attempt;
     const startedAt = Date.now();
     const smallFileCount = descriptors.filter(entry => entry.file.size < 1024 ** 2).length;
     const largeFileCount = descriptors.length - smallFileCount;
     let smallStartedAt = null;
-    let smallDone = 0;
-    let largeDone = 0;
+    let smallDone = uploaded.slice(largeFileCount).filter(Boolean).length;
+    let largeDone = uploaded.slice(0, largeFileCount).filter(Boolean).length;
     let next = 0;
     let phaseEnd = largeFileCount;
     let failed = false;
@@ -302,36 +316,67 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
         if (signal?.aborted) throw new Error("Upload canceled");
         const index = next++;
         const { file, path } = descriptors[index];
+        if (uploaded[index]) continue;
         if (file.size < 1024 ** 2 && !smallStartedAt) smallStartedAt = Date.now();
         const hashController = new AbortController();
         const abortHash = () => hashController.abort();
         signal?.addEventListener("abort", abortHash, { once: true });
-        const checksumPromise = hashFile(file, null, hashController.signal);
+        const checksumPromise = hashFile(file, null, hashController.signal).then(
+          value => ({ value }), error => ({ error }),
+        );
         try {
-          let result;
-          if (file.size === 0) {
+          let result = attempt.pendingResults[index];
+          if (result) {
+            completed[index] = file.size;
+            report();
+          } else if (file.size === 0) {
             result = { key: `${gameId}/files/${crypto.randomUUID()}` };
           } else if (file.size <= DIRECT_FILE_LIMIT) {
-            const key = `${gameId}/files/${crypto.randomUUID()}`;
+            const key = attempt.pendingKeys[index] || `${gameId}/files/${crypto.randomUUID()}`;
+            attempt.pendingKeys[index] = key;
             allocatedKeys.add(key);
-            result = await apiUpload(`/panel-api/custom-games/upload/file?key=${encodeURIComponent(key)}`, file, {
-              mutate: true, headers: { "Content-Type": "application/octet-stream" }, timeoutMs: 900000,
-              signal,
-              onProgress: ({ loaded }) => { completed[index] = Math.min(file.size, loaded); report(); },
-            });
+            let lastError;
+            for (let retry = 0; retry < 5; retry++) {
+              try {
+                result = await apiUpload(`/panel-api/custom-games/upload/file?key=${encodeURIComponent(key)}`, file, {
+                  mutate: true, headers: { "Content-Type": "application/octet-stream" }, timeoutMs: 900000,
+                  signal,
+                  onProgress: ({ loaded }) => { completed[index] = Math.min(file.size, loaded); report(); },
+                });
+                lastError = null;
+                break;
+              } catch (error) {
+                if (signal?.aborted) throw error;
+                lastError = error;
+                completed[index] = 0;
+                report();
+                if (retry < 4) await new Promise(resolve => setTimeout(resolve, 1000 * (retry + 1)));
+              }
+            }
+            if (lastError) throw lastError;
           } else {
             result = await uploadFileMultipart(file, gameId,
               bytes => { completed[index] = Math.min(file.size, bytes); report(); },
               key => allocatedKeys.add(key), signal);
           }
-          checksums[index] = await checksumPromise;
+          attempt.pendingResults[index] = result;
+          let checksumResult = await checksumPromise;
+          for (let retry = 0; checksumResult.error && retry < 2 && !signal?.aborted; retry++) {
+            checksumResult = await hashFile(file, null, hashController.signal).then(
+              value => ({ value }), error => ({ error }),
+            );
+          }
+          if (checksumResult.error) throw checksumResult.error;
+          const checksum = checksumResult.value;
           completed[index] = file.size;
-          uploaded[index] = { path, key: result.key, sizeBytes: file.size, sha256: checksums[index] };
+          uploaded[index] = { path, key: result.key, sizeBytes: file.size, sha256: checksum };
           if (file.size < 1024 ** 2) smallDone += 1;
           else largeDone += 1;
           report();
         } catch (error) {
           failed = true;
+          completed[index] = 0;
+          report();
           hashController.abort();
           await checksumPromise.catch(() => {});
           throw error;
@@ -351,29 +396,49 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
       await runPhase(8);
       if (signal?.aborted) throw new Error("Upload canceled");
       setUploadProgress(current => current ? { ...current, label: "Validando pacote no R2", etaSeconds: null, finalizing: true } : current);
-      const manifest = await apiRequest("/panel-api/custom-games/upload/folder/complete", {
-        method: "POST", mutate: true,
-        body: { gameId, files: uploaded.map(({ path, key, sizeBytes, sha256 }) => ({ path, key, sizeBytes, sha256 })) },
-      });
+      let manifest;
+      let lastError;
+      for (let retry = 0; retry < 4; retry++) {
+        if (signal?.aborted) throw new Error("Upload canceled");
+        try {
+          manifest = await apiRequest("/panel-api/custom-games/upload/folder/complete", {
+            method: "POST", mutate: true,
+            body: { gameId, manifestId: attempt.manifestId,
+              files: uploaded.map(({ path, key, sizeBytes, sha256 }) => ({ path, key, sizeBytes, sha256 })) },
+          });
+          lastError = null;
+          break;
+        } catch (error) {
+          lastError = error;
+          if (retry < 3) await new Promise(resolve => setTimeout(resolve, 2000 * (retry + 1)));
+        }
+      }
+      if (lastError) throw lastError;
       allocatedKeys.add(manifest.key);
       if (signal?.aborted) throw new Error("Upload canceled");
+      folderAttempts.current.delete(gameId);
       return { key: manifest.key, sizeBytes: manifest.sizeBytes };
     } catch (error) {
-      const keys = [...allocatedKeys];
-      let nextDiscard = 0;
-      await Promise.all(Array.from({ length: Math.min(8, keys.length) }, async () => {
-        while (nextDiscard < keys.length) {
-          const key = keys[nextDiscard++];
-          await apiRequest("/panel-api/custom-games/upload/discard", {
-            method: "POST", mutate: true, body: { key },
-          }).catch(() => {});
-        }
-      }));
+      if (signal?.aborted) {
+        const keys = [...allocatedKeys];
+        let nextDiscard = 0;
+        await Promise.all(Array.from({ length: Math.min(8, keys.length) }, async () => {
+          while (nextDiscard < keys.length) {
+            const key = keys[nextDiscard++];
+            await apiRequest("/panel-api/custom-games/upload/discard", {
+              method: "POST", mutate: true, body: { key },
+            }).catch(() => {});
+          }
+        }));
+        folderAttempts.current.delete(gameId);
+      }
       throw error;
     } finally { setUploadProgress(null); }
   }
 
   async function save() {
+    if (uploadController.current) return;
+    setUploadError("");
     const gameName = String(draft.name ?? "").trim();
     const executablePath = String(draft.executablePath ?? "").trim();
     if (draft.published && !gameName) return notify("Informe o nome do jogo antes de publicar.");
@@ -388,7 +453,7 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
     const controller = new AbortController();
     uploadController.current = controller;
     try {
-      if (draft.packageType === "zip" && draft.zip) uploadedPackage = { key: await uploadZip(draft.zip, draft.gameId, controller.signal) };
+      if (draft.packageType === "zip" && draft.zip) uploadedPackage = { key: await uploadZip(draft.zip, draft.gameId, controller.signal), sizeBytes: draft.zip.size };
       if (draft.packageType === "folder" && draft.folderFiles.length) uploadedPackage = await uploadFolder(draft.folderFiles, draft.gameId, controller.signal);
       if (controller.signal.aborted) throw new Error("Upload canceled");
       const key = uploadedPackage?.key || (usingExistingPackage ? draft.archiveKey : "");
@@ -409,16 +474,22 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
         method: draft.id ? "PUT" : "POST", mutate: true, body,
       });
       saved = true;
+      stagedPackages.current.delete(draft.gameId);
       setDraft(null);
       notify(draft.published ? "Jogo publicado no Launcher." : "Rascunho salvo.");
       await load();
     } catch (error) {
       if (uploadedPackage?.key && !saved) {
-        await apiRequest("/panel-api/custom-games/upload/discard", {
-          method: "POST", mutate: true, body: { key: uploadedPackage.key },
-        }).catch(() => {});
+        stagedPackages.current.set(draft.gameId, uploadedPackage.key);
+        setDraft(current => current?.gameId === draft.gameId ? {
+          ...current, archiveKey: uploadedPackage.key, archiveSize: uploadedPackage.sizeBytes || current.archiveSize,
+          originalPackageType: current.packageType, zip: null, folderFiles: [],
+        } : current);
       }
-      notify(controller.signal.aborted ? "Upload cancelado. Os arquivos temporários foram descartados." : error.message || "Não foi possível salvar o jogo.");
+      const message = controller.signal.aborted ? "Upload cancelado. Os arquivos temporários foram descartados."
+        : `${error.message || "Não foi possível salvar o jogo."} ${folderAttempts.current.has(draft.gameId) || stagedPackages.current.has(draft.gameId) ? "Os arquivos concluídos foram preservados; clique em Salvar para continuar." : ""}`.trim();
+      setUploadError(message);
+      notify(message);
     }
     finally { uploadController.current = null; setUploadProgress(null); setBusy(false); }
   }
@@ -427,6 +498,37 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
     if (!uploadController.current || !uploadProgress) return;
     uploadController.current.abort();
     setUploadProgress(current => current ? { ...current, canceling: true } : current);
+  }
+
+  async function closeDraft() {
+    if (!draft || busy) return;
+    const gameId = draft.gameId;
+    const attempt = folderAttempts.current.get(gameId);
+    const stagedKey = stagedPackages.current.get(gameId);
+    if (!attempt && !stagedKey) { setUploadError(""); setDraft(null); return; }
+    setBusy(true);
+    const keys = [...(attempt?.allocatedKeys || []), ...(stagedKey ? [stagedKey] : [])];
+    let next = 0;
+    let failed = false;
+    await Promise.all(Array.from({ length: Math.min(8, keys.length) }, async () => {
+      while (next < keys.length) {
+        const key = keys[next++];
+        try {
+          await apiRequest("/panel-api/custom-games/upload/discard", {
+            method: "POST", mutate: true, body: { key },
+          });
+        } catch { failed = true; }
+      }
+    }));
+    setBusy(false);
+    if (failed) {
+      notify("Não foi possível descartar todos os arquivos temporários. Tente fechar novamente.");
+      return;
+    }
+    folderAttempts.current.delete(gameId);
+    stagedPackages.current.delete(gameId);
+    setUploadError("");
+    setDraft(null);
   }
 
   async function remove(game) {
@@ -447,7 +549,7 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
   return <section className="page page--custom-games">
     <div className="page__header page__header--split">
       <div><p className="eyebrow">Launcher</p><h1>Baixe e Jogue</h1><p>Catálogo de jogos em ZIP ou pasta, instalados pelo Merlin em uma unidade escolhida pelo cliente.</p></div>
-      <div className="page__actions"><button className="button button--ghost" onClick={load} disabled={loading}>Atualizar</button><button className="button button--primary" onClick={() => setDraft(makeDraft(null))}>+ Novo jogo</button></div>
+      <div className="page__actions"><button className="button button--ghost" onClick={load} disabled={loading}>Atualizar</button><button className="button button--primary" onClick={() => { setUploadError(""); setDraft(makeDraft(null)); }}>+ Novo jogo</button></div>
     </div>
     <section className="panel">
       <label className="field"><span>Buscar jogo</span><input type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Nome do jogo" /></label>
@@ -455,11 +557,12 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
         <article className="custom-games-admin-card" key={game.id}>
           <div className="custom-games-admin-image">{game.imageVersion ? <img src={`/panel-api/custom-games/${game.id}/image?v=${encodeURIComponent(game.imageVersion)}`} alt="" style={{ objectPosition: `${game.imagePositionX}% ${game.imagePositionY}%`, transform: `scale(${game.imageZoom || 1})`, transformOrigin: `${game.imagePositionX}% ${game.imagePositionY}%` }} /> : <span>Sem imagem</span>}</div>
           <div><h2>{game.name || "Rascunho sem nome"}</h2><p>{game.archiveKey ? `${prettySize(game.archiveSize)} · ${game.packageType === "folder" ? "Pasta" : "ZIP"}` : "Pacote pendente"} · {game.executablePath ? "Botão Jogar ativo" : "Sem botão Jogar"}</p><span className={`badge ${game.published ? "badge--emerald" : "badge--muted"}`}>{game.published ? "Publicado" : "Rascunho"}</span></div>
-          <div className="custom-games-admin-actions"><button className="button button--ghost button--sm" onClick={() => setDraft(makeDraft(game))}>Editar</button><button className="button button--danger button--soft button--sm" onClick={() => remove(game)}>Excluir</button></div>
+          <div className="custom-games-admin-actions"><button className="button button--ghost button--sm" onClick={() => { setUploadError(""); setDraft(makeDraft(game)); }}>Editar</button><button className="button button--danger button--soft button--sm" onClick={() => remove(game)}>Excluir</button></div>
         </article>)}</div> : <div className="empty-state"><h3>Nenhum jogo cadastrado</h3><p>Crie um jogo para começar.</p></div>}
     </section>
-    {draft && <Modal title={draft.id ? "Editar jogo" : "Novo jogo"} subtitle="Salve como rascunho e complete os dados antes de publicar no Launcher." dismissOnBackdrop={false} onClose={() => !busy && setDraft(null)} closeDisabled={busy} closeConfirmMessage="Fechar sem salvar este jogo? A seleção de arquivos será perdida." actions={<><button className="button button--ghost" disabled={busy} onClick={() => { if (window.confirm("Descartar as alterações deste jogo?")) setDraft(null); }}>Cancelar</button><button className="button button--primary" disabled={busy} onClick={save}>{busy ? "Salvando…" : draft.published ? "Publicar jogo" : "Salvar rascunho"}</button></>}>
+    {draft && <Modal title={draft.id ? "Editar jogo" : "Novo jogo"} subtitle="Salve como rascunho e complete os dados antes de publicar no Launcher." dismissOnBackdrop={false} onClose={closeDraft} closeDisabled={busy} closeConfirmMessage="Fechar sem salvar este jogo? A seleção de arquivos será perdida." actions={<><button className="button button--ghost" disabled={busy} onClick={() => { if (window.confirm("Descartar as alterações deste jogo?")) void closeDraft(); }}>Cancelar</button><button className="button button--primary" disabled={busy} onClick={save}>{busy ? "Salvando…" : draft.published ? "Publicar jogo" : "Salvar rascunho"}</button></>}>
       <div className="custom-games-admin-form">
+        {uploadError && <p className="custom-games-admin-error" role="alert">{uploadError}</p>}
         <label className="field"><span>Nome</span><input maxLength="120" value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} /></label>
         <label className="field"><span>Anotação / tutorial (opcional)</span><textarea rows="4" maxLength="5000" value={draft.adminNote} onChange={e => setDraft({ ...draft, adminNote: e.target.value })} /><small>Se houver anotação, traduza-a abaixo antes de publicar.</small></label>
         {Object.entries({ en: "Inglês", es: "Espanhol", fr: "Francês", de: "Alemão" }).map(([language, label]) =>
