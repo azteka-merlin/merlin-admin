@@ -1,6 +1,6 @@
 import React from "react";
 
-export default function Modal({ title, subtitle, headerMeta = null, children, actions, onClose, closeDisabled = false, closeConfirmMessage = "", className = "" }) {
+export default function Modal({ title, subtitle, headerMeta = null, children, actions, onClose, closeDisabled = false, closeConfirmMessage = "", dismissOnBackdrop = true, className = "" }) {
   function handleClose() {
     if (closeDisabled) return;
     if (closeConfirmMessage && !window.confirm(closeConfirmMessage)) return;
@@ -8,7 +8,7 @@ export default function Modal({ title, subtitle, headerMeta = null, children, ac
   }
 
   return (
-    <div className="overlay" onClick={handleClose}>
+    <div className="overlay" onClick={dismissOnBackdrop ? handleClose : undefined}>
       <div className={`modal ${className}`.trim()} onClick={(event) => event.stopPropagation()}>
         <div className="modal__header">
           <div>

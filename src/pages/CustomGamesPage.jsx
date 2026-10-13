@@ -41,7 +41,8 @@ function prettyDuration(seconds) {
 function uploadStats(label, bytes, total, done, count, startedAt) {
   const elapsed = Math.max(.5, (Date.now() - startedAt) / 1000);
   const speed = bytes / elapsed;
-  return { label, bytes, total, done, count, speed, etaSeconds: speed > 0 ? (total - bytes) / speed : null };
+  const warmingUp = elapsed < 12 || bytes < Math.min(total * .005, 128 * 1024 ** 2);
+  return { label, bytes, total, done, count, speed, etaSeconds: !warmingUp && speed > 0 ? (total - bytes) / speed : null };
 }
 
 function hashFile(file, onProgress, signal) {
@@ -259,22 +260,38 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
         if (seen.has(parts.slice(0, index).join("/"))) throw new Error(`Conflito entre arquivo e pasta: ${entry.path}`);
       }
     }
+    // Start with the byte-heavy files so early throughput represents the actual transfer.
+    descriptors.sort((left, right) => right.file.size - left.file.size);
 
     const completed = new Array(descriptors.length).fill(0);
     const uploaded = new Array(descriptors.length);
     const checksums = new Array(descriptors.length);
     const allocatedKeys = new Set();
     const startedAt = Date.now();
+    const smallFileCount = descriptors.filter(entry => entry.file.size < 1024 ** 2).length;
+    const largeFileCount = descriptors.length - smallFileCount;
+    let smallStartedAt = null;
+    let smallDone = 0;
     let next = 0;
+    let phaseEnd = largeFileCount;
     let failed = false;
-    const report = () => setUploadProgress(uploadStats("Enviando pasta · verificando SHA-256", completed.reduce((sum, value) => sum + value, 0),
-      total, uploaded.filter(Boolean).length, descriptors.length, startedAt));
+    const report = () => {
+      const stats = uploadStats("Enviando pasta · verificando SHA-256", completed.reduce((sum, value) => sum + value, 0),
+        total, uploaded.filter(Boolean).length, descriptors.length, startedAt);
+      if (smallDone >= 20 && smallStartedAt) {
+        const smallRate = smallDone / Math.max(1, (Date.now() - smallStartedAt) / 1000);
+        const smallEta = (smallFileCount - smallDone) / smallRate;
+        stats.etaSeconds = Math.max(stats.etaSeconds || 0, smallEta);
+      }
+      setUploadProgress(stats);
+    };
     report();
     const worker = async () => {
-      while (!failed && next < descriptors.length) {
+      while (!failed && next < phaseEnd) {
         if (signal?.aborted) throw new Error("Upload canceled");
         const index = next++;
         const { file, path } = descriptors[index];
+        if (file.size < 1024 ** 2 && !smallStartedAt) smallStartedAt = Date.now();
         const hashController = new AbortController();
         const abortHash = () => hashController.abort();
         signal?.addEventListener("abort", abortHash, { once: true });
@@ -299,6 +316,7 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
           checksums[index] = await checksumPromise;
           completed[index] = file.size;
           uploaded[index] = { path, key: result.key, sizeBytes: file.size, sha256: checksums[index] };
+          if (file.size < 1024 ** 2) smallDone += 1;
           report();
         } catch (error) {
           failed = true;
@@ -308,11 +326,17 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
         } finally { signal?.removeEventListener("abort", abortHash); }
       }
     };
-
-    try {
-      const results = await Promise.allSettled(Array.from({ length: Math.min(2, descriptors.length) }, worker));
+    const runPhase = async concurrency => {
+      const remaining = phaseEnd - next;
+      const results = await Promise.allSettled(Array.from({ length: Math.min(concurrency, remaining) }, worker));
       const error = results.find(result => result.status === "rejected");
       if (error) throw error.reason;
+    };
+
+    try {
+      await runPhase(2);
+      phaseEnd = descriptors.length;
+      await runPhase(8);
       if (signal?.aborted) throw new Error("Upload canceled");
       const manifest = await apiRequest("/panel-api/custom-games/upload/folder/complete", {
         method: "POST", mutate: true,
@@ -420,7 +444,7 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
           <div className="custom-games-admin-actions"><button className="button button--ghost button--sm" onClick={() => setDraft(makeDraft(game))}>Editar</button><button className="button button--danger button--soft button--sm" onClick={() => remove(game)}>Excluir</button></div>
         </article>)}</div> : <div className="empty-state"><h3>Nenhum jogo cadastrado</h3><p>Crie um jogo para começar.</p></div>}
     </section>
-    {draft && <Modal title={draft.id ? "Editar jogo" : "Novo jogo"} subtitle="Salve como rascunho e complete os dados antes de publicar no Launcher." onClose={() => !busy && setDraft(null)} closeDisabled={busy} actions={<><button className="button button--ghost" disabled={busy} onClick={() => setDraft(null)}>Cancelar</button><button className="button button--primary" disabled={busy} onClick={save}>{busy ? "Salvando…" : draft.published ? "Publicar jogo" : "Salvar rascunho"}</button></>}>
+    {draft && <Modal title={draft.id ? "Editar jogo" : "Novo jogo"} subtitle="Salve como rascunho e complete os dados antes de publicar no Launcher." dismissOnBackdrop={false} onClose={() => !busy && setDraft(null)} closeDisabled={busy} closeConfirmMessage="Fechar sem salvar este jogo? A seleção de arquivos será perdida." actions={<><button className="button button--ghost" disabled={busy} onClick={() => { if (window.confirm("Descartar as alterações deste jogo?")) setDraft(null); }}>Cancelar</button><button className="button button--primary" disabled={busy} onClick={save}>{busy ? "Salvando…" : draft.published ? "Publicar jogo" : "Salvar rascunho"}</button></>}>
       <div className="custom-games-admin-form">
         <label className="field"><span>Nome</span><input maxLength="120" value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} /></label>
         <label className="field"><span>Anotação / tutorial (opcional)</span><textarea rows="4" maxLength="5000" value={draft.adminNote} onChange={e => setDraft({ ...draft, adminNote: e.target.value })} /><small>Se houver anotação, traduza-a abaixo antes de publicar.</small></label>
