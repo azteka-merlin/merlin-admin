@@ -84,7 +84,7 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
   const imageUrl = useMemo(() => {
     if (!draft) return "";
     if (draft.image) return URL.createObjectURL(draft.image);
-    return draft.id ? `/panel-api/custom-games/${draft.id}/image?v=${encodeURIComponent(draft.imageVersion || "")}` : "";
+    return draft.id && draft.imageVersion ? `/panel-api/custom-games/${draft.id}/image?v=${encodeURIComponent(draft.imageVersion)}` : "";
   }, [draft?.image, draft?.id, draft?.imageVersion]);
   useEffect(() => () => { if (draft?.image && imageUrl) URL.revokeObjectURL(imageUrl); }, [draft?.image, imageUrl]);
 
@@ -241,10 +241,11 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
         /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)/i.test(part) || part.toLowerCase() === ".merlin-install.json")) {
         throw new Error(`Caminho inválido na pasta: ${relative}`);
       }
-      if (!file.size || file.size > 30 * 1024 ** 3) throw new Error(`Tamanho inválido: ${relative}`);
+      if (!Number.isSafeInteger(file.size) || file.size < 0 || file.size > 30 * 1024 ** 3) throw new Error(`Tamanho inválido: ${relative}`);
       return { file, path };
     });
     const total = descriptors.reduce((sum, entry) => sum + entry.file.size, 0);
+    if (!total) throw new Error("A pasta precisa conter pelo menos um arquivo com dados.");
     if (total > MAX_FOLDER_BYTES) throw new Error("A pasta ultrapassa o limite de 200 GiB.");
     const seen = new Set();
     for (const entry of descriptors) {
@@ -280,7 +281,9 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
         const checksumPromise = hashFile(file, null, hashController.signal);
         try {
           let result;
-          if (file.size <= DIRECT_FILE_LIMIT) {
+          if (file.size === 0) {
+            result = { key: `game-files/${crypto.randomUUID()}` };
+          } else if (file.size <= DIRECT_FILE_LIMIT) {
             const key = `game-files/${crypto.randomUUID()}`;
             allocatedKeys.add(key);
             result = await apiUpload(`/panel-api/custom-games/upload/file?key=${encodeURIComponent(key)}`, file, {
@@ -317,7 +320,7 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
       });
       allocatedKeys.add(manifest.key);
       if (signal?.aborted) throw new Error("Upload canceled");
-      return { key: manifest.key, sizeBytes: manifest.sizeBytes, uploadedKeys: uploaded.map(file => file.key) };
+      return { key: manifest.key, sizeBytes: manifest.sizeBytes };
     } catch (error) {
       const keys = [...allocatedKeys];
       let nextDiscard = 0;
@@ -336,11 +339,11 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
   async function save() {
     const gameName = String(draft.name ?? "").trim();
     const executablePath = String(draft.executablePath ?? "").trim();
-    if (!gameName) return notify("Informe o nome do jogo.");
-    if (!draft.image && !draft.id) return notify("Escolha uma imagem para o card.");
+    if (draft.published && !gameName) return notify("Informe o nome do jogo antes de publicar.");
+    if (draft.published && !draft.image && !draft.imageVersion) return notify("Escolha uma imagem para o card antes de publicar.");
     const usingExistingPackage = draft.originalPackageType === draft.packageType && Boolean(draft.archiveKey);
-    if (draft.packageType === "zip" && !draft.zip && !usingExistingPackage) return notify("Escolha o ZIP do jogo.");
-    if (draft.packageType === "folder" && !draft.folderFiles.length && !usingExistingPackage) return notify("Escolha uma pasta do jogo.");
+    if (draft.published && draft.packageType === "zip" && !draft.zip && !usingExistingPackage) return notify("Escolha o ZIP do jogo antes de publicar.");
+    if (draft.published && draft.packageType === "folder" && !draft.folderFiles.length && !usingExistingPackage) return notify("Escolha uma pasta do jogo antes de publicar.");
     if (executablePath && !/\.exe$/i.test(executablePath)) return notify("O caminho para Jogar deve terminar em .exe.");
     setBusy(true);
     let uploadedPackage = null;
@@ -351,7 +354,7 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
       if (draft.packageType === "zip" && draft.zip) uploadedPackage = { key: await uploadZip(draft.zip, controller.signal) };
       if (draft.packageType === "folder" && draft.folderFiles.length) uploadedPackage = await uploadFolder(draft.folderFiles, controller.signal);
       if (controller.signal.aborted) throw new Error("Upload canceled");
-      const key = uploadedPackage?.key || draft.archiveKey;
+      const key = uploadedPackage?.key || (usingExistingPackage ? draft.archiveKey : "");
       const body = new FormData();
       body.set("name", gameName);
       body.set("adminNote", String(draft.adminNote ?? "").trim());
@@ -369,7 +372,7 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
       });
       saved = true;
       setDraft(null);
-      notify("Jogo salvo no catálogo.");
+      notify(draft.published ? "Jogo publicado no Launcher." : "Rascunho salvo.");
       await load();
     } catch (error) {
       if (uploadedPackage?.key && !saved) {
@@ -389,7 +392,7 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
   }
 
   async function remove(game) {
-    if (!window.confirm(`Excluir “${game.name}” e seu pacote do bucket?`)) return;
+    if (!window.confirm(`Excluir “${game.name || "Rascunho sem nome"}” e seu pacote do bucket?`)) return;
     try {
       await apiRequest(`/panel-api/custom-games/${game.id}`, { method: "DELETE", mutate: true });
       notify("Jogo removido do catálogo.");
@@ -412,12 +415,12 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
       <label className="field"><span>Buscar jogo</span><input type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Nome do jogo" /></label>
       {loading ? <div className="empty-state"><h3>Carregando jogos…</h3></div> : shown.length ? <div className="custom-games-admin-grid">{shown.map(game =>
         <article className="custom-games-admin-card" key={game.id}>
-          <div className="custom-games-admin-image"><img src={`/panel-api/custom-games/${game.id}/image?v=${encodeURIComponent(game.imageVersion || "")}`} alt="" style={{ objectPosition: `${game.imagePositionX}% ${game.imagePositionY}%`, transform: `scale(${game.imageZoom || 1})`, transformOrigin: `${game.imagePositionX}% ${game.imagePositionY}%` }} /></div>
-          <div><h2>{game.name}</h2><p>{prettySize(game.archiveSize)} · {game.packageType === "folder" ? "Pasta" : "ZIP"} · {game.executablePath ? "Botão Jogar ativo" : "Sem botão Jogar"}</p><span className={`badge ${game.published ? "badge--emerald" : "badge--muted"}`}>{game.published ? "Publicado" : "Rascunho"}</span></div>
+          <div className="custom-games-admin-image">{game.imageVersion ? <img src={`/panel-api/custom-games/${game.id}/image?v=${encodeURIComponent(game.imageVersion)}`} alt="" style={{ objectPosition: `${game.imagePositionX}% ${game.imagePositionY}%`, transform: `scale(${game.imageZoom || 1})`, transformOrigin: `${game.imagePositionX}% ${game.imagePositionY}%` }} /> : <span>Sem imagem</span>}</div>
+          <div><h2>{game.name || "Rascunho sem nome"}</h2><p>{game.archiveKey ? `${prettySize(game.archiveSize)} · ${game.packageType === "folder" ? "Pasta" : "ZIP"}` : "Pacote pendente"} · {game.executablePath ? "Botão Jogar ativo" : "Sem botão Jogar"}</p><span className={`badge ${game.published ? "badge--emerald" : "badge--muted"}`}>{game.published ? "Publicado" : "Rascunho"}</span></div>
           <div className="custom-games-admin-actions"><button className="button button--ghost button--sm" onClick={() => setDraft(makeDraft(game))}>Editar</button><button className="button button--danger button--soft button--sm" onClick={() => remove(game)}>Excluir</button></div>
         </article>)}</div> : <div className="empty-state"><h3>Nenhum jogo cadastrado</h3><p>Crie um jogo para começar.</p></div>}
     </section>
-    {draft && <Modal title={draft.id ? "Editar jogo" : "Novo jogo"} subtitle="Imagem, pacote e instruções que aparecerão no Launcher." onClose={() => !busy && setDraft(null)} closeDisabled={busy} actions={<><button className="button button--ghost" disabled={busy} onClick={() => setDraft(null)}>Cancelar</button><button className="button button--primary" disabled={busy} onClick={save}>{busy ? "Salvando…" : "Salvar jogo"}</button></>}>
+    {draft && <Modal title={draft.id ? "Editar jogo" : "Novo jogo"} subtitle="Salve como rascunho e complete os dados antes de publicar no Launcher." onClose={() => !busy && setDraft(null)} closeDisabled={busy} actions={<><button className="button button--ghost" disabled={busy} onClick={() => setDraft(null)}>Cancelar</button><button className="button button--primary" disabled={busy} onClick={save}>{busy ? "Salvando…" : draft.published ? "Publicar jogo" : "Salvar rascunho"}</button></>}>
       <div className="custom-games-admin-form">
         <label className="field"><span>Nome</span><input maxLength="120" value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} /></label>
         <label className="field"><span>Anotação / tutorial (opcional)</span><textarea rows="4" maxLength="5000" value={draft.adminNote} onChange={e => setDraft({ ...draft, adminNote: e.target.value })} /><small>Se houver anotação, traduza-a abaixo antes de publicar.</small></label>
