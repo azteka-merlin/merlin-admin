@@ -565,7 +565,8 @@ function App() {
       ignoreUnauthorized = false,
       headers: extraHeaders = {},
       onProgress,
-      timeoutMs = 0
+      timeoutMs = 0,
+      signal
     } = options;
     const headers = { Accept: "application/json", ...extraHeaders };
 
@@ -575,9 +576,19 @@ function App() {
     try {
       response = await new Promise((resolve, reject) => {
         const request = new XMLHttpRequest();
+        const cleanup = () => signal?.removeEventListener("abort", abortRequest);
+        const finish = callback => value => { cleanup(); callback(value); };
+        const abortRequest = () => request.abort();
         request.open(method, path, true);
         request.withCredentials = true;
         if (timeoutMs > 0) request.timeout = timeoutMs;
+
+        if (signal?.aborted) return reject(new Error("Upload canceled"));
+        signal?.addEventListener("abort", abortRequest, { once: true });
+        if (signal?.aborted) {
+          cleanup();
+          return reject(new Error("Upload canceled"));
+        }
 
         Object.entries(headers).forEach(([key, value]) => {
           if (value !== undefined && value !== null) {
@@ -594,10 +605,10 @@ function App() {
           };
         }
 
-        request.onerror = () => reject(new Error("Failed to fetch"));
-        request.ontimeout = () => reject(new Error("Upload timed out"));
-        request.onabort = () => reject(new Error("Upload aborted"));
-        request.onload = () => {
+        request.onerror = finish(() => reject(new Error("Failed to fetch")));
+        request.ontimeout = finish(() => reject(new Error("Upload timed out")));
+        request.onabort = finish(() => reject(new Error("Upload canceled")));
+        request.onload = finish(() => {
           const responseHeaders = new Headers();
           const rawHeaders = request.getAllResponseHeaders().trim().split(/[\r\n]+/);
 
@@ -617,12 +628,13 @@ function App() {
               headers: responseHeaders
             })
           );
-        };
+        });
 
         request.send(body);
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
+      if (message === "Upload canceled" || signal?.aborted) throw new Error("Upload canceled");
       throw new Error(
         message === "Failed to fetch"
           ? "Falha no envio do arquivo. Se ele for muito grande, o limite da borda pode ter interrompido o upload."

@@ -5698,4 +5698,56 @@ h3 {
 .custom-games-admin-preview > div { position: absolute; inset: 0; background-size: cover; background-repeat: no-repeat; }
 .custom-games-admin-progress { display: grid; gap: 5px; color: #d6c0ff; }
 .custom-games-admin-progress progress { width: 100%; accent-color: #9b4cf6; }
+.custom-games-admin-progress__heading,
+.custom-games-admin-progress__details { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.custom-games-admin-progress__heading .button { flex: 0 0 auto; }
+.custom-games-admin-progress__details { flex-wrap: wrap; color: var(--muted); font-size: .8rem; }
 @media (max-width: 700px) { .custom-games-admin-grid { grid-template-columns: 1fr; } }
+
+.custom-games-package-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .65rem;
+  min-width: 0;
+  margin: 0;
+  padding: .7rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+.custom-games-package-options legend {
+  padding: 0 .35rem;
+  color: var(--text);
+  font-size: .9rem;
+  font-weight: 650;
+}
+.custom-games-package-option {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  min-width: 0;
+  padding: .8rem .9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, .02);
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease;
+}
+.custom-games-package-option:hover { border-color: var(--line-strong); background: rgba(159, 89, 255, .07); }
+.custom-games-package-option.is-selected { border-color: var(--violet); background: rgba(159, 89, 255, .12); }
+.custom-games-package-option input[type="radio"] {
+  flex: 0 0 auto;
+  width: 1rem;
+  min-width: 1rem;
+  min-height: 1rem;
+  height: 1rem;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--violet);
+  cursor: pointer;
+}
+.custom-games-package-option > span { display: grid; gap: .2rem; min-width: 0; color: var(--text); }
+.custom-games-package-option strong { font-size: .9rem; }
+.custom-games-package-option small { color: var(--muted); line-height: 1.4; }
+@media (max-width: 620px) {
+  .custom-games-package-options { grid-template-columns: minmax(0, 1fr); }
+}
