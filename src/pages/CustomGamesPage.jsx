@@ -12,7 +12,7 @@ const EMPTY = {
 
 const DIRECT_FILE_LIMIT = 32 * 1024 * 1024;
 const MAX_FOLDER_BYTES = 200 * 1024 * 1024 * 1024;
-const MAX_FOLDER_FILES = 10000;
+const MAX_FOLDER_FILES = 20000;
 
 function prettySize(bytes) {
   const value = Number(bytes) || 0;
@@ -231,7 +231,7 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
   }
 
   async function uploadFolder(files, signal) {
-    if (!files.length || files.length > MAX_FOLDER_FILES) throw new Error("Selecione uma pasta com até 10.000 arquivos.");
+    if (!files.length || files.length > MAX_FOLDER_FILES) throw new Error("Selecione uma pasta com até 20.000 arquivos.");
     const firstRoot = String(files[0].webkitRelativePath || "").split("/")[0];
     const descriptors = files.map(file => {
       const relative = String(file.webkitRelativePath || file.name).replace(/\\/g, "/");
@@ -319,9 +319,16 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
       if (signal?.aborted) throw new Error("Upload canceled");
       return { key: manifest.key, sizeBytes: manifest.sizeBytes, uploadedKeys: uploaded.map(file => file.key) };
     } catch (error) {
-      await Promise.all([...allocatedKeys].map(key => apiRequest("/panel-api/custom-games/upload/discard", {
-        method: "POST", mutate: true, body: { key },
-      }).catch(() => {})));
+      const keys = [...allocatedKeys];
+      let nextDiscard = 0;
+      await Promise.all(Array.from({ length: Math.min(8, keys.length) }, async () => {
+        while (nextDiscard < keys.length) {
+          const key = keys[nextDiscard++];
+          await apiRequest("/panel-api/custom-games/upload/discard", {
+            method: "POST", mutate: true, body: { key },
+          }).catch(() => {});
+        }
+      }));
       throw error;
     } finally { setUploadProgress(null); }
   }
