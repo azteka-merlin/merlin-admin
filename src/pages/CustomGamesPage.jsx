@@ -29,6 +29,11 @@ function prettyRate(bytesPerSecond) {
   return `${Math.round(value)} B/s`;
 }
 
+function prettyPercent(done, total) {
+  if (!total) return "0,0%";
+  return `${(Math.floor(1000 * Math.min(done, total) / total) / 10).toFixed(1).replace(".", ",")}%`;
+}
+
 function prettyDuration(seconds) {
   if (!Number.isFinite(seconds) || seconds < 0) return "calculando…";
   const value = Math.ceil(seconds);
@@ -272,16 +277,21 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
     const largeFileCount = descriptors.length - smallFileCount;
     let smallStartedAt = null;
     let smallDone = 0;
+    let largeDone = 0;
     let next = 0;
     let phaseEnd = largeFileCount;
     let failed = false;
     const report = () => {
       const stats = uploadStats("Enviando pasta · verificando SHA-256", completed.reduce((sum, value) => sum + value, 0),
         total, uploaded.filter(Boolean).length, descriptors.length, startedAt);
-      if (smallDone >= 20 && smallStartedAt) {
+      stats.folder = true;
+      stats.smallPhase = largeDone === largeFileCount && smallFileCount > 0;
+      if (stats.smallPhase && smallDone >= 20 && smallStartedAt) {
         const smallRate = smallDone / Math.max(1, (Date.now() - smallStartedAt) / 1000);
-        const smallEta = (smallFileCount - smallDone) / smallRate;
-        stats.etaSeconds = Math.max(stats.etaSeconds || 0, smallEta);
+        stats.smallFilesPerMinute = smallRate * 60;
+        stats.etaSeconds = (smallFileCount - smallDone) / smallRate;
+      } else if (stats.smallPhase) {
+        stats.etaSeconds = null;
       }
       setUploadProgress(stats);
     };
@@ -317,6 +327,7 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
           completed[index] = file.size;
           uploaded[index] = { path, key: result.key, sizeBytes: file.size, sha256: checksums[index] };
           if (file.size < 1024 ** 2) smallDone += 1;
+          else largeDone += 1;
           report();
         } catch (error) {
           failed = true;
@@ -338,6 +349,7 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
       phaseEnd = descriptors.length;
       await runPhase(8);
       if (signal?.aborted) throw new Error("Upload canceled");
+      setUploadProgress(current => current ? { ...current, label: "Validando pacote no R2", etaSeconds: null, finalizing: true } : current);
       const manifest = await apiRequest("/panel-api/custom-games/upload/folder/complete", {
         method: "POST", mutate: true,
         body: { files: uploaded.map(({ path, key, sizeBytes, sha256 }) => ({ path, key, sizeBytes, sha256 })) },
@@ -453,7 +465,7 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
         <label className="field"><span>Executável relativo à pasta do jogo (opcional)</span><input placeholder="Game/Game.exe" value={draft.executablePath} onChange={e => setDraft({ ...draft, executablePath: e.target.value })} /><small>Sem esse caminho, o Launcher não exibirá Jogar.</small></label>
         <fieldset className="custom-games-package-options"><legend>Formato do pacote</legend><label className={`custom-games-package-option${draft.packageType === "zip" ? " is-selected" : ""}`}><input type="radio" name="customGamePackageType" checked={draft.packageType === "zip"} onChange={() => setDraft(current => ({ ...current, packageType: "zip" }))} /><span><strong>Arquivo ZIP</strong><small>Até 30 GiB · o Launcher descompacta após baixar</small></span></label><label className={`custom-games-package-option${draft.packageType === "folder" ? " is-selected" : ""}`}><input type="radio" name="customGamePackageType" checked={draft.packageType === "folder"} onChange={() => setDraft(current => ({ ...current, packageType: "folder" }))} /><span><strong>Pasta do jogo</strong><small>Até 200 GiB · arquivos enviados individualmente</small></span></label></fieldset>
         {draft.packageType === "zip" ? <label className="field"><span>ZIP do jogo</span><input type="file" accept=".zip,application/zip" onChange={e => setDraft(current => ({ ...current, zip: e.target.files?.[0] || null }))} />{(draft.zip || (draft.originalPackageType === "zip" && draft.archiveKey)) && <small>{draft.zip ? `${draft.zip.name} · ${prettySize(draft.zip.size)}` : `ZIP atual · ${prettySize(draft.archiveSize)}`}</small>}</label> : <label className="field"><span>Pasta do jogo</span><input type="file" webkitdirectory="" directory="" multiple onChange={e => setDraft(current => ({ ...current, folderFiles: Array.from(e.target.files || []) }))} /><small>{draft.folderFiles.length ? `${draft.folderFiles.length} arquivos · ${prettySize(draft.folderFiles.reduce((sum, file) => sum + file.size, 0))}` : draft.originalPackageType === "folder" && draft.archiveKey ? `Pasta atual · ${prettySize(draft.archiveSize)}` : "Selecione a pasta que contém os arquivos do jogo. O diretório escolhido vira a raiz da instalação."}</small></label>}
-        {uploadProgress && <div className="custom-games-admin-progress" role="status"><div className="custom-games-admin-progress__heading"><strong>{uploadProgress.canceling ? "Cancelando upload…" : `${uploadProgress.label} · ${Math.round(100 * uploadProgress.bytes / uploadProgress.total)}%`}</strong><button type="button" className="button button--danger button--soft button--sm" onClick={cancelUpload} disabled={uploadProgress.canceling}>Cancelar upload</button></div><progress max={uploadProgress.total} value={uploadProgress.bytes} /><div className="custom-games-admin-progress__details"><span>{prettySize(uploadProgress.bytes)} de {prettySize(uploadProgress.total)} · {uploadProgress.done}/{uploadProgress.count} arquivos/partes</span><span>{prettyRate(uploadProgress.speed)} · Restante: {prettyDuration(uploadProgress.etaSeconds)}</span></div></div>}
+        {uploadProgress && <div className="custom-games-admin-progress" role="status"><div className="custom-games-admin-progress__heading"><strong>{uploadProgress.canceling ? "Cancelando upload…" : uploadProgress.folder ? uploadProgress.label : `${uploadProgress.label} · ${prettyPercent(uploadProgress.bytes, uploadProgress.total)}`}</strong><button type="button" className="button button--danger button--soft button--sm" onClick={cancelUpload} disabled={uploadProgress.canceling}>Cancelar upload</button></div>{uploadProgress.folder ? <><div className="custom-games-admin-progress__meter"><span>Dados enviados: {prettySize(uploadProgress.bytes)} de {prettySize(uploadProgress.total)} · {prettyPercent(uploadProgress.bytes, uploadProgress.total)}</span><progress max={uploadProgress.total} value={uploadProgress.bytes} /></div><div className="custom-games-admin-progress__meter"><span>Arquivos concluídos: {uploadProgress.done} de {uploadProgress.count} · {prettyPercent(uploadProgress.done, uploadProgress.count)}</span><progress max={uploadProgress.count} value={uploadProgress.done} /></div></> : <progress max={uploadProgress.total} value={uploadProgress.bytes} />}<div className="custom-games-admin-progress__details"><span>{uploadProgress.folder ? uploadProgress.smallPhase ? uploadProgress.smallFilesPerMinute ? `${Math.round(uploadProgress.smallFilesPerMinute)} arquivos/min` : "Calculando ritmo dos arquivos…" : `Velocidade média: ${prettyRate(uploadProgress.speed)}` : `${prettyRate(uploadProgress.speed)} · ${uploadProgress.done}/${uploadProgress.count} partes`}</span><span>{uploadProgress.finalizing ? "Conferindo arquivos…" : `Restante estimado: ${prettyDuration(uploadProgress.etaSeconds)}`}</span></div></div>}
         <label className="field"><span>Imagem · JPG, PNG ou WebP até 8 MB</span><input type="file" accept="image/jpeg,image/png,image/webp" onChange={e => setDraft({ ...draft, image: e.target.files?.[0] || null })} /></label>
         {imageUrl && <><div className="custom-games-admin-preview"><div style={imageStyle} /></div><button className="button button--ghost button--sm" type="button" onClick={() => setCropOpen(true)}>Ajustar enquadramento</button></>}
         <label className="checkbox-row"><input type="checkbox" checked={draft.published} onChange={e => setDraft({ ...draft, published: e.target.checked })} /><span>Publicado no Launcher</span></label>
