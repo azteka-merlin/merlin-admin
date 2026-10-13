@@ -50,18 +50,18 @@ function uploadStats(label, bytes, total, done, count, startedAt) {
   return { label, bytes, total, done, count, speed, etaSeconds: !warmingUp && speed > 0 ? (total - bytes) / speed : null };
 }
 
-function hashFile(file, onProgress, signal) {
+function hashFile(file, onProgress, signal, sharedWorker = null) {
   return new Promise((resolve, reject) => {
-    const worker = new Worker(new URL("../workers/custom-game-hash.worker.js", import.meta.url), { type: "module" });
+    const worker = sharedWorker || new Worker(new URL("../workers/custom-game-hash.worker.js", import.meta.url), { type: "module" });
     let settled = false;
     const finish = (callback, value) => {
       if (settled) return;
       settled = true;
       signal?.removeEventListener("abort", abort);
-      worker.terminate();
+      if (!sharedWorker) worker.terminate();
       callback(value);
     };
-    const abort = () => finish(reject, new Error("Upload canceled"));
+    const abort = () => { worker.terminate(); finish(reject, new Error("Upload canceled")); };
     worker.onmessage = event => {
       if (event.data?.type === "progress") onProgress?.(event.data.bytesRead);
       else if (event.data?.type === "done") finish(resolve, event.data.sha256);
@@ -297,9 +297,15 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
     let next = 0;
     let phaseEnd = largeFileCount;
     let failed = false;
-    const report = () => {
-      const stats = uploadStats("Enviando pasta · verificando SHA-256", completed.reduce((sum, value) => sum + value, 0),
-        total, uploaded.filter(Boolean).length, descriptors.length, startedAt);
+    let completedBytes = completed.reduce((sum, value) => sum + value, 0);
+    let completedFiles = uploaded.filter(Boolean).length;
+    let lastReportAt = 0;
+    const report = (force = false) => {
+      const now = Date.now();
+      if (!force && now - lastReportAt < 200) return;
+      lastReportAt = now;
+      const stats = uploadStats("Enviando pasta · verificando SHA-256", completedBytes,
+        total, completedFiles, descriptors.length, startedAt);
       stats.folder = true;
       stats.smallPhase = largeDone === largeFileCount && smallFileCount > 0;
       if (smallFileCount > smallDone && !stats.smallPhase) {
@@ -322,8 +328,15 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
       }
       setUploadProgress(stats);
     };
-    report();
+    const updateBytes = (index, bytes) => {
+      completedBytes += bytes - completed[index];
+      completed[index] = bytes;
+      report();
+    };
+    report(true);
     const worker = async () => {
+      let hashWorker = new Worker(new URL("../workers/custom-game-hash.worker.js", import.meta.url), { type: "module" });
+      try {
       while (!failed && next < phaseEnd) {
         if (signal?.aborted) throw new Error("Upload canceled");
         const index = next++;
@@ -333,17 +346,17 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
         const hashController = new AbortController();
         const abortHash = () => hashController.abort();
         signal?.addEventListener("abort", abortHash, { once: true });
-        const checksumPromise = hashFile(file, null, hashController.signal).then(
+        const checksumPromise = hashFile(file, null, hashController.signal, hashWorker).then(
           value => ({ value }), error => ({ error }),
         );
         try {
           let result = attempt.pendingResults[index];
           if (result) {
-            completed[index] = file.size;
-            report();
+            updateBytes(index, file.size);
           } else if (file.size === 0) {
             result = { key: `${gameId}/files/${crypto.randomUUID()}` };
           } else if (file.size <= DIRECT_FILE_LIMIT) {
+            const previouslyStarted = Boolean(attempt.pendingKeys[index]);
             const key = attempt.pendingKeys[index] || `${gameId}/files/${crypto.randomUUID()}`;
             attempt.pendingKeys[index] = key;
             allocatedKeys.add(key);
@@ -351,49 +364,51 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
             for (let retry = 0; retry < 5; retry++) {
               try {
                 result = await apiUpload(`/panel-api/custom-games/upload/file?key=${encodeURIComponent(key)}`, file, {
-                  mutate: true, headers: { "Content-Type": "application/octet-stream" }, timeoutMs: 900000,
+                  mutate: true, headers: { "Content-Type": "application/octet-stream", ...(previouslyStarted || retry ? { "X-Upload-Retry": "1" } : {}) }, timeoutMs: 900000,
                   signal,
-                  onProgress: ({ loaded }) => { completed[index] = Math.min(file.size, loaded); report(); },
+                  onProgress: ({ loaded }) => updateBytes(index, Math.min(file.size, loaded)),
                 });
                 lastError = null;
                 break;
               } catch (error) {
                 if (signal?.aborted) throw error;
                 lastError = error;
-                completed[index] = 0;
-                report();
+                updateBytes(index, 0);
                 if (retry < 4) await new Promise(resolve => setTimeout(resolve, 1000 * (retry + 1)));
               }
             }
             if (lastError) throw lastError;
           } else {
             result = await uploadFileMultipart(file, gameId,
-              bytes => { completed[index] = Math.min(file.size, bytes); report(); },
+              bytes => updateBytes(index, Math.min(file.size, bytes)),
               key => allocatedKeys.add(key), signal);
           }
           attempt.pendingResults[index] = result;
           let checksumResult = await checksumPromise;
           for (let retry = 0; checksumResult.error && retry < 2 && !signal?.aborted; retry++) {
-            checksumResult = await hashFile(file, null, hashController.signal).then(
+            hashWorker.terminate();
+            hashWorker = new Worker(new URL("../workers/custom-game-hash.worker.js", import.meta.url), { type: "module" });
+            checksumResult = await hashFile(file, null, hashController.signal, hashWorker).then(
               value => ({ value }), error => ({ error }),
             );
           }
           if (checksumResult.error) throw checksumResult.error;
           const checksum = checksumResult.value;
-          completed[index] = file.size;
+          updateBytes(index, file.size);
           uploaded[index] = { path, key: result.key, sizeBytes: file.size, sha256: checksum };
+          completedFiles += 1;
           if (file.size < 1024 ** 2) smallDone += 1;
           else largeDone += 1;
           report();
         } catch (error) {
           failed = true;
-          completed[index] = 0;
-          report();
+          updateBytes(index, 0);
           hashController.abort();
           await checksumPromise.catch(() => {});
           throw error;
         } finally { signal?.removeEventListener("abort", abortHash); }
       }
+      } finally { hashWorker.terminate(); }
     };
     const runPhase = async concurrency => {
       const remaining = phaseEnd - next;
@@ -405,8 +420,9 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
     try {
       await runPhase(2);
       phaseEnd = descriptors.length;
-      await runPhase(8);
+      await runPhase(24);
       if (signal?.aborted) throw new Error("Upload canceled");
+      report(true);
       setUploadProgress(current => current ? { ...current, label: "Validando pacote no R2", etaSeconds: null, finalizing: true } : current);
       let manifest;
       let lastError;
