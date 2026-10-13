@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Modal from "../components/Modal";
+import { createFolderBundle, planFolderBundles } from "../utils/folder-bundles";
 
 const HASH_CHUNK_SIZE = 8 * 1024 * 1024;
 const MULTIPART_PART_CONCURRENCY = 4;
@@ -269,8 +270,14 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
         if (seen.has(parts.slice(0, index).join("/"))) throw new Error(`Conflito entre arquivo e pasta: ${entry.path}`);
       }
     }
-    // Start with the byte-heavy files so early throughput represents the actual transfer.
+    // Transfer large objects individually; group small files into bounded, stored ZIPs.
     descriptors.sort((left, right) => right.file.size - left.file.size);
+    const plan = planFolderBundles(descriptors);
+    const units = [
+      ...plan.direct.map(entry => ({ kind: "file", entries: [entry], bytes: entry.file.size })),
+      ...plan.bundles.map(entries => ({ kind: "bundle", entries,
+        bytes: entries.reduce((sum, entry) => sum + entry.file.size, 0) })),
+    ];
 
     const fingerprint = descriptors.map(({ file, path }) => `${path}\0${file.size}\0${file.lastModified}`).join("\n");
     let attempt = folderAttempts.current.get(gameId);
@@ -279,26 +286,22 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
     }
     if (!attempt) {
       attempt = {
-        fingerprint, completed: new Array(descriptors.length).fill(0),
-        uploaded: new Array(descriptors.length), allocatedKeys: new Set(),
-        pendingKeys: new Array(descriptors.length), pendingResults: new Array(descriptors.length),
+        fingerprint, completed: new Array(units.length).fill(0),
+        uploaded: new Array(units.length), allocatedKeys: new Set(),
+        pendingKeys: new Array(units.length), pendingResults: new Array(units.length),
         manifestId: crypto.randomUUID(),
       };
       folderAttempts.current.set(gameId, attempt);
     }
     const { completed, uploaded, allocatedKeys } = attempt;
     const startedAt = Date.now();
-    const smallFileCount = descriptors.filter(entry => entry.file.size < 1024 ** 2).length;
-    const largeFileCount = descriptors.length - smallFileCount;
-    let smallStartedAt = null;
-    let smallDone = uploaded.slice(largeFileCount).filter(Boolean).length;
-    const initialSmallDone = smallDone;
-    let largeDone = uploaded.slice(0, largeFileCount).filter(Boolean).length;
+    const largeFileCount = plan.direct.length;
     let next = 0;
     let phaseEnd = largeFileCount;
+    let bundlePhaseStartedAt = null;
     let failed = false;
     let completedBytes = completed.reduce((sum, value) => sum + value, 0);
-    let completedFiles = uploaded.filter(Boolean).length;
+    let completedFiles = uploaded.reduce((sum, entry, index) => sum + (entry ? units[index].entries.length : 0), 0);
     let lastReportAt = 0;
     const report = (force = false) => {
       const now = Date.now();
@@ -307,24 +310,15 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
       const stats = uploadStats("Enviando pasta · verificando SHA-256", completedBytes,
         total, completedFiles, descriptors.length, startedAt);
       stats.folder = true;
-      stats.smallPhase = largeDone === largeFileCount && smallFileCount > 0;
-      if (smallFileCount > smallDone && !stats.smallPhase) {
-        // Byte throughput cannot predict the per-request cost of thousands of
-        // small files that have not started uploading yet.
+      if (phaseEnd === largeFileCount && plan.bundles.length) {
         stats.etaSeconds = null;
-        stats.etaHint = "Tempo total: aguardando medição dos arquivos pequenos";
-      } else if (stats.smallPhase && smallFileCount > smallDone) {
-        const measuredDone = smallDone - initialSmallDone;
-        const elapsed = smallStartedAt ? (Date.now() - smallStartedAt) / 1000 : 0;
-        const sampleSize = Math.min(200, Math.max(20, Math.ceil((smallFileCount - initialSmallDone) * .05)));
-        if (measuredDone < sampleSize || elapsed < 30) {
-          stats.etaSeconds = null;
-          stats.etaHint = "Tempo total: medindo ritmo dos arquivos pequenos";
-        } else {
-          const smallRate = measuredDone / elapsed;
-          stats.smallFilesPerMinute = smallRate * 60;
-          stats.etaSeconds = Math.max(stats.etaSeconds || 0, (smallFileCount - smallDone) / smallRate);
-        }
+        stats.etaHint = "Após os arquivos grandes, os pequenos serão agrupados em pacotes";
+      } else if (plan.bundles.length) {
+        const doneBundles = uploaded.slice(largeFileCount).filter(Boolean).length;
+        const elapsed = bundlePhaseStartedAt ? (now - bundlePhaseStartedAt) / 1000 : 0;
+        stats.etaSeconds = doneBundles && elapsed >= 30
+          ? (plan.bundles.length - doneBundles) * elapsed / doneBundles : null;
+        if (stats.etaSeconds == null) stats.etaHint = "Tempo dos pacotes: medindo preparação e envio";
       }
       setUploadProgress(stats);
     };
@@ -340,9 +334,26 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
       while (!failed && next < phaseEnd) {
         if (signal?.aborted) throw new Error("Upload canceled");
         const index = next++;
-        const { file, path } = descriptors[index];
+        const unit = units[index];
+        const { file, path } = unit.entries[0];
         if (uploaded[index]) continue;
-        if (file.size < 1024 ** 2 && !smallStartedAt) smallStartedAt = Date.now();
+        if (unit.kind === "bundle") {
+          try {
+            setUploadProgress(current => current ? { ...current, label: `Preparando pacote de ${unit.entries.length} arquivos`, etaSeconds: null } : current);
+            const packed = await createFolderBundle(unit.entries, signal);
+            if (signal?.aborted) throw new Error("Upload canceled");
+            const result = attempt.pendingResults[index] || await uploadFileMultipart(packed.blob, gameId,
+              bytes => updateBytes(index, Math.min(unit.bytes, bytes)),
+              key => allocatedKeys.add(key), signal);
+            attempt.pendingResults[index] = result;
+            uploaded[index] = { kind: "bundle", key: result.key, sizeBytes: packed.blob.size,
+              sha256: packed.sha256, files: packed.files };
+            updateBytes(index, unit.bytes);
+            completedFiles += unit.entries.length;
+            report(true);
+          } catch (error) { failed = true; updateBytes(index, 0); throw error; }
+          continue;
+        }
         const hashController = new AbortController();
         const abortHash = () => hashController.abort();
         signal?.addEventListener("abort", abortHash, { once: true });
@@ -397,8 +408,6 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
           updateBytes(index, file.size);
           uploaded[index] = { path, key: result.key, sizeBytes: file.size, sha256: checksum };
           completedFiles += 1;
-          if (file.size < 1024 ** 2) smallDone += 1;
-          else largeDone += 1;
           report();
         } catch (error) {
           failed = true;
@@ -419,8 +428,9 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
 
     try {
       await runPhase(2);
-      phaseEnd = descriptors.length;
-      await runPhase(24);
+      phaseEnd = units.length;
+      bundlePhaseStartedAt = Date.now();
+      await runPhase(1);
       if (signal?.aborted) throw new Error("Upload canceled");
       report(true);
       setUploadProgress(current => current ? { ...current, label: "Validando pacote no R2", etaSeconds: null, finalizing: true } : current);
@@ -432,7 +442,10 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
           manifest = await apiRequest("/panel-api/custom-games/upload/folder/complete", {
             method: "POST", mutate: true,
             body: { gameId, manifestId: attempt.manifestId,
-              files: uploaded.map(({ path, key, sizeBytes, sha256 }) => ({ path, key, sizeBytes, sha256 })) },
+              files: uploaded.filter(entry => entry.kind !== "bundle")
+                .map(({ path, key, sizeBytes, sha256 }) => ({ path, key, sizeBytes, sha256 })),
+              bundles: uploaded.filter(entry => entry.kind === "bundle")
+                .map(({ key, sizeBytes, sha256, files }) => ({ key, sizeBytes, sha256, files })) },
           });
           lastError = null;
           break;
