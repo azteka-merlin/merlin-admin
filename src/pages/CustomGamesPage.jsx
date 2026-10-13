@@ -75,7 +75,8 @@ function hashFile(file, onProgress, signal) {
 }
 
 function makeDraft(game) {
-  return game ? { ...EMPTY, ...game, originalPackageType: game.packageType || "zip" } : { ...EMPTY };
+  return game ? { ...EMPTY, ...game, gameId: game.id, originalPackageType: game.packageType || "zip" }
+    : { ...EMPTY, gameId: crypto.randomUUID() };
 }
 
 export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
@@ -104,9 +105,9 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
   }
   useEffect(() => { void load(); }, []);
 
-  async function uploadZip(file, signal) {
+  async function uploadZip(file, gameId, signal) {
     const started = await apiRequest("/panel-api/custom-games/upload/initiate", {
-      method: "POST", mutate: true, body: { filename: file.name, sizeBytes: file.size },
+      method: "POST", mutate: true, body: { gameId, filename: file.name, sizeBytes: file.size },
     });
     const total = Math.ceil(file.size / started.partSize);
     const parts = new Array(total);
@@ -170,10 +171,10 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
     } finally { setUploadProgress(null); }
   }
 
-  function uploadFileMultipart(file, onBytes, onKey, signal) {
+  function uploadFileMultipart(file, gameId, onBytes, onKey, signal) {
     return (async () => {
       const started = await apiRequest("/panel-api/custom-games/upload/initiate", {
-        method: "POST", mutate: true, body: { filename: file.name, sizeBytes: file.size, packageType: "folder" },
+        method: "POST", mutate: true, body: { gameId, filename: file.name, sizeBytes: file.size, packageType: "folder" },
       });
       onKey?.(started.key);
       const total = Math.ceil(file.size / started.partSize);
@@ -236,7 +237,7 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
     })();
   }
 
-  async function uploadFolder(files, signal) {
+  async function uploadFolder(files, gameId, signal) {
     if (!files.length || files.length > MAX_FOLDER_FILES) throw new Error("Selecione uma pasta com até 20.000 arquivos.");
     const firstRoot = String(files[0].webkitRelativePath || "").split("/")[0];
     const descriptors = files.map(file => {
@@ -309,9 +310,9 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
         try {
           let result;
           if (file.size === 0) {
-            result = { key: `game-files/${crypto.randomUUID()}` };
+            result = { key: `${gameId}/files/${crypto.randomUUID()}` };
           } else if (file.size <= DIRECT_FILE_LIMIT) {
-            const key = `game-files/${crypto.randomUUID()}`;
+            const key = `${gameId}/files/${crypto.randomUUID()}`;
             allocatedKeys.add(key);
             result = await apiUpload(`/panel-api/custom-games/upload/file?key=${encodeURIComponent(key)}`, file, {
               mutate: true, headers: { "Content-Type": "application/octet-stream" }, timeoutMs: 900000,
@@ -319,7 +320,7 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
               onProgress: ({ loaded }) => { completed[index] = Math.min(file.size, loaded); report(); },
             });
           } else {
-            result = await uploadFileMultipart(file,
+            result = await uploadFileMultipart(file, gameId,
               bytes => { completed[index] = Math.min(file.size, bytes); report(); },
               key => allocatedKeys.add(key), signal);
           }
@@ -352,7 +353,7 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
       setUploadProgress(current => current ? { ...current, label: "Validando pacote no R2", etaSeconds: null, finalizing: true } : current);
       const manifest = await apiRequest("/panel-api/custom-games/upload/folder/complete", {
         method: "POST", mutate: true,
-        body: { files: uploaded.map(({ path, key, sizeBytes, sha256 }) => ({ path, key, sizeBytes, sha256 })) },
+        body: { gameId, files: uploaded.map(({ path, key, sizeBytes, sha256 }) => ({ path, key, sizeBytes, sha256 })) },
       });
       allocatedKeys.add(manifest.key);
       if (signal?.aborted) throw new Error("Upload canceled");
@@ -387,11 +388,12 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
     const controller = new AbortController();
     uploadController.current = controller;
     try {
-      if (draft.packageType === "zip" && draft.zip) uploadedPackage = { key: await uploadZip(draft.zip, controller.signal) };
-      if (draft.packageType === "folder" && draft.folderFiles.length) uploadedPackage = await uploadFolder(draft.folderFiles, controller.signal);
+      if (draft.packageType === "zip" && draft.zip) uploadedPackage = { key: await uploadZip(draft.zip, draft.gameId, controller.signal) };
+      if (draft.packageType === "folder" && draft.folderFiles.length) uploadedPackage = await uploadFolder(draft.folderFiles, draft.gameId, controller.signal);
       if (controller.signal.aborted) throw new Error("Upload canceled");
       const key = uploadedPackage?.key || (usingExistingPackage ? draft.archiveKey : "");
       const body = new FormData();
+      body.set("gameId", draft.gameId);
       body.set("name", gameName);
       body.set("adminNote", String(draft.adminNote ?? "").trim());
       body.set("adminNotes", JSON.stringify(draft.adminNotes || {}));
