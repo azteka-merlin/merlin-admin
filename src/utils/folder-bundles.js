@@ -1,9 +1,11 @@
 import { Zip, ZipPassThrough } from "fflate";
 import { sha256 } from "@noble/hashes/sha2.js";
 
-export const BUNDLE_MAX_BYTES = 256 * 1024 ** 2;
+export const BUNDLE_MAX_BYTES = 200 * 1024 ** 2;
 export const BUNDLE_MAX_FILES = 3000;
-export const SMALL_FILE_BYTES = 1024 ** 2;
+// Reserve room for both ZIP headers, UTF-8 paths of up to 500 characters and
+// ZIP64 metadata before assigning an entry to a bounded package.
+const BUNDLE_ENTRY_OVERHEAD_BYTES = 8192;
 
 const hex = bytes => Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
 
@@ -13,14 +15,15 @@ export function planFolderBundles(descriptors) {
   let current = [];
   let bytes = 0;
   for (const entry of descriptors) {
-    if (entry.file.size >= SMALL_FILE_BYTES) { direct.push(entry); continue; }
-    if (current.length && (bytes + entry.file.size > BUNDLE_MAX_BYTES || current.length >= BUNDLE_MAX_FILES)) {
+    const packedBytes = entry.file.size + BUNDLE_ENTRY_OVERHEAD_BYTES;
+    if (packedBytes > BUNDLE_MAX_BYTES) { direct.push(entry); continue; }
+    if (current.length && (bytes + packedBytes > BUNDLE_MAX_BYTES || current.length >= BUNDLE_MAX_FILES)) {
       bundles.push(current);
       current = [];
       bytes = 0;
     }
     current.push(entry);
-    bytes += entry.file.size;
+    bytes += packedBytes;
   }
   if (current.length) bundles.push(current);
   return { direct, bundles };
@@ -66,6 +69,7 @@ export async function createFolderBundle(entries, signal) {
     zip.end();
     await finished;
     const blob = new Blob(chunks, { type: "application/zip" });
+    if (blob.size > BUNDLE_MAX_BYTES) throw new Error("O pacote ultrapassou 200 MiB. Revise os arquivos selecionados.");
     blob.name = "merlin-bundle.zip";
     return { blob, sha256: hex(bundleHash.digest()), files };
   } catch (error) {

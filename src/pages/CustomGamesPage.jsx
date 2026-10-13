@@ -14,6 +14,7 @@ const EMPTY = {
 const DIRECT_FILE_LIMIT = 32 * 1024 * 1024;
 const MAX_FOLDER_BYTES = 200 * 1024 * 1024 * 1024;
 const MAX_FOLDER_FILES = 20000;
+const MAX_FOLDER_BUNDLES = 2500;
 
 function prettySize(bytes) {
   const value = Number(bytes) || 0;
@@ -270,9 +271,10 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
         if (seen.has(parts.slice(0, index).join("/"))) throw new Error(`Conflito entre arquivo e pasta: ${entry.path}`);
       }
     }
-    // Transfer large objects individually; group small files into bounded, stored ZIPs.
+    // Keep files too large for a package direct; group the rest into bounded, stored ZIPs.
     descriptors.sort((left, right) => right.file.size - left.file.size);
     const plan = planFolderBundles(descriptors);
+    if (plan.bundles.length > MAX_FOLDER_BUNDLES) throw new Error("A pasta gerou pacotes demais. Revise os arquivos selecionados.");
     const units = [
       ...plan.direct.map(entry => ({ kind: "file", entries: [entry], bytes: entry.file.size })),
       ...plan.bundles.map(entries => ({ kind: "bundle", entries,
@@ -312,7 +314,7 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
       stats.folder = true;
       if (phaseEnd === largeFileCount && plan.bundles.length) {
         stats.etaSeconds = null;
-        stats.etaHint = "Após os arquivos grandes, os pequenos serão agrupados em pacotes";
+        stats.etaHint = "Após os arquivos individuais, os demais serão agrupados em pacotes";
       } else if (plan.bundles.length) {
         const doneBundles = uploaded.slice(largeFileCount).filter(Boolean).length;
         const elapsed = bundlePhaseStartedAt ? (now - bundlePhaseStartedAt) / 1000 : 0;
@@ -609,7 +611,7 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
         {Object.entries({ en: "Inglês", es: "Espanhol", fr: "Francês", de: "Alemão" }).map(([language, label]) =>
           <label className="field" key={language}><span>Anotação em {label} (opcional)</span><textarea rows="2" maxLength="5000" value={draft.adminNotes?.[language] || ""} onChange={e => setDraft(current => ({ ...current, adminNotes: { ...current.adminNotes, [language]: e.target.value } }))} /></label>)}
         <label className="field"><span>Executável relativo à pasta do jogo (opcional)</span><input placeholder="Game/Game.exe" value={draft.executablePath} onChange={e => setDraft({ ...draft, executablePath: e.target.value })} /><small>Sem esse caminho, o Launcher não exibirá Jogar.</small></label>
-        <fieldset className="custom-games-package-options"><legend>Formato do pacote</legend><label className={`custom-games-package-option${draft.packageType === "zip" ? " is-selected" : ""}`}><input type="radio" name="customGamePackageType" checked={draft.packageType === "zip"} onChange={() => setDraft(current => ({ ...current, packageType: "zip" }))} /><span><strong>Arquivo ZIP</strong><small>Até 30 GiB · o Launcher descompacta após baixar</small></span></label><label className={`custom-games-package-option${draft.packageType === "folder" ? " is-selected" : ""}`}><input type="radio" name="customGamePackageType" checked={draft.packageType === "folder"} onChange={() => setDraft(current => ({ ...current, packageType: "folder" }))} /><span><strong>Pasta do jogo</strong><small>Até 200 GiB · arquivos enviados individualmente</small></span></label></fieldset>
+        <fieldset className="custom-games-package-options"><legend>Formato do pacote</legend><label className={`custom-games-package-option${draft.packageType === "zip" ? " is-selected" : ""}`}><input type="radio" name="customGamePackageType" checked={draft.packageType === "zip"} onChange={() => setDraft(current => ({ ...current, packageType: "zip" }))} /><span><strong>Arquivo ZIP</strong><small>Até 30 GiB · o Launcher descompacta após baixar</small></span></label><label className={`custom-games-package-option${draft.packageType === "folder" ? " is-selected" : ""}`}><input type="radio" name="customGamePackageType" checked={draft.packageType === "folder"} onChange={() => setDraft(current => ({ ...current, packageType: "folder" }))} /><span><strong>Pasta do jogo</strong><small>Até 200 GiB · arquivos agrupados em pacotes de até 200 MiB</small></span></label></fieldset>
         {draft.packageType === "zip" ? <label className="field"><span>ZIP do jogo</span><input type="file" accept=".zip,application/zip" onChange={e => setDraft(current => ({ ...current, zip: e.target.files?.[0] || null }))} />{(draft.zip || (draft.originalPackageType === "zip" && draft.archiveKey)) && <small>{draft.zip ? `${draft.zip.name} · ${prettySize(draft.zip.size)}` : `ZIP atual · ${prettySize(draft.archiveSize)}`}</small>}</label> : <label className="field"><span>Pasta do jogo</span><input type="file" webkitdirectory="" directory="" multiple onChange={e => setDraft(current => ({ ...current, folderFiles: Array.from(e.target.files || []) }))} /><small>{draft.folderFiles.length ? `${draft.folderFiles.length} arquivos · ${prettySize(draft.folderFiles.reduce((sum, file) => sum + file.size, 0))}` : draft.originalPackageType === "folder" && draft.archiveKey ? `Pasta atual · ${prettySize(draft.archiveSize)}` : "Selecione a pasta que contém os arquivos do jogo. O diretório escolhido vira a raiz da instalação."}</small></label>}
         {uploadProgress && <div className="custom-games-admin-progress" role="status"><div className="custom-games-admin-progress__heading"><strong>{uploadProgress.canceling ? "Cancelando upload…" : uploadProgress.folder ? uploadProgress.label : `${uploadProgress.label} · ${prettyPercent(uploadProgress.bytes, uploadProgress.total)}`}</strong><button type="button" className="button button--danger button--soft button--sm" onClick={cancelUpload} disabled={uploadProgress.canceling}>Cancelar upload</button></div>{uploadProgress.folder ? <><div className="custom-games-admin-progress__meter"><span>Dados enviados: {prettySize(uploadProgress.bytes)} de {prettySize(uploadProgress.total)} · {prettyPercent(uploadProgress.bytes, uploadProgress.total)}</span><progress max={uploadProgress.total} value={uploadProgress.bytes} /></div><div className="custom-games-admin-progress__meter"><span>Arquivos concluídos: {uploadProgress.done} de {uploadProgress.count} · {prettyPercent(uploadProgress.done, uploadProgress.count)}</span><progress max={uploadProgress.count} value={uploadProgress.done} /></div></> : <progress max={uploadProgress.total} value={uploadProgress.bytes} />}<div className="custom-games-admin-progress__details"><span>{uploadProgress.folder ? uploadProgress.smallPhase ? uploadProgress.smallFilesPerMinute ? `${Math.round(uploadProgress.smallFilesPerMinute)} arquivos/min` : "Calculando ritmo dos arquivos…" : `Velocidade média: ${prettyRate(uploadProgress.speed)}` : `${prettyRate(uploadProgress.speed)} · ${uploadProgress.done}/${uploadProgress.count} partes`}</span><span>{uploadProgress.finalizing ? "Conferindo arquivos…" : uploadProgress.etaHint || `Restante estimado: ${prettyDuration(uploadProgress.etaSeconds)}`}</span></div></div>}
         <label className="field"><span>Imagem · JPG, PNG ou WebP até 8 MB</span><input type="file" accept="image/jpeg,image/png,image/webp" onChange={e => setDraft({ ...draft, image: e.target.files?.[0] || null })} /></label>
