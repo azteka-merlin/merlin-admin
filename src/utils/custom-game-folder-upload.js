@@ -14,7 +14,7 @@ const pause = (milliseconds, signal) => new Promise((resolve, reject) => {
 });
 
 export function folderDescriptors(files) {
-  if (!files.length || files.length > 20000) throw new Error("Selecione uma pasta com até 20.000 arquivos.");
+  if (!files.length || files.length > 100000) throw new Error("Selecione uma pasta com até 100.000 arquivos.");
   const root = String(files[0].webkitRelativePath || "").split("/")[0];
   const descriptors = files.map(file => {
     const relative = String(file.webkitRelativePath || file.name).replace(/\\/g, "/");
@@ -212,13 +212,7 @@ export async function runCustomGameFolderUpload({ files, gameId, signal, apiRequ
             await updateUnit(unit, { parts });
             reportPart();
           };
-          if (unit.kind === "file" && !saved.sha256) {
-            const hashed = await readFile(blob, { partSize, completed: parts.map(Boolean), signal: taskSignal, onPart: sendPart,
-              onProgress: bytes => { progress.prepared(unit, bytes, bytes === blob.size ? 1 : 0); report(); } });
-            metrics.readMs += hashed.readMs || 0;
-            metrics.hashMs += hashed.hashMs || 0;
-            await updateUnit(unit, { sha256: hashed.sha256, metadata: { kind: "file", path: unit.entries[0].path, sizeBytes: blob.size, sha256: hashed.sha256 } });
-          } else {
+          const uploadRemainingParts = async () => {
             let next = 0;
             await Promise.all(Array.from({ length: Math.min(2, count) }, async () => {
               while (next < count) {
@@ -226,11 +220,37 @@ export async function runCustomGameFolderUpload({ files, gameId, signal, apiRequ
                 if (!parts[index]) await sendPart(index, blob.slice(index * partSize, Math.min(blob.size, (index + 1) * partSize)));
               }
             }));
+          };
+          if (unit.kind === "file" && !saved.sha256) {
+            const hashed = await readFile(blob, { partSize, completed: parts.map(Boolean), signal: taskSignal, onPart: sendPart,
+              onProgress: bytes => { progress.prepared(unit, bytes, bytes === blob.size ? 1 : 0); report(); } });
+            metrics.readMs += hashed.readMs || 0;
+            metrics.hashMs += hashed.hashMs || 0;
+            await updateUnit(unit, { sha256: hashed.sha256, metadata: { kind: "file", path: unit.entries[0].path, sizeBytes: blob.size, sha256: hashed.sha256 } });
+          } else {
+            await uploadRemainingParts();
           }
           const completeStarted = performance.now();
-          const current = unitCheckpoints[unit.id];
-          const result = await retry(() => apiRequest(`${sessionRoot}/objects/complete`, { method: "POST", mutate: true,
-            body: { clientId: unit.id, parts, sizeBytes: blob.size, sha256: current.sha256 }, signal: taskSignal }), taskSignal);
+          const completeObject = () => {
+            const current = unitCheckpoints[unit.id];
+            return retry(() => apiRequest(`${sessionRoot}/objects/complete`, { method: "POST", mutate: true,
+              body: { clientId: unit.id, parts, sizeBytes: blob.size, sha256: current.sha256 }, signal: taskSignal }), taskSignal);
+          };
+          let result;
+          try { result = await completeObject(); }
+          catch (error) {
+            if (error.code !== "multipart_parts_reset" || !error.uploadId) throw error;
+            // The API rotated only this object's multipart after detecting a
+            // missing/stale R2 part. Reuse the selected File/Blob and resend
+            // its bounded set of parts without restarting completed game data.
+            signedBatches.clear();
+            parts.splice(0, parts.length);
+            loaded.fill(0);
+            await updateUnit(unit, { key: started.key, uploadId: error.uploadId, partSize, parts, result: undefined });
+            reportPart();
+            await uploadRemainingParts();
+            result = await completeObject();
+          }
           metrics.completeMs += performance.now() - completeStarted;
           await updateUnit(unit, { result: { key: result.key, sizeBytes: blob.size } });
           progress.complete(unit);

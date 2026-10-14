@@ -553,7 +553,9 @@ function App() {
     }
 
     if (!response.ok) {
-      throw Object.assign(new Error(payload?.error || "Não foi possível concluir a solicitação."), { status: response.status });
+      throw Object.assign(new Error(payload?.error || "Não foi possível concluir a solicitação."), {
+        status: response.status, code: payload?.code, uploadId: payload?.uploadId,
+      });
     }
 
     return payload;

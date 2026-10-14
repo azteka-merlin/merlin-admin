@@ -10,7 +10,9 @@ function fixture() {
   const objects = new Map();
   const calls = { initiate: 0, parts: 0, complete: 0, manifest: 0, cancel: 0, sign: 0 };
   const session = { sessionId: crypto.randomUUID(), partSize: 64 * 1024 ** 2, transport: "proxy", objects: [] };
+  let firstUploadId = null;
   let loseComplete = false;
+  let resetMultipart = false;
   let failPart = false;
   const request = async (path, options = {}) => {
     if (path.endsWith("/sessions")) return { ...session, objects: [...objects.values()] };
@@ -21,12 +23,23 @@ function fixture() {
     if (path.endsWith("/initiate")) {
       calls.initiate++;
       const { clientId, sizeBytes } = options.body;
-      if (!objects.has(clientId)) objects.set(clientId, { clientId, key: `fixture/files/${crypto.randomUUID()}`, uploadId: crypto.randomUUID(), sizeBytes });
+      if (!objects.has(clientId)) {
+        const object = { clientId, key: `fixture/files/${crypto.randomUUID()}`, uploadId: crypto.randomUUID(), sizeBytes };
+        firstUploadId ||= object.uploadId;
+        objects.set(clientId, object);
+      }
       return { ...objects.get(clientId), partSize: session.partSize };
     }
     if (path.endsWith("/objects/complete")) {
       calls.complete++;
       const object = objects.get(options.body.clientId);
+      if (resetMultipart) {
+        resetMultipart = false;
+        object.uploadId = crypto.randomUUID();
+        throw Object.assign(new Error("Uma parte deste arquivo não foi reconhecida pelo R2."), {
+          status: 409, code: "multipart_parts_reset", uploadId: object.uploadId,
+        });
+      }
       object.completed = true; object.sha256 = options.body.sha256;
       if (loseComplete) { loseComplete = false; throw new Error("response lost"); }
       return { ...object };
@@ -46,7 +59,8 @@ function fixture() {
     return { etag: createHash("md5").update(Buffer.from(await body.arrayBuffer())).digest("hex") };
   };
   return { request, upload, calls, objects, session,
-    loseComplete: () => { loseComplete = true; }, failParts: value => { failPart = value; } };
+    loseComplete: () => { loseComplete = true; }, resetMultipart: () => { resetMultipart = true; },
+    firstUploadId: () => firstUploadId, failParts: value => { failPart = value; } };
 }
 const files = () => [Object.assign(new Blob([new Uint8Array(1024 * 1024)]), { name: "data.bin", webkitRelativePath: "Game/data.bin", lastModified: 123 })];
 const prepareBundle = (entries, options) => createFolderBundle(entries, options.signal);
@@ -61,6 +75,23 @@ test("folder upload retries a lost completion response without sending the objec
     assert.equal(fake.calls.complete, 2);
     assert.equal((await loadUploadCheckpoint(gameId)).manifestKey, result.key);
     assert.ok(Object.values(await loadUploadUnitCheckpoints(gameId))[0].metadata.sha256);
+  } finally { await deleteUploadCheckpoint(gameId); }
+});
+
+test("missing R2 multipart part retries only that object from the selected file", async () => {
+  const gameId = crypto.randomUUID();
+  const fake = fixture(); fake.resetMultipart();
+  try {
+    const result = await runCustomGameFolderUpload({ files: files(), gameId, apiRequest: fake.request,
+      apiUpload: fake.upload, prepareBundle });
+    const originalUploadId = fake.firstUploadId();
+    assert.equal(result.key, "fixture/manifests/manifest.json");
+    assert.equal(fake.calls.initiate, 1);
+    assert.equal(fake.calls.parts, 2);
+    assert.equal(fake.calls.complete, 2);
+    const checkpoint = Object.values(await loadUploadUnitCheckpoints(gameId))[0];
+    assert.ok(checkpoint.uploadId);
+    assert.notEqual(checkpoint.uploadId, originalUploadId);
   } finally { await deleteUploadCheckpoint(gameId); }
 });
 
@@ -127,4 +158,11 @@ test("folder validation preserves path safety and accepts empty members", () => 
   assert.equal(folderDescriptors([...files(), Object.assign(new Blob([]), { name: "empty.bin", webkitRelativePath: "Game/empty.bin" })]).length, 2);
   const bad = files(); bad[0].webkitRelativePath = "Game/../outside.bin";
   assert.throws(() => folderDescriptors(bad), /Caminho inválido/);
+});
+
+test("folder validation accepts a 30,000-file game manifest", () => {
+  const entries = Array.from({ length: 30_000 }, (_, index) => ({
+    name: `file-${index}.bin`, size: 1, webkitRelativePath: `Bloodborne/file-${index}.bin`,
+  }));
+  assert.equal(folderDescriptors(entries).length, 30_000);
 });
