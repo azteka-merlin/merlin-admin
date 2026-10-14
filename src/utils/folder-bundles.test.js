@@ -42,3 +42,35 @@ test("creates stored ZIP and per-file checksums without changing folder paths", 
   assert.match(bundle.sha256, /^[a-f0-9]{64}$/);
   assert.equal((await createFolderBundle(entries)).sha256, bundle.sha256);
 });
+
+test("prefetch preserves content, order and hashes for medium and multi-read files", async () => {
+  const entries = [
+    { path: "medium.bin", file: new Blob([new Uint8Array(2 * 1024 ** 2).fill(37)]) },
+    { path: "large.bin", file: new Blob([new Uint8Array(5 * 1024 ** 2 + 7).fill(83)]) },
+    ...Array.from({ length: 8 }, (_, index) => ({ path: `Data/${index}.txt`, file: new Blob([`entry-${index}`]) })),
+  ];
+  const progress = [];
+  const bundle = await createFolderBundle(entries, undefined, { onProgress: value => progress.push(value) });
+  const unpacked = unzipSync(new Uint8Array(await bundle.blob.arrayBuffer()));
+  for (const entry of entries) {
+    assert.deepEqual(unpacked[entry.path], new Uint8Array(await entry.file.arrayBuffer()));
+  }
+  assert.deepEqual(bundle.files.map(file => file.path), entries.map(entry => entry.path));
+  assert.deepEqual(progress.at(-1), { preparedFiles: entries.length,
+    preparedBytes: entries.reduce((sum, entry) => sum + entry.file.size, 0) });
+  assert.equal(bundle.timing.smallFiles, 8);
+  assert.equal(bundle.timing.largeFiles, 2);
+  assert.ok(bundle.timing.hashAndZipMs >= 0);
+  assert.equal((await createFolderBundle(entries)).sha256, bundle.sha256);
+});
+
+test("canceling preparation rejects without consuming later files", async () => {
+  const controller = new AbortController();
+  let laterReads = 0;
+  const file = new Blob([new Uint8Array(5 * 1024 ** 2)]);
+  const later = new Blob(["later"]);
+  later.arrayBuffer = async () => { laterReads++; throw new Error("should not be prefetched after abort"); };
+  controller.abort();
+  await assert.rejects(createFolderBundle([{ file, path: "first.bin" }, { file: later, path: "later.bin" }], controller.signal), { name: "AbortError" });
+  assert.equal(laterReads, 0);
+});

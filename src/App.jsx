@@ -483,7 +483,7 @@ function App() {
   }, [filteredLicenses, selectedId]);
 
   async function apiRequest(path, options = {}) {
-    const { method = "GET", body, mutate = false, ignoreUnauthorized = false } = options;
+    const { method = "GET", body, mutate = false, ignoreUnauthorized = false, signal } = options;
     const isFormData = body instanceof FormData;
     const headers = { Accept: "application/json" };
 
@@ -493,6 +493,7 @@ function App() {
     const response = await fetch(path, {
       method,
       credentials: "same-origin",
+      signal,
       headers,
       body: body !== undefined ? (isFormData ? body : JSON.stringify(body)) : undefined
     });
@@ -552,7 +553,7 @@ function App() {
     }
 
     if (!response.ok) {
-      throw new Error(payload?.error || "Não foi possível concluir a solicitação.");
+      throw Object.assign(new Error(payload?.error || "Não foi possível concluir a solicitação."), { status: response.status });
     }
 
     return payload;
@@ -2618,9 +2619,9 @@ function App() {
             notify={setToast}
           />
         )}
-        {view === "custom-games" && (
+        <div hidden={view !== "custom-games"}>
           <CustomGamesPage apiRequest={apiRequest} apiUpload={apiUpload} notify={setToast} />
-        )}
+        </div>
         {view === "premium-activations" && (
           <PremiumActivationsPage
             activations={premiumActivations}
