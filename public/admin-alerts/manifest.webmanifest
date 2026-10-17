@@ -1,0 +1,13 @@
+{
+  "id": "/merlin-admin",
+  "name": "Merlin Admin",
+  "short_name": "Merlin Admin",
+  "start_url": "/alerts",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0b0b15",
+  "theme_color": "#0b0b15",
+  "icons": [
+    { "src": "/votacao/merlin-mark.png", "sizes": "1254x1254", "type": "image/png" }
+  ]
+}

@@ -4,6 +4,7 @@ import LicenseModals from "./components/LicenseModals";
 import LoadingScreen from "./components/LoadingScreen";
 import LoginScreen from "./components/LoginScreen";
 import ActivityPage from "./pages/ActivityPage";
+import AlertsPage from "./pages/AlertsPage";
 import UsageBiPage from "./pages/UsageBiPage";
 import AnnouncementsPage from "./pages/AnnouncementsPage";
 import HomePage from "./pages/HomePage";
@@ -2549,6 +2550,9 @@ function App() {
             loadAuditLogs={loadAuditLogs}
             refreshingOverview={loadingLicenses || loadingAuditLogs}
           />
+        )}
+        {view === "alerts" && (
+          <AlertsPage apiRequest={apiRequest} notify={setToast} />
         )}
         {view === "licenses" && (
           <LicensesPage
