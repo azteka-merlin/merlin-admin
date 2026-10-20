@@ -50,6 +50,12 @@ function uploadStats(label, bytes, total, done, count, startedAt) {
 
 
 function makeDraft(game) {
+  if (game?.pendingPackage) {
+    const pending = game.pendingPackage;
+    return { ...EMPTY, ...game, ...pending, id: game.id, gameId: game.id,
+      packageType: "zip", originalPackageType: "zip", published: pending.publishRequested,
+      pendingPackage: pending, archiveKey: pending.archiveKey, archiveSize: pending.archiveSize };
+  }
   return game ? { ...EMPTY, ...game, gameId: game.id, originalPackageType: game.packageType || "zip" }
     : { ...EMPTY, gameId: crypto.randomUUID() };
 }
@@ -67,11 +73,13 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
   const [pendingUploads, setPendingUploads] = useState([]);
   const stagedPackages = useRef(new Map());
   const [search, setSearch] = useState("");
+  const [publishSelection, setPublishSelection] = useState([]);
+  const [publishing, setPublishing] = useState(false);
   const imageUrl = useMemo(() => {
     if (!draft) return "";
     if (draft.image) return URL.createObjectURL(draft.image);
-    return draft.id && draft.imageVersion ? `/panel-api/custom-games/${draft.id}/image?v=${encodeURIComponent(draft.imageVersion)}` : "";
-  }, [draft?.image, draft?.id, draft?.imageVersion]);
+    return draft.id && draft.imageVersion ? `/panel-api/custom-games/${draft.id}/image?${draft.pendingPackage ? "pending=1&" : ""}v=${encodeURIComponent(draft.imageVersion)}` : "";
+  }, [draft?.image, draft?.id, draft?.imageVersion, draft?.pendingPackage]);
   useEffect(() => () => { if (draft?.image && imageUrl) URL.revokeObjectURL(imageUrl); }, [draft?.image, imageUrl]);
   async function refreshPendingUploads() { setPendingUploads(await listUploadCheckpoints()); }
   useEffect(() => { void refreshPendingUploads(); }, []);
@@ -82,15 +90,20 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
     return () => window.removeEventListener("beforeunload", beforeUnload);
   }, [busy]);
 
-  async function load() {
-    setLoading(true);
+  async function load(silent = false) {
+    if (!silent) setLoading(true);
     try {
       const result = await apiRequest("/panel-api/custom-games");
       setGames(result.games || []);
-    } catch (error) { notify(error.message); }
-    finally { setLoading(false); }
+    } catch (error) { if (!silent) notify(error.message); }
+    finally { if (!silent) setLoading(false); }
   }
   useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    if (!games.some(game => ["queued", "processing"].includes(game.pendingPackage?.indexStatus))) return;
+    const timer = setInterval(() => { void load(true); }, 10000);
+    return () => clearInterval(timer);
+  }, [games]);
 
   async function uploadZip(file, gameId, signal) {
     const started = await apiRequest("/panel-api/custom-games/upload/initiate", {
@@ -175,6 +188,9 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
   async function saveDraft() {
     if (uploadController.current) return;
     setUploadError("");
+    if (draft.pendingPackage && draft.packageType !== "zip") {
+      return notify("Descarte o ZIP pendente antes de trocar o formato do pacote.");
+    }
     const gameName = String(draft.name ?? "").trim();
     const executablePath = String(draft.executablePath ?? "").trim();
     if (draft.published && !gameName) return notify("Informe o nome do jogo antes de publicar.");
@@ -240,14 +256,17 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
       body.set("published", String(draft.published));
       appendCustomGameMetadata(body, metadata);
       if (draft.image) body.set("image", draft.image);
-      await apiRequest(savedGameId ? `/panel-api/custom-games/${savedGameId}` : "/panel-api/custom-games", {
-        method: savedGameId ? "PUT" : "POST", mutate: true, body,
+      const stageZip = draft.packageType === "zip" && Boolean(uploadedPackage?.key || draft.pendingPackage || stagedPackages.current.has(draft.gameId));
+      await apiRequest(stageZip ? "/panel-api/custom-games/stage-zip"
+        : savedGameId ? `/panel-api/custom-games/${savedGameId}` : "/panel-api/custom-games", {
+        method: stageZip || !savedGameId ? "POST" : "PUT", mutate: true, body,
       });
       saved = true;
       if (draft.packageType === "folder" && uploadedPackage?.key) await deleteUploadCheckpoint(draft.gameId);
       stagedPackages.current.delete(draft.gameId);
       setDraft(null);
-      notify(draft.published ? "Jogo publicado no Launcher." : "Rascunho salvo.");
+      notify(stageZip ? draft.published ? "ZIP salvo. A indexação começou; publique quando estiver pronto."
+        : "ZIP salvo como rascunho. A indexação começou." : draft.published ? "Jogo publicado no Launcher." : "Rascunho salvo.");
       await load();
     } catch (error) {
       if (uploadedPackage?.key && !saved) {
@@ -257,8 +276,10 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
           originalPackageType: current.packageType, zip: null, folderFiles: [],
         } : current);
       }
-      const message = controller.signal.aborted ? "Upload cancelado. Os arquivos temporários foram descartados."
-        : `${error.message || "Não foi possível salvar o jogo."} ${draft.packageType === "folder" || stagedPackages.current.has(draft.gameId) ? "O progresso foi preservado. Selecione a mesma pasta e salve para continuar." : ""}`.trim();
+      const message = controller.signal.aborted
+        ? uploadedPackage?.key ? "O ZIP enviado foi preservado nesta edição para tentar salvar novamente."
+          : "Upload cancelado. Os arquivos temporários foram descartados."
+        : `${error.message || "Não foi possível salvar o jogo."} ${draft.packageType === "folder" ? "O progresso foi preservado. Selecione a mesma pasta e salve para continuar." : stagedPackages.current.has(draft.gameId) ? "O ZIP enviado foi preservado nesta edição para tentar novamente." : ""}`.trim();
       setUploadError(message);
       notify(message);
     }
@@ -315,7 +336,38 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
     } catch (error) { notify(error.message); }
   }
 
+  async function discardStaged(game) {
+    if (!window.confirm(`Descartar o ZIP pendente de “${game.pendingPackage?.name || game.name || "Rascunho sem nome"}”? A versão publicada continuará disponível.`)) return;
+    try {
+      await apiRequest(`/panel-api/custom-games/${game.id}/discard-staged-zip`, { method: "POST", mutate: true });
+      notify("ZIP pendente descartado. A versão publicada não mudou.");
+      await load();
+    } catch (error) { notify(error.message); }
+  }
+
+  async function publishReady() {
+    if (!publishSelection.length || publishing) return;
+    setPublishing(true);
+    try {
+      let count = 0;
+      const failed = [];
+      for (let offset = 0; offset < publishSelection.length; offset += 50) {
+        const result = await apiRequest("/panel-api/custom-games/publish-ready", {
+          method: "POST", mutate: true, body: { gameIds: publishSelection.slice(offset, offset + 50) },
+        });
+        count += result.published?.length || 0;
+        failed.push(...(result.failed || []));
+      }
+      if (count) notify(`${count} ${count === 1 ? "jogo publicado" : "jogos publicados"} no Launcher.`);
+      if (failed.length) notify(`${failed.length} ${failed.length === 1 ? "jogo não foi publicado" : "jogos não foram publicados"}: ${failed.map(item => item.error).join("; ")}`);
+      setPublishSelection([]);
+      await load();
+    } catch (error) { notify(error.message); }
+    finally { setPublishing(false); }
+  }
+
   const shown = games.filter(game => game.name.toLocaleLowerCase().includes(search.toLocaleLowerCase()));
+  const readyToPublish = games.filter(game => game.pendingPackage?.indexStatus === "ready" && game.pendingPackage.publishRequested);
   const imageStyle = draft && imageUrl ? {
     backgroundImage: `url("${imageUrl}")`, backgroundPosition: `${draft.imagePositionX}% ${draft.imagePositionY}%`,
     transform: `scale(${draft.imageZoom})`, transformOrigin: `${draft.imagePositionX}% ${draft.imagePositionY}%`,
@@ -325,18 +377,21 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
   return <section className="page page--custom-games">
     <div className="page__header page__header--split">
       <div><p className="eyebrow">Launcher</p><h1>Baixe e Jogue</h1><p>Catálogo de jogos em ZIP ou pasta, instalados pelo Merlin em uma unidade escolhida pelo cliente.</p></div>
-      <div className="page__actions"><button className="button button--ghost" onClick={load} disabled={loading}>Atualizar</button><button className="button button--primary" onClick={() => { setUploadError(""); setDraft(makeDraft(null)); }}>+ Novo jogo</button></div>
+      <div className="page__actions">{readyToPublish.length > 0 && <button className="button button--primary" onClick={() => setPublishSelection(readyToPublish.map(game => game.id))}>Publicar prontos ({readyToPublish.length})</button>}<button className="button button--ghost" onClick={() => load()} disabled={loading}>Atualizar</button><button className="button button--primary" onClick={() => { setUploadError(""); setDraft(makeDraft(null)); }}>+ Novo jogo</button></div>
     </div>
     <section className="panel">
       <label className="field"><span>Buscar jogo</span><input type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Nome do jogo" /></label>
       {loading ? <div className="empty-state"><h3>Carregando jogos…</h3></div> : shown.length ? <div className="custom-games-admin-grid">{shown.map(game =>
         <article className="custom-games-admin-card" key={game.id}>
           <div className="custom-games-admin-image">{game.imageVersion ? <img src={`/panel-api/custom-games/${game.id}/image?v=${encodeURIComponent(game.imageVersion)}`} alt="" style={{ objectPosition: `${game.imagePositionX}% ${game.imagePositionY}%`, transform: `scale(${game.imageZoom || 1})`, transformOrigin: `${game.imagePositionX}% ${game.imagePositionY}%` }} /> : <span>Sem imagem</span>}</div>
-          <div><h2>{game.name || "Rascunho sem nome"}</h2><p>{game.archiveKey ? `${prettySize(game.archiveSize)} · ${game.packageType === "folder" ? "Pasta" : "ZIP"}` : "Pacote pendente"} · {game.executablePath ? "Botão Jogar ativo" : "Sem botão Jogar"}</p><p>{game.origin === "port" ? "Port" : "Nativo"}{game.versionLabel ? ` · ${game.versionLabel}` : ""}</p><div className="custom-games-admin-badges"><span className={`badge ${game.published ? "badge--emerald" : "badge--muted"}`}>{game.published ? "Publicado" : "Rascunho"}</span>{game.upstreamUpdateAvailable && <span className="badge badge--warning">Nova release{game.upstreamRelease?.tag ? `: ${game.upstreamRelease.tag}` : ""}</span>}{game.upstreamCheckError && <span className="badge badge--muted">Consulta de releases indisponível</span>}</div>{game.upstreamUpdateAvailable && game.upstreamRelease?.url && <a className="custom-games-admin-release-link" href={game.upstreamRelease.url} target="_blank" rel="noreferrer">Ver release do port ↗</a>}</div>
-          <div className="custom-games-admin-actions"><button className="button button--ghost button--sm" onClick={() => { setUploadError(""); setDraft(makeDraft(game)); }}>Editar</button><button className="button button--danger button--soft button--sm" onClick={() => remove(game)}>Excluir</button></div>
+          <div><h2>{game.name || game.pendingPackage?.name || "Rascunho sem nome"}</h2><p>{game.archiveKey && !game.archiveKey.startsWith("draft/") ? `${prettySize(game.archiveSize)} · ${game.packageType === "folder" ? "Pasta" : "ZIP"}` : "Pacote ainda não publicado"} · {game.executablePath ? "Botão Jogar ativo" : "Sem botão Jogar"}</p><p>{game.origin === "port" ? "Port" : "Nativo"}{game.versionLabel ? ` · ${game.versionLabel}` : ""}</p><div className="custom-games-admin-badges"><span className={`badge ${game.published ? "badge--emerald" : "badge--muted"}`}>{game.published ? "Publicado" : "Rascunho"}</span>{game.pendingPackage && <span className={`badge ${game.pendingPackage.indexStatus === "ready" ? "badge--emerald" : game.pendingPackage.indexStatus === "failed" ? "badge--warning" : "badge--muted"}`}>{game.pendingPackage.indexStatus === "ready" ? game.pendingPackage.publishRequested ? "Pronto para publicar" : "ZIP pronto · rascunho" : game.pendingPackage.indexStatus === "failed" ? "Falha na indexação" : "Indexando"}</span>}{game.upstreamUpdateAvailable && <span className="badge badge--warning">Nova release{game.upstreamRelease?.tag ? `: ${game.upstreamRelease.tag}` : ""}</span>}{game.upstreamCheckError && <span className="badge badge--muted">Consulta de releases indisponível</span>}</div>{game.pendingPackage && <p className="custom-games-admin-pending-note">{game.pendingPackage.indexStatus === "failed" ? game.pendingPackage.error : game.pendingPackage.indexStatus === "ready" ? `Novo ZIP validado · ${prettySize(game.pendingPackage.archiveSize)}. A versão atual permanece disponível até publicar.` : `Preparando o índice do novo ZIP${game.pendingPackage.totalFiles ? ` · ${game.pendingPackage.processedFiles}/${game.pendingPackage.totalFiles} arquivos` : ""}. Pode fechar esta página.`}</p>}{game.upstreamUpdateAvailable && game.upstreamRelease?.url && <a className="custom-games-admin-release-link" href={game.upstreamRelease.url} target="_blank" rel="noreferrer">Ver release do port ↗</a>}</div>
+          <div className="custom-games-admin-actions"><button className="button button--ghost button--sm" onClick={() => { setUploadError(""); setDraft(makeDraft(game)); }}>Editar</button>{game.pendingPackage?.indexStatus === "ready" && game.pendingPackage.publishRequested && <button className="button button--primary button--sm" onClick={() => setPublishSelection([game.id])}>Publicar</button>}{game.pendingPackage && <button className="button button--ghost button--sm" onClick={() => discardStaged(game)}>Descartar ZIP</button>}<button className="button button--danger button--soft button--sm" onClick={() => remove(game)}>Excluir</button></div>
         </article>)}</div> : <div className="empty-state"><h3>Nenhum jogo cadastrado</h3><p>Crie um jogo para começar.</p></div>}
     </section>
-    {draft && <Modal title={draft.id ? "Editar jogo" : "Novo jogo"} subtitle="Salve como rascunho e complete os dados antes de publicar no Launcher." dismissOnBackdrop={false} onClose={closeDraft} closeDisabled={busy} closeConfirmMessage="Fechar a edição? O progresso do envio será preservado para continuar depois." actions={<><button className="button button--ghost" disabled={busy} onClick={() => { void closeDraft(); }}>Fechar</button><button className="button button--primary" disabled={busy} onClick={save}>{busy ? "Salvando…" : draft.published ? "Publicar jogo" : "Salvar rascunho"}</button></>}>
+    {publishSelection.length > 0 && <Modal title={publishSelection.length === 1 ? "Publicar jogo" : `Publicar ${publishSelection.length} jogos`} subtitle="Confira os pacotes preparados antes de disponibilizá-los no Launcher." onClose={() => { if (!publishing) setPublishSelection([]); }} closeDisabled={publishing} actions={<><button className="button button--ghost" disabled={publishing} onClick={() => setPublishSelection([])}>Cancelar</button><button className="button button--primary" disabled={publishing} onClick={publishReady}>{publishing ? "Publicando…" : "Confirmar publicação"}</button></>}>
+      <div className="custom-games-admin-publish-list"><p>A versão atual continua disponível até você confirmar. Após publicar, o Launcher verá o novo pacote:</p><ul>{publishSelection.map(id => { const game = games.find(item => item.id === id); return <li key={id}>{game?.pendingPackage?.name || game?.name || "Rascunho sem nome"} · ZIP {prettySize(game?.pendingPackage?.archiveSize)}</li>; })}</ul></div>
+    </Modal>}
+    {draft && <Modal title={draft.id ? "Editar jogo" : "Novo jogo"} subtitle="Salve como rascunho e complete os dados antes de publicar no Launcher." dismissOnBackdrop={false} onClose={closeDraft} closeDisabled={busy} closeConfirmMessage="Fechar a edição? O progresso do envio será preservado para continuar depois." actions={<><button className="button button--ghost" disabled={busy} onClick={() => { void closeDraft(); }}>Fechar</button><button className="button button--primary" disabled={busy} onClick={save}>{busy ? "Salvando…" : draft.packageType === "zip" && (draft.zip || draft.pendingPackage || stagedPackages.current.has(draft.gameId)) ? "Salvar e indexar" : draft.published ? "Publicar jogo" : "Salvar rascunho"}</button></>}>
       <div className="custom-games-admin-form">
         {uploadError && <p className="custom-games-admin-error" role="alert">{uploadError}</p>}
         {pendingUpload && !busy && <div className="empty-state"><p>{pendingUpload.manifestKey ? "O envio está concluído. Salve o jogo para vincular os arquivos." : "Há um envio preservado. Selecione a mesma pasta e salve para continuar de onde parou."}</p><button type="button" className="button button--ghost button--sm" onClick={() => discardPendingUpload(draft.gameId)}>Descartar envio pendente</button></div>}
@@ -363,10 +418,10 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
         {uploadProgress && <div className="custom-games-admin-progress" role="status">
           <div className="custom-games-admin-progress__heading">
             <strong>{uploadProgress.canceling ? "Cancelando upload…" : uploadProgress.label}</strong>
-            <button type="button" className="button button--danger button--soft button--sm" onClick={cancelUpload} disabled={uploadProgress.canceling || uploadProgress.finalizing}>Cancelar upload</button>
+            <button type="button" className="button button--danger button--soft button--sm" onClick={cancelUpload} disabled={uploadProgress.canceling || uploadProgress.finalizing}>{uploadProgress.indexing ? "Parar espera" : "Cancelar upload"}</button>
           </div>
           <div className="custom-games-admin-progress__meter">
-            <span>Dados enviados: {prettySize(uploadProgress.bytes)} de {prettySize(uploadProgress.total)} · {prettyPercent(uploadProgress.bytes, uploadProgress.total)}</span>
+            <span>{uploadProgress.indexing ? "Índice preparado" : "Dados enviados"}: {prettySize(uploadProgress.bytes)} de {prettySize(uploadProgress.total)} · {prettyPercent(uploadProgress.bytes, uploadProgress.total)}</span>
             <progress max={uploadProgress.total} value={uploadProgress.bytes} />
           </div>
           {uploadProgress.folder && <>
@@ -376,16 +431,20 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
             </div>
             <small>Arquivos confirmados: {uploadProgress.done} de {uploadProgress.count} · Pacotes e arquivos enviados: {uploadProgress.confirmedObjects || 0}/{uploadProgress.totalObjects || 0}</small>
           </>}
+          {uploadProgress.indexing && uploadProgress.count > 0 && <small>Arquivos indexados: {uploadProgress.done} de {uploadProgress.count}</small>}
+          {!uploadProgress.indexing && <>
           <div className="custom-games-admin-progress__details">
             <span>Velocidade atual: {prettyRate(uploadProgress.speed)}</span>
             <span>{uploadProgress.finalizing ? "Conferindo arquivos…" : uploadProgress.etaHint || `Restante estimado: ≈ ${prettyDuration(uploadProgress.etaSeconds)}`}</span>
           </div>
           {uploadProgress.elapsedSeconds != null && <small>Tempo decorrido: {prettyDuration(uploadProgress.elapsedSeconds)} · Média total: {prettyRate(uploadProgress.averageSpeed)}</small>}
           {uploadProgress.resumePersistent === false && <small>O navegador não permitiu salvar a retomada. Mantenha esta aba aberta até concluir.</small>}
+          </>}
         </div>}
         <label className="field"><span>Imagem · JPG, PNG ou WebP até 8 MB</span><input type="file" accept="image/jpeg,image/png,image/webp" onChange={e => setDraft({ ...draft, image: e.target.files?.[0] || null })} /></label>
         {imageUrl && <><div className="custom-games-admin-preview"><div style={imageStyle} /></div><button className="button button--ghost button--sm" type="button" onClick={() => setCropOpen(true)}>Ajustar enquadramento</button></>}
-        <label className="checkbox-row"><input type="checkbox" checked={draft.published} onChange={e => setDraft({ ...draft, published: e.target.checked })} /><span>Publicado no Launcher</span></label>
+        <label className="checkbox-row"><input type="checkbox" checked={draft.published} onChange={e => setDraft({ ...draft, published: e.target.checked })} /><span>{draft.packageType === "zip" && (draft.zip || draft.pendingPackage || stagedPackages.current.has(draft.gameId)) ? "Preparar para publicação após indexar" : "Publicado no Launcher"}</span></label>
+        {draft.packageType === "zip" && (draft.zip || draft.pendingPackage || stagedPackages.current.has(draft.gameId)) && <small>O ZIP não aparece no Launcher até a indexação terminar e você confirmar “Publicar” no card.</small>}
       </div>
     </Modal>}
     {draft && cropOpen && imageUrl && <Modal title="Ajustar imagem" subtitle="Prévia do card Baixe e Jogue." onClose={() => setCropOpen(false)} actions={<button className="button button--primary" onClick={() => setCropOpen(false)}>Aplicar</button>}>

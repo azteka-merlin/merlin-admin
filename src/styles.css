@@ -5693,8 +5693,12 @@ h3 {
 .custom-games-admin-image img { width: 100%; height: 100%; object-fit: cover; }
 .custom-games-admin-card h2 { font-size: 1rem; margin: 0 0 5px; }
 .custom-games-admin-card p { margin: 0 0 10px; color: #a6a4bb; font-size: .85rem; }
-.custom-games-admin-actions { display: flex; gap: 8px; margin-top: auto; }
+.custom-games-admin-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
 .custom-games-admin-badges { display: flex; gap: 7px; flex-wrap: wrap; }
+.custom-games-admin-card .custom-games-admin-pending-note { margin: 10px 0 0; line-height: 1.45; }
+.custom-games-admin-publish-list { display: grid; gap: 12px; color: var(--text); }
+.custom-games-admin-publish-list p { margin: 0; color: var(--muted); line-height: 1.5; }
+.custom-games-admin-publish-list ul { margin: 0; padding-left: 22px; max-height: 320px; overflow: auto; line-height: 1.7; }
 .custom-games-admin-release-link { display: inline-block; margin-top: 10px; color: var(--violet-2); font-size: .85rem; }
 .custom-games-admin-metadata-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .custom-games-admin-form { display: grid; gap: 16px; min-width: min(100%, 500px); }
