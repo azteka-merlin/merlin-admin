@@ -8,6 +8,7 @@ Use esta pasta como fonte da documentacao do painel.
 4. `SPECIAL_CORRECTION.md` — cadastro e contrato do override de correcao com token de licenca.
 5. `PLANOS_VISUAL.md` — como usar a POC de planos apenas como referencia visual.
 6. `RELEASE_NOTES.md` — gestao do changelog enviado ao Launcher.
+7. `CUSTOM_GAMES.md` — versões, preservação de arquivos e fila de integridade dos jogos.
 
 As regras operacionais de planos e acesso antecipado ficam em `../Merlin-api/docs/PLANO_TIERS_OPERACAO.md`; o Admin apenas as configura, nunca as decide no navegador.
 

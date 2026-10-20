@@ -32,6 +32,7 @@ The admin does not use an absolute API URL. It calls relative routes such as:
 - `/panel-api/polls`
 - `/panel-api/release-notes`
 - `/panel-api/updates`
+- `/panel-api/custom-games/indexing`
 
 In production, these routes are served by the same `Merlin-api` Worker on `api-merlin.com`.
 
@@ -60,6 +61,8 @@ The API script `npm run deploy:panel` automates the production panel build, type
 - Release notes: criar, editar, publicar, despublicar e excluir conteudo localizado e arte do changelog do Launcher.
 - Public signup: configure public registration and recovery.
 - Updates: upload the Merlin installer and latest-version metadata.
+- Baixe e Jogue: publicar pacotes ZIP/pasta, classificar nativos e ports, acompanhar releases de ports e definir caminhos preservados.
+- Integridade dos jogos: acompanhar hashes por arquivo e tarefas de indexação processadas pelo serviço persistente da API; consulte `CUSTOM_GAMES.md`.
 
 ## Development Notes
 

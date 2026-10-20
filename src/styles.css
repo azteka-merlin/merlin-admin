@@ -5694,6 +5694,9 @@ h3 {
 .custom-games-admin-card h2 { font-size: 1rem; margin: 0 0 5px; }
 .custom-games-admin-card p { margin: 0 0 10px; color: #a6a4bb; font-size: .85rem; }
 .custom-games-admin-actions { display: flex; gap: 8px; margin-top: auto; }
+.custom-games-admin-badges { display: flex; gap: 7px; flex-wrap: wrap; }
+.custom-games-admin-release-link { display: inline-block; margin-top: 10px; color: var(--violet-2); font-size: .85rem; }
+.custom-games-admin-metadata-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .custom-games-admin-form { display: grid; gap: 16px; min-width: min(100%, 500px); }
 .custom-games-admin-error { margin: 0; padding: 12px 14px; border: 1px solid rgba(239, 97, 120, .4); border-radius: 10px; background: rgba(239, 97, 120, .1); color: var(--danger); overflow-wrap: anywhere; }
 .custom-games-admin-preview { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 12px; background: #1b1728; }
@@ -5705,7 +5708,50 @@ h3 {
 .custom-games-admin-progress__details { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .custom-games-admin-progress__heading .button { flex: 0 0 auto; }
 .custom-games-admin-progress__details { flex-wrap: wrap; color: var(--muted); font-size: .8rem; }
-@media (max-width: 700px) { .custom-games-admin-grid { grid-template-columns: 1fr; } }
+@media (max-width: 700px) { .custom-games-admin-grid, .custom-games-admin-metadata-grid { grid-template-columns: 1fr; } }
+
+.custom-game-indexing__intro { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
+.custom-game-indexing__intro h2, .custom-game-indexing__panel h2 { margin: 0 0 8px; font-size: 1.08rem; }
+.custom-game-indexing__intro p { max-width: 850px; margin: 0; color: var(--muted); line-height: 1.55; }
+.custom-game-indexing__intro .button { flex: 0 0 auto; }
+.page--custom-game-indexing .notice p { margin: 8px 0; }
+.custom-game-indexing__load-error { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+.custom-game-indexing__load-error p { margin: 6px 0; }
+.custom-game-indexing__load-error small { color: var(--muted); }
+.custom-game-indexing__load-error .button { flex: 0 0 auto; }
+.custom-game-indexing__summary { margin: 22px 0; }
+.custom-game-indexing__panel { margin-top: 20px; }
+.custom-game-indexing__panel > .field { max-width: 480px; margin-bottom: 18px; }
+.custom-game-indexing__table { width: 100%; min-width: 760px; border-collapse: collapse; }
+.custom-game-indexing__table th, .custom-game-indexing__table td { padding: 14px 12px; text-align: left; border-bottom: 1px solid var(--line); }
+.custom-game-indexing__table th { color: var(--muted); font-size: .84rem; font-weight: 500; }
+.custom-game-indexing__table td { font-size: .86rem; }
+.custom-game-indexing__table td:first-child { min-width: 200px; }
+.custom-game-indexing__table td > strong, .custom-game-indexing__table td > small { display: block; }
+.custom-game-indexing__table td > small { margin-top: 5px; color: var(--muted); }
+.custom-game-indexing__queue-heading { align-items: center; gap: 16px; flex-wrap: wrap; }
+.custom-game-indexing__filter { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: .86rem; }
+.custom-game-indexing__filter select { min-width: 175px; }
+.custom-game-indexing__jobs { display: grid; gap: 12px; }
+.custom-game-indexing__job { min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255, 255, 255, .015); }
+.custom-game-indexing__job-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.custom-game-indexing__job-heading h3 { margin: 0 0 6px; font-size: 1rem; overflow-wrap: anywhere; }
+.custom-game-indexing__job-heading small { color: var(--muted); }
+.custom-game-indexing__job-heading > .badge { flex: 0 0 auto; }
+.custom-game-indexing__progress { display: grid; gap: 7px; margin-top: 14px; color: var(--muted); font-size: .86rem; overflow-wrap: anywhere; }
+.custom-game-indexing__progress progress { width: 100%; accent-color: var(--violet); }
+.custom-game-indexing__error { margin: 3px 0 0; color: var(--danger); white-space: pre-wrap; overflow-wrap: anywhere; }
+.custom-game-indexing__job-actions { display: flex; justify-content: flex-end; margin-top: 12px; }
+.custom-game-indexing__job-actions:empty { display: none; }
+@media (max-width: 700px) {
+  .custom-game-indexing__intro, .custom-game-indexing__load-error { align-items: flex-start; flex-direction: column; }
+  .custom-game-indexing__intro .button, .custom-game-indexing__load-error .button { width: 100%; }
+  .custom-game-indexing__table-wrap { margin: 0 -10px; }
+  .custom-game-indexing__queue-heading { align-items: stretch; flex-direction: column; }
+  .custom-game-indexing__filter { justify-content: space-between; }
+  .custom-game-indexing__filter select { flex: 1; max-width: 250px; }
+  .custom-game-indexing__job { padding: 13px; }
+}
 
 .custom-games-package-options {
   display: grid;

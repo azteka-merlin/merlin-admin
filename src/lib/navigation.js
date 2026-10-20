@@ -12,6 +12,7 @@ export const VIEW_PATHS = {
   overrides: "/overrides",
   premium: "/premium",
   "custom-games": "/custom-games",
+  "custom-game-indexing": "/custom-game-indexing",
   "premium-activations": "/premium/activations",
   polls: "/polls",
   announcements: "/announcements",
@@ -36,6 +37,7 @@ export function getViewFromPath(pathname) {
   if (pathname === "/overrides") return "overrides";
   if (pathname === "/premium") return "premium";
   if (pathname === "/custom-games") return "custom-games";
+  if (pathname === "/custom-game-indexing") return "custom-game-indexing";
   if (pathname === "/premium/activations") return "premium-activations";
   if (pathname === "/polls") return "polls";
   if (pathname === "/announcements") return "announcements";

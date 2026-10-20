@@ -9,6 +9,7 @@ import UsageBiPage from "./pages/UsageBiPage";
 import AnnouncementsPage from "./pages/AnnouncementsPage";
 import HomePage from "./pages/HomePage";
 import CustomGamesPage from "./pages/CustomGamesPage";
+import CustomGameIndexingPage from "./pages/CustomGameIndexingPage";
 import ReleaseNotesPage from "./pages/ReleaseNotesPage";
 import PartnersPage from "./pages/PartnersPage";
 import AuditPage from "./pages/AuditPage";
@@ -2628,6 +2629,7 @@ function App() {
         <div hidden={view !== "custom-games"}>
           <CustomGamesPage apiRequest={apiRequest} apiUpload={apiUpload} notify={setToast} />
         </div>
+        {view === "custom-game-indexing" && <CustomGameIndexingPage apiRequest={apiRequest} notify={setToast} />}
         {view === "premium-activations" && (
           <PremiumActivationsPage
             activations={premiumActivations}

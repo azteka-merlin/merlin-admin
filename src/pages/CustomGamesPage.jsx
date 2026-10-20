@@ -2,10 +2,12 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import Modal from "../components/Modal";
 import { runCustomGameFolderUpload, discardFolderUpload } from "../utils/custom-game-folder-upload";
 import { loadUploadCheckpoint, deleteUploadCheckpoint, listUploadCheckpoints } from "../utils/custom-game-upload-store";
+import { customGameMetadata, appendCustomGameMetadata } from "../utils/custom-game-metadata";
 
 const EMPTY = {
   id: null, name: "", adminNote: "", adminNotes: { en: "", es: "", fr: "", de: "" }, executablePath: "",
   archiveKey: "", archiveSize: 0, packageType: "zip", originalPackageType: null,
+  origin: "native", repositoryUrl: "", discordUrl: "", protectedPaths: [], versionLabel: "", trackedReleaseTag: "",
   imagePositionX: 50, imagePositionY: 50, imageZoom: 1, published: false, image: null, zip: null, folderFiles: [],
 };
 
@@ -182,6 +184,9 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
     if (draft.published && draft.packageType === "zip" && !draft.zip && !usingExistingPackage) return notify("Escolha o ZIP do jogo antes de publicar.");
     if (draft.published && draft.packageType === "folder" && !draft.folderFiles.length && !usingExistingPackage) return notify("Escolha uma pasta do jogo antes de publicar.");
     if (executablePath && !/\.exe$/i.test(executablePath)) return notify("O caminho para Jogar deve terminar em .exe.");
+    let metadata;
+    try { metadata = customGameMetadata(draft); }
+    catch (error) { return notify(error.message); }
     setBusy(true);
     let uploadedPackage = null;
     let saved = false;
@@ -204,6 +209,7 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
         if (draft.image) initial.set("image", draft.image);
         initial.set("packageType", "folder");
         initial.set("published", "false");
+        appendCustomGameMetadata(initial, metadata);
         try { await apiRequest("/panel-api/custom-games", { method: "POST", mutate: true, body: initial }); }
         catch (error) {
           const current = await apiRequest("/panel-api/custom-games");
@@ -232,6 +238,7 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
       body.set("imagePositionY", String(draft.imagePositionY));
       body.set("imageZoom", String(draft.imageZoom));
       body.set("published", String(draft.published));
+      appendCustomGameMetadata(body, metadata);
       if (draft.image) body.set("image", draft.image);
       await apiRequest(savedGameId ? `/panel-api/custom-games/${savedGameId}` : "/panel-api/custom-games", {
         method: savedGameId ? "PUT" : "POST", mutate: true, body,
@@ -325,7 +332,7 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
       {loading ? <div className="empty-state"><h3>Carregando jogos…</h3></div> : shown.length ? <div className="custom-games-admin-grid">{shown.map(game =>
         <article className="custom-games-admin-card" key={game.id}>
           <div className="custom-games-admin-image">{game.imageVersion ? <img src={`/panel-api/custom-games/${game.id}/image?v=${encodeURIComponent(game.imageVersion)}`} alt="" style={{ objectPosition: `${game.imagePositionX}% ${game.imagePositionY}%`, transform: `scale(${game.imageZoom || 1})`, transformOrigin: `${game.imagePositionX}% ${game.imagePositionY}%` }} /> : <span>Sem imagem</span>}</div>
-          <div><h2>{game.name || "Rascunho sem nome"}</h2><p>{game.archiveKey ? `${prettySize(game.archiveSize)} · ${game.packageType === "folder" ? "Pasta" : "ZIP"}` : "Pacote pendente"} · {game.executablePath ? "Botão Jogar ativo" : "Sem botão Jogar"}</p><span className={`badge ${game.published ? "badge--emerald" : "badge--muted"}`}>{game.published ? "Publicado" : "Rascunho"}</span></div>
+          <div><h2>{game.name || "Rascunho sem nome"}</h2><p>{game.archiveKey ? `${prettySize(game.archiveSize)} · ${game.packageType === "folder" ? "Pasta" : "ZIP"}` : "Pacote pendente"} · {game.executablePath ? "Botão Jogar ativo" : "Sem botão Jogar"}</p><p>{game.origin === "port" ? "Port" : "Nativo"}{game.versionLabel ? ` · ${game.versionLabel}` : ""}</p><div className="custom-games-admin-badges"><span className={`badge ${game.published ? "badge--emerald" : "badge--muted"}`}>{game.published ? "Publicado" : "Rascunho"}</span>{game.upstreamUpdateAvailable && <span className="badge badge--warning">Nova release{game.upstreamRelease?.tag ? `: ${game.upstreamRelease.tag}` : ""}</span>}{game.upstreamCheckError && <span className="badge badge--muted">Consulta de releases indisponível</span>}</div>{game.upstreamUpdateAvailable && game.upstreamRelease?.url && <a className="custom-games-admin-release-link" href={game.upstreamRelease.url} target="_blank" rel="noreferrer">Ver release do port ↗</a>}</div>
           <div className="custom-games-admin-actions"><button className="button button--ghost button--sm" onClick={() => { setUploadError(""); setDraft(makeDraft(game)); }}>Editar</button><button className="button button--danger button--soft button--sm" onClick={() => remove(game)}>Excluir</button></div>
         </article>)}</div> : <div className="empty-state"><h3>Nenhum jogo cadastrado</h3><p>Crie um jogo para começar.</p></div>}
     </section>
@@ -334,6 +341,19 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
         {uploadError && <p className="custom-games-admin-error" role="alert">{uploadError}</p>}
         {pendingUpload && !busy && <div className="empty-state"><p>{pendingUpload.manifestKey ? "O envio está concluído. Salve o jogo para vincular os arquivos." : "Há um envio preservado. Selecione a mesma pasta e salve para continuar de onde parou."}</p><button type="button" className="button button--ghost button--sm" onClick={() => discardPendingUpload(draft.gameId)}>Descartar envio pendente</button></div>}
         <label className="field"><span>Nome</span><input maxLength="120" value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} /></label>
+        <div className="custom-games-admin-metadata-grid">
+          <label className="field"><span>Origem</span><select value={draft.origin || "native"} onChange={e => setDraft(current => ({ ...current, origin: e.target.value }))}><option value="native">Nativo</option><option value="port">Port</option></select></label>
+          <label className="field"><span>Versão publicada (opcional)</span><input maxLength="120" placeholder="1.2.0" value={draft.versionLabel || ""} onChange={e => setDraft(current => ({ ...current, versionLabel: e.target.value }))} /></label>
+        </div>
+        {draft.origin === "port" && <>
+          <label className="field"><span>Repositório GitHub (opcional)</span><input type="url" maxLength="500" placeholder="https://github.com/autor/projeto" value={draft.repositoryUrl || ""} onChange={e => setDraft(current => ({ ...current, repositoryUrl: e.target.value }))} /><small>O painel avisa quando sair uma release. Envie e publique o pacote atualizado para disponibilizá-lo no Launcher.</small></label>
+          <label className="field"><span>Discord do port (opcional)</span><input type="url" maxLength="500" placeholder="https://discord.gg/convite" value={draft.discordUrl || ""} onChange={e => setDraft(current => ({ ...current, discordUrl: e.target.value }))} /></label>
+          <label className="field"><span>Tag da release incluída no pacote (opcional)</span><input maxLength="120" placeholder={draft.upstreamRelease?.tag || "v1.2.0"} value={draft.trackedReleaseTag || ""} onChange={e => setDraft(current => ({ ...current, trackedReleaseTag: e.target.value }))} /><small>Informe a tag correspondente aos arquivos que você está publicando.</small></label>
+          {draft.upstreamCheckError && <p className="field-grid__note" role="status">A consulta de releases está indisponível. Atualize o catálogo para tentar novamente.</p>}
+          {draft.upstreamRelease && !draft.upstreamUpdateAvailable && <p className="field-grid__note">Release mais recente: <a href={draft.upstreamRelease.url} target="_blank" rel="noreferrer">{draft.upstreamRelease.tag} ↗</a></p>}
+          {draft.upstreamUpdateAvailable && <div className="notice notice--warning"><strong>Nova release disponível{draft.upstreamRelease?.tag ? `: ${draft.upstreamRelease.tag}` : ""}</strong><p>Prepare o pacote com os arquivos do port e publique a nova versão neste cadastro.</p>{draft.upstreamRelease?.url && <a href={draft.upstreamRelease.url} target="_blank" rel="noreferrer">Abrir release no GitHub ↗</a>}</div>}
+        </>}
+        <label className="field"><span>Caminhos preservados na atualização (opcional)</span><textarea rows="3" maxLength="5000" placeholder={draft.origin === "port" ? "user\nsaves\nsettings.ini" : "saves\nsettings.ini"} value={(draft.protectedPaths || []).filter(path => draft.origin !== "port" || path.toLocaleLowerCase() !== "game").join("\n")} onChange={e => { const paths = e.target.value.split(/\r?\n/); setDraft(current => ({ ...current, protectedPaths: paths })); }} /><small>Um caminho relativo por linha. Essas pastas e arquivos mantêm os dados locais durante a atualização.{draft.origin === "port" ? " A pasta game sempre é preservada nos ports." : ""}</small></label>
         <label className="field"><span>Anotação / tutorial (opcional)</span><textarea rows="4" maxLength="5000" value={draft.adminNote} onChange={e => setDraft({ ...draft, adminNote: e.target.value })} /><small>Se houver anotação, traduza-a abaixo antes de publicar.</small></label>
         {Object.entries({ en: "Inglês", es: "Espanhol", fr: "Francês", de: "Alemão" }).map(([language, label]) =>
           <label className="field" key={language}><span>Anotação em {label} (opcional)</span><textarea rows="2" maxLength="5000" value={draft.adminNotes?.[language] || ""} onChange={e => setDraft(current => ({ ...current, adminNotes: { ...current.adminNotes, [language]: e.target.value } }))} /></label>)}
