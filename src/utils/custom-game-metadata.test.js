@@ -2,9 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { customGameMetadata, appendCustomGameMetadata } from "./custom-game-metadata.js";
 
-test("ports always protect game and normalize Windows paths without duplicates", () => {
+test("ports leave game controlled by package contents and normalize explicit protected paths", () => {
   const metadata = customGameMetadata({ origin: "port", protectedPaths: ["Game/", "user\\saves", "USER/saves", "settings.ini"] });
-  assert.deepEqual(metadata.protectedPaths, ["game", "user/saves", "settings.ini"]);
+  assert.deepEqual(metadata.protectedPaths, ["user/saves", "settings.ini"]);
 });
 
 test("protected paths cannot escape or target the installation root", () => {
@@ -38,7 +38,7 @@ test("Discord metadata accepts invitation links and rejects other destinations b
 test("metadata form encodes preservation paths as JSON", () => {
   const body = new FormData();
   appendCustomGameMetadata(body, customGameMetadata({ origin: "port", versionLabel: "v2" }));
-  assert.equal(body.get("protectedPaths"), '["game"]');
+  assert.equal(body.get("protectedPaths"), '[]');
   assert.equal(body.get("origin"), "port");
   assert.equal(body.get("versionLabel"), "v2");
 });

@@ -9,11 +9,12 @@ Informe em **Tag da release incluída no pacote** a tag que corresponde aos
 arquivos enviados. A release do repositório precisa ser preparada, enviada e
 publicada no cadastro antes de ficar disponível aos clientes.
 
-Uma nova versão pode ser enviada como ZIP completo ou pasta completa. O
+Uma nova versão pode ser enviada como ZIP ou pasta. O
 Launcher compara o manifesto instalado com o novo para baixar os arquivos
 necessários. Os caminhos preservados são relativos à instalação, um por linha;
-use-os para saves e configurações locais. A pasta `game` sempre é preservada
-durante a atualização de um port.
+use-os para saves e configurações locais. Em ports, a pasta `game` é atualizada
+quando consta do novo pacote; quando não consta, permanece intocada. Arquivos
+extras não catalogados não são removidos automaticamente.
 
 ## Fila de indexação
 

@@ -23,9 +23,11 @@ export function customGameMetadata(draft) {
   }
   const protectedPaths = [];
   const paths = Array.isArray(draft.protectedPaths) ? draft.protectedPaths : String(draft.protectedPaths || "").split(/\r?\n/);
-  for (const raw of [...(port ? ["game"] : []), ...paths]) {
+  for (const raw of paths) {
     const path = String(raw || "").trim().replace(/\\/g, "/").replace(/\/+$/, "");
     if (!path) continue;
+    // For ports, the presence of game/ in the new package controls replacement.
+    if (port && path.toLocaleLowerCase("en-US") === "game") continue;
     const segments = path.split("/");
     if (path.length > 500 || path.startsWith("/") || segments.length > 32 || /[\x00-\x1f:*?"<>|]/.test(path) ||
       segments.some(part => !part || part === "." || part === ".." || /[. ]$/.test(part) ||
