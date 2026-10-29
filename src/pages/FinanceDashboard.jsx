@@ -100,3 +100,40 @@ export function FinanceSubscribers({ dashboard, loading, error, refresh, categor
     </section>}
   </div>;
 }
+
+export function FinanceLifecycle({ dashboard, loading, error, refresh, periodDays, setPeriodDays }) {
+  const lifecycle = dashboard?.lifecycle;
+  const distribution = lifecycle?.retention?.paidPeriodDistribution;
+  const periodLabel = periodDays === 365 ? "12 meses" : `${periodDays} dias`;
+  return <div className="finance-content" id="payments-lifecycle-panel" role="tabpanel" aria-labelledby="payments-lifecycle-tab">
+    <div className="finance-toolbar">
+      <label className="field-shell"><span>Janela para churn e retorno</span><select value={periodDays} onChange={(event) => setPeriodDays(Number(event.target.value))}><option value={30}>Últimos 30 dias</option><option value={90}>Últimos 90 dias</option><option value={365}>Últimos 12 meses</option></select></label>
+      <button className="button button--ghost button--sm" onClick={refresh} disabled={loading}>{loading ? "Atualizando..." : "Atualizar dados"}</button>
+    </div>
+    {error && <div className="billing-mail-error" role="alert">{error}</div>}
+    {!dashboard && loading ? <div className="empty-state"><h3>Carregando indicadores</h3><p>Conferindo períodos pagos, vencimentos e reativações.</p></div> : lifecycle && <>
+      <p className="finance-asof">Atualizado em {formatDateTimeBrt(dashboard.generatedAt)} · contagens de licenças, não de pessoas únicas</p>
+      <section className="panel finance-panel">
+        <div className="section-heading"><div><p className="eyebrow">1 · Retenção</p><h2>Quantos períodos pagos cada cliente completou</h2></div></div>
+        <p className="finance-note">Mostra licenças recorrentes que continuam ativas, agrupadas pelo número de cobranças de período confirmadas. Três períodos = contratação inicial + duas renovações. Cobranças de upgrade não contam como renovação.</p>
+        <div className="finance-lifecycle-buckets">
+          <article><span>1 período</span><strong>{distribution?.onePeriod ?? 0}</strong><small>Ainda sem renovação confirmada</small></article>
+          <article><span>2 períodos</span><strong>{distribution?.twoPeriods ?? 0}</strong><small>Uma renovação confirmada</small></article>
+          <article><span>3 períodos</span><strong>{distribution?.threePeriods ?? 0}</strong><small>Duas renovações confirmadas</small></article>
+          <article><span>4 ou mais</span><strong>{distribution?.fourOrMorePeriods ?? 0}</strong><small>Três ou mais renovações</small></article>
+        </div>
+        <p className="finance-note">Base classificada: {lifecycle.retention.activeRecurringLicenses} licenças ativas. {lifecycle.retention.unclassifiedCardLicenses > 0 && `${lifecycle.retention.unclassifiedCardLicenses} licença(s) com faturas Stripe antigas sem motivo registrado foram excluídas dos grupos para não contar upgrades como renovações. `}Pagamentos Stripe só entram quando a fatura identifica contratação ou ciclo; no Pix, entram pagamentos recorrentes confirmados.</p>
+      </section>
+      <section className="panel finance-panel">
+        <div className="section-heading"><div><p className="eyebrow">2 · Churn</p><h2>Acessos pagos que expiraram</h2></div><span className="finance-count">{periodLabel}</span></div>
+        <div className="finance-lifecycle-highlight"><strong>{lifecycle.churn.expiredPaidLicenses}</strong><span>licenças recorrentes com vencimento no período, incluindo vencimentos anteriores capturados quando o cliente reativou</span></div>
+        <p className="finance-note">Conta uma licença uma vez quando o acesso pago vence e existe histórico de pagamento recorrente. Não inclui teste ou licença vitalícia.</p>
+      </section>
+      <section className="panel finance-panel">
+        <div className="section-heading"><div><p className="eyebrow">3 · Retorno</p><h2>Clientes que voltaram a pagar após expirar</h2></div><span className="finance-count">{periodLabel}</span></div>
+        <div className="finance-lifecycle-highlight"><strong>{lifecycle.returned.paidAgainAfterExpiry}</strong><span>licenças reativadas com novo pagamento confirmado</span></div>
+        <p className="finance-note">Exige pagamento anterior, licença já expirada no início da nova compra e pagamento atual confirmado. Conversão de acesso gratuito para pago não entra. Reativações anteriores a este registro de evidência não são inferidas.</p>
+      </section>
+    </>}
+  </div>;
+}

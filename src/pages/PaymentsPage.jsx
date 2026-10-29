@@ -1,6 +1,6 @@
 import React from "react";
 import { formatDateTime, maskTechnicalValue } from "../lib/admin-ui";
-import { FinanceOverview, FinanceSubscribers } from "./FinanceDashboard";
+import { FinanceLifecycle, FinanceOverview, FinanceSubscribers } from "./FinanceDashboard";
 
 function formatMoney(amountCents, currency) {
   if (typeof amountCents !== "number") return "--";
@@ -159,11 +159,13 @@ export default function PaymentsPage({
       <div className="billing-mail-tabs finance-tabs" role="tablist" aria-label="Seções de pagamentos">
         <button type="button" id="payments-summary-tab" role="tab" aria-controls="payments-summary-panel" aria-selected={tab === "summary"} className={tab === "summary" ? "is-active" : ""} onClick={() => setTab("summary")}>Resumo financeiro</button>
         <button type="button" id="payments-subscribers-tab" role="tab" aria-controls="payments-subscribers-panel" aria-selected={tab === "subscribers"} className={tab === "subscribers" ? "is-active" : ""} onClick={() => setTab("subscribers")}>Assinantes</button>
+        <button type="button" id="payments-lifecycle-tab" role="tab" aria-controls="payments-lifecycle-panel" aria-selected={tab === "lifecycle"} className={tab === "lifecycle" ? "is-active" : ""} onClick={() => setTab("lifecycle")}>Retenção e churn</button>
         <button type="button" id="payments-transactions-tab" role="tab" aria-controls="payments-transactions-panel" aria-selected={tab === "transactions"} className={tab === "transactions" ? "is-active" : ""} onClick={() => setTab("transactions")}>Transações</button>
       </div>
 
       {tab === "summary" && <FinanceOverview dashboard={visibleDashboard} loading={loadingDashboard} error={dashboardError} periodDays={periodDays} setPeriodDays={setPeriodDays} refresh={() => loadDashboard()} showSubscribers={showSubscribers} />}
       {tab === "subscribers" && <FinanceSubscribers dashboard={visibleDashboard} loading={loadingDashboard} error={dashboardError} refresh={() => loadDashboard()} category={payerCategory} setCategory={setPayerCategory} openLicense={openLicense} />}
+      {tab === "lifecycle" && <FinanceLifecycle dashboard={visibleDashboard} loading={loadingDashboard} error={dashboardError} refresh={() => loadDashboard()} periodDays={periodDays} setPeriodDays={setPeriodDays} />}
       {tab === "transactions" && <div className="finance-content" id="payments-transactions-panel" role="tabpanel" aria-labelledby="payments-transactions-tab">
 
       <section className="panel panel--audit">

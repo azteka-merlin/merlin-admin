@@ -5726,6 +5726,12 @@ h3 {
 .finance-license__details span { color: var(--muted); font-size: .78rem; }
 .finance-license__details strong { font-size: .9rem; overflow-wrap: anywhere; }
 .finance-license > .button { justify-self: start; }
+.finance-lifecycle-buckets { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.finance-lifecycle-buckets > article { display: grid; gap: 6px; min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.025); }
+.finance-lifecycle-buckets span, .finance-lifecycle-buckets small { color: var(--muted); font-size: .82rem; line-height: 1.4; }
+.finance-lifecycle-buckets strong, .finance-lifecycle-highlight strong { font-size: clamp(1.7rem, 6vw, 2.4rem); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.finance-lifecycle-highlight { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.025); }
+.finance-lifecycle-highlight span { flex: 1 1 220px; color: var(--muted); line-height: 1.5; }
 @media (min-width: 520px) {
   .finance-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .finance-toolbar { display: flex; justify-content: space-between; }
@@ -5736,10 +5742,12 @@ h3 {
   .finance-split { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .finance-filters { grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(170px, .8fr)); }
   .finance-license__details { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .finance-lifecycle-buckets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (min-width: 1100px) {
   .finance-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .finance-license-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .finance-lifecycle-buckets { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 .custom-games-admin-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; margin-top: 20px; }
 .custom-games-admin-card { display: flex; flex-direction: column; gap: 12px; padding: 12px; border: 1px solid var(--border, #34304b); border-radius: 14px; background: rgba(18, 19, 31, .8); }
