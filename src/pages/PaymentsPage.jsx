@@ -1,5 +1,6 @@
 import React from "react";
 import { formatDateTime, maskTechnicalValue } from "../lib/admin-ui";
+import { FinanceOverview, FinanceSubscribers } from "./FinanceDashboard";
 
 function formatMoney(amountCents, currency) {
   if (typeof amountCents !== "number") return "--";
@@ -87,6 +88,8 @@ function eventLabel(eventType) {
 }
 
 export default function PaymentsPage({
+  apiRequest,
+  openLicense,
   paymentSearch,
   setPaymentSearch,
   paymentLogs,
@@ -99,17 +102,69 @@ export default function PaymentsPage({
   onSyncLicense,
   busyAction
 }) {
+  const [tab, setTab] = React.useState("summary");
+  const [periodDays, setPeriodDays] = React.useState(30);
+  const [dashboard, setDashboard] = React.useState(null);
+  const [loadingDashboard, setLoadingDashboard] = React.useState(false);
+  const [dashboardError, setDashboardError] = React.useState("");
+  const [payerCategory, setPayerCategory] = React.useState("paid");
+  const dashboardRequest = React.useRef(0);
+  const transactionsLoaded = React.useRef(false);
+
+  async function loadDashboard(days = periodDays) {
+    const requestId = ++dashboardRequest.current;
+    setLoadingDashboard(true);
+    setDashboardError("");
+    try {
+      const payload = await apiRequest(`/panel-api/payments/dashboard?days=${days}`);
+      if (requestId === dashboardRequest.current) setDashboard(payload);
+    } catch (error) {
+      if (requestId === dashboardRequest.current) setDashboardError(error.message || "Não foi possível carregar o resumo financeiro.");
+    } finally {
+      if (requestId === dashboardRequest.current) setLoadingDashboard(false);
+    }
+  }
+
+  React.useEffect(() => {
+    loadDashboard(periodDays);
+    return () => { dashboardRequest.current += 1; };
+  }, [periodDays]);
+
+  React.useEffect(() => {
+    if (tab === "transactions" && !transactionsLoaded.current) {
+      transactionsLoaded.current = true;
+      loadPaymentLogs();
+    }
+  }, [tab]);
+
+  function showSubscribers(category) {
+    setPayerCategory(category);
+    setTab("subscribers");
+  }
+
+  const visibleDashboard = dashboard?.periodDays === periodDays ? dashboard : null;
+
   return (
     <section className="page page--payments">
       <div className="page__header page__header--split">
         <div>
           <p className="eyebrow">Pagamentos</p>
-          <h1>Acompanhe compras, webhooks e reconcilie pagamentos quando precisar.</h1>
+          <h1>Receita, assinantes e transações do Merlin.</h1>
         </div>
-        <button className="button button--ghost" onClick={loadPaymentLogs} disabled={loadingPaymentLogs}>
+        {tab === "transactions" && <button className="button button--ghost" onClick={loadPaymentLogs} disabled={loadingPaymentLogs}>
           {loadingPaymentLogs ? "Atualizando..." : "Atualizar pagamentos"}
-        </button>
+        </button>}
       </div>
+
+      <div className="billing-mail-tabs finance-tabs" role="tablist" aria-label="Seções de pagamentos">
+        <button type="button" id="payments-summary-tab" role="tab" aria-controls="payments-summary-panel" aria-selected={tab === "summary"} className={tab === "summary" ? "is-active" : ""} onClick={() => setTab("summary")}>Resumo financeiro</button>
+        <button type="button" id="payments-subscribers-tab" role="tab" aria-controls="payments-subscribers-panel" aria-selected={tab === "subscribers"} className={tab === "subscribers" ? "is-active" : ""} onClick={() => setTab("subscribers")}>Assinantes</button>
+        <button type="button" id="payments-transactions-tab" role="tab" aria-controls="payments-transactions-panel" aria-selected={tab === "transactions"} className={tab === "transactions" ? "is-active" : ""} onClick={() => setTab("transactions")}>Transações</button>
+      </div>
+
+      {tab === "summary" && <FinanceOverview dashboard={visibleDashboard} loading={loadingDashboard} error={dashboardError} periodDays={periodDays} setPeriodDays={setPeriodDays} refresh={() => loadDashboard()} showSubscribers={showSubscribers} />}
+      {tab === "subscribers" && <FinanceSubscribers dashboard={visibleDashboard} loading={loadingDashboard} error={dashboardError} refresh={() => loadDashboard()} category={payerCategory} setCategory={setPayerCategory} openLicense={openLicense} />}
+      {tab === "transactions" && <div className="finance-content" id="payments-transactions-panel" role="tabpanel" aria-labelledby="payments-transactions-tab">
 
       <section className="panel panel--audit">
         <div className="filters filters--audit">
@@ -306,6 +361,7 @@ export default function PaymentsPage({
           </div>
         )}
       </section>
+      </div>}
     </section>
   );
 }

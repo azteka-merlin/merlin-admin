@@ -1684,9 +1684,6 @@ function App() {
     if (auth && view === "partners") {
       loadPartners();
     }
-    if (auth && view === "payments") {
-      loadPaymentLogs();
-    }
     if (auth && view === "usage") {
       loadUsageAnalytics();
     }
@@ -2695,6 +2692,8 @@ function App() {
         )}
         {view === "payments" && (
           <PaymentsPage
+            apiRequest={apiRequest}
+            openLicense={(licenseId) => { navigate("licenses"); openLicense(licenseId); }}
             paymentSearch={paymentSearch}
             setPaymentSearch={setPaymentSearch}
             paymentLogs={paymentLogs}
