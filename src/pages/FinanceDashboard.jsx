@@ -13,6 +13,7 @@ const CATEGORIES = [
 
 const CATEGORY_LABELS = Object.fromEntries(CATEGORIES);
 const PERIOD_LABELS = { monthly: "Mensal", semiannual: "Semestral", annual: "Anual", lifetime: "Vitalício" };
+const RECEIPT_PERIODS = [["monthly", "Mensal"], ["semiannual", "Semestral"], ["annual", "Anual"]];
 
 function money(cents) {
   if (typeof cents !== "number") return "Valor indisponível";
@@ -54,16 +55,44 @@ export function FinanceOverview({ dashboard, loading, error, periodDays, setPeri
       </section>
       <section className="panel finance-panel">
         <div className="section-heading"><div><p className="eyebrow">Próximos 30 dias</p><h2>Previsão de renovação</h2></div></div>
-        <div className="finance-forecast">
-          <div><span>Cartão automático · estimativa</span><strong>{money(summary.nextCardCents)}</strong><small>{summary.nextCardCount} próximas cobranças no período</small></div>
-          <div><span>Pix · potencial, não garantido</span><strong>{money(summary.nextPixPotentialCents)}</strong><small>{summary.nextPixPotentialCount} licenças com vencimento no período</small></div>
+        <div className="finance-projection-periods">
+          {RECEIPT_PERIODS.map(([period, label]) => {
+            const projection = summary.nextRenewalsByPeriod?.[period] || {};
+            return <article className="finance-period-card" key={period}>
+              <span className="finance-period-title">{label}</span>
+              <div className="finance-period-row"><span>Cartão automático · estimativa</span><b>{money(projection.cardCents ?? 0)}</b></div>
+              <small>{projection.cardCount ?? 0} cobranças previstas</small>
+              <div className="finance-period-row"><span>Pix · potencial, não garantido</span><b>{money(projection.pixPotentialCents ?? 0)}</b></div>
+              <small>{projection.pixPotentialCount ?? 0} licenças vencem no período</small>
+            </article>;
+          })}
         </div>
-        <p className="finance-note">Estimativa pelo preço de tabela atual para o próximo vencimento, não uma fatura emitida. Descontos, impostos e mudanças de plano podem alterar o valor. {summary.unpricedRenewals > 0 && `${summary.unpricedRenewals} renovação(ões) sem preço disponível ficaram fora da soma. `}{summary.pendingChangeRenewals > 0 && `${summary.pendingChangeRenewals} com alteração pendente ficaram fora da soma.`}</p>
+        <p className="finance-note">Total estimado no cartão: {money(summary.nextCardCents)} · potencial via Pix: {money(summary.nextPixPotentialCents)}. Cálculo pelo preço de tabela atual para o próximo vencimento, não uma fatura emitida; Pix depende de o cliente gerar e pagar. Descontos, impostos e mudanças de plano podem alterar o valor. {summary.unpricedRenewals > 0 && `${summary.unpricedRenewals} renovação(ões) sem preço disponível ficaram fora da soma. `}{summary.pendingChangeRenewals > 0 && `${summary.pendingChangeRenewals} com alteração pendente ficaram fora da soma.`}</p>
       </section>
       <section className="panel finance-panel">
         <div className="section-heading"><div><p className="eyebrow">Caixa registrado</p><h2>Pagamentos confirmados</h2></div></div>
         <div className="finance-forecast"><div><span>Stripe</span><strong>{money(summary.receivedStripeCents)}</strong><small>Inclui pagamentos avulsos do provedor</small></div><div><span>Mercado Pago Pix</span><strong>{money(summary.receivedPixCents)}</strong><small>Pagamentos confirmados no período</small></div></div>
-        <p className="finance-note">Valores brutos em BRL registrados como pagos; registros reembolsados são excluídos. Não representa lucro líquido, taxas dos provedores ou reconhecimento contábil.</p>
+        <div>
+          <p className="finance-period-title">Por periodicidade do plano</p>
+          <div className="finance-period-breakdown">
+            {RECEIPT_PERIODS.map(([period, label]) => {
+              const received = summary.receivedByPeriod?.[period] || {};
+              return <article className="finance-period-card" key={period}>
+                <span>{label}</span><strong>{money(received.amountCents ?? 0)}</strong>
+                <small>{received.paymentCount ?? 0} pagamentos no período selecionado</small>
+              </article>;
+            })}
+            <article className="finance-period-card">
+              <span>Vitalício / avulso</span><strong>{money(summary.receivedByPeriod?.lifetime?.amountCents ?? 0)}</strong>
+              <small>{summary.receivedByPeriod?.lifetime?.paymentCount ?? 0} pagamentos</small>
+            </article>
+            {(summary.receivedByPeriod?.other?.amountCents ?? 0) > 0 && <article className="finance-period-card">
+              <span>Sem periodicidade identificada</span><strong>{money(summary.receivedByPeriod.other.amountCents)}</strong>
+              <small>{summary.receivedByPeriod.other.paymentCount} pagamentos; não classificados como mensal, semestral ou anual</small>
+            </article>}
+          </div>
+        </div>
+        <p className="finance-note">O valor mensal, semestral ou anual representa o total pago por planos daquela periodicidade na data de cada pagamento — não uma média mensal. Vitalícios/avulsos ficam à parte. Valores brutos registrados como pagos; não representam lucro líquido nem descontam taxas dos provedores. Registros reembolsados são excluídos.</p>
       </section>
     </>}
   </div>;

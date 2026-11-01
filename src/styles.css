@@ -5713,6 +5713,13 @@ h3 {
 .finance-split button:hover { border-color: var(--violet-2); }
 .finance-split strong, .finance-forecast strong { font-size: 1.55rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .finance-split span, .finance-forecast span, .finance-forecast small { color: var(--muted); font-size: .82rem; }
+.finance-period-title { margin: 0 0 10px; color: var(--muted); font-size: .82rem; font-weight: 700; }
+.finance-period-breakdown, .finance-projection-periods { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.finance-period-card { display: grid; gap: 7px; min-width: 0; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.025); }
+.finance-period-card > span, .finance-period-card > small, .finance-period-row > span { color: var(--muted); font-size: .8rem; line-height: 1.4; }
+.finance-period-card > strong { font-size: 1.35rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.finance-period-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.finance-period-row b { flex: 0 0 auto; font-size: .92rem; font-variant-numeric: tabular-nums; }
 .finance-filters { grid-template-columns: minmax(0, 1fr); margin: 0; }
 .finance-count { color: var(--muted); font-size: .82rem; }
 .finance-license-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
@@ -5737,9 +5744,11 @@ h3 {
   .finance-toolbar { display: flex; justify-content: space-between; }
   .finance-toolbar .field-shell { min-width: 200px; }
   .finance-forecast { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .finance-period-breakdown { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (min-width: 760px) {
   .finance-split { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .finance-projection-periods { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .finance-filters { grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(170px, .8fr)); }
   .finance-license__details { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .finance-lifecycle-buckets { grid-template-columns: repeat(2, minmax(0, 1fr)); }

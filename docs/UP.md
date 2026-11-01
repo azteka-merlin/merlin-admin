@@ -83,11 +83,13 @@ npm run deploy-stage:panel
 
 ## Post-Deploy Checks
 
-- `https://api-merlin.com/login` opens the login screen.
+- After the domain split is deployed, `https://admin.api-merlin.com/login` opens the production login screen; staging uses `https://admin-staging.api-merlin.com/login`.
 - Unauthenticated admin routes redirect to login.
 - After login, screens load through `/panel-api/*`.
 - Override and update uploads work from the panel.
 - `https://api-merlin.com/api/health` still responds.
+- Existing browser sessions and push subscriptions belong to the old origin. Sign in and enable notifications again on the new Admin domain; an installed Admin web app must also be added again from that domain.
+- Confirm the R2 bucket CORS policy allows the new Admin origin before testing direct game uploads.
 - For an individual early-access release, verify one granted license and one non-granted license of the same tier: only the granted one may activate before the normal release window, while cooldowns, slots, and activation limits remain unchanged.
 
 ## Notes

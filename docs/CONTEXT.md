@@ -62,7 +62,7 @@ The API script `npm run deploy:panel` automates the production panel build, type
 - Public signup: configure public registration and recovery.
 - Updates: upload the Merlin installer and latest-version metadata.
 - Baixe e Jogue: publicar pacotes ZIP/pasta, classificar nativos e ports, acompanhar releases de ports e definir caminhos preservados.
-- Integridade dos jogos: acompanhar hashes por arquivo e tarefas de indexação processadas pelo serviço persistente da API; consulte `CUSTOM_GAMES.md`.
+- Integridade dos jogos: acompanhar hashes por arquivo e tarefas de indexação processadas por Cloudflare Queues e pelo consumer do Worker da API, com estado e checkpoints no R2; consulte `CUSTOM_GAMES.md`.
 
 ## Development Notes
 
