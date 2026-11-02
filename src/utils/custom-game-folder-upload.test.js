@@ -65,6 +65,11 @@ function fixture() {
 const files = () => [Object.assign(new Blob([new Uint8Array(1024 * 1024)]), { name: "data.bin", webkitRelativePath: "Game/data.bin", lastModified: 123 })];
 const prepareBundle = (entries, options) => createFolderBundle(entries, options.signal);
 
+test("folder selection explains an empty folder and reports the actual count above the limit", () => {
+  assert.throws(() => folderDescriptors([]), /não contém arquivos/);
+  assert.throws(() => folderDescriptors(new Array(200001)), /200\.001 arquivos.*limite é de 200\.000/);
+});
+
 test("folder upload retries a lost completion response without sending the object again", async () => {
   const gameId = crypto.randomUUID();
   const fake = fixture(); fake.loseComplete();
@@ -165,4 +170,13 @@ test("folder validation accepts a 30,000-file game manifest", () => {
     name: `file-${index}.bin`, size: 1, webkitRelativePath: `Bloodborne/file-${index}.bin`,
   }));
   assert.equal(folderDescriptors(entries).length, 30_000);
+});
+
+test("folder selection accepts exactly 200,000 distinct files and rejects 200,001", () => {
+  const files = Array.from({ length: 200000 }, (_, index) => ({
+    name: index + ".bin", webkitRelativePath: "Game/data/" + index + ".bin", size: 1
+  }));
+  assert.equal(folderDescriptors(files).length, 200000);
+  assert.throws(() => folderDescriptors([...files, { name: "extra.bin", webkitRelativePath: "Game/extra.bin", size: 1 }]),
+    /200\.001 arquivos.*limite é de 200\.000/);
 });

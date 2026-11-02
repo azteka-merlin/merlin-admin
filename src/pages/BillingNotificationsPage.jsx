@@ -1,4 +1,6 @@
 import React from "react";
+import PremiumInterestsPanel from "./PremiumInterestsPanel";
+import AdminTabs from "../components/AdminTabs";
 
 const ZONE = "America/Sao_Paulo";
 const STATUS = {
@@ -54,7 +56,7 @@ function Empty({ title, description }) {
   return <div className="empty-state"><h3>{title}</h3><p>{description}</p></div>;
 }
 
-export default function BillingNotificationsPage({ apiRequest, notify }) {
+function ExpirationNotifications({ apiRequest, notify }) {
   const [date, setDate] = React.useState(localDate);
   const [data, setData] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
@@ -124,11 +126,11 @@ export default function BillingNotificationsPage({ apiRequest, notify }) {
   const dateMin = offsetDate(today, -30);
   const dateMax = offsetDate(today, 14);
 
-  return <section className="page billing-mail-page">
+  return <section className="billing-mail-page">
     <div className="page__header page__header--split">
       <div>
         <p className="eyebrow">Comunicação de cobrança</p>
-        <h1>Avisos por e-mail</h1>
+        <h2>Vencimentos</h2>
         <p>Veja quem deve receber, o motivo e o resultado de cada tentativa. Horários de Brasília. “Aceito” confirma o envio ao Resend, não a entrega na caixa de entrada.</p>
       </div>
       <button className="button button--ghost" onClick={() => refresh()} disabled={loading}>
@@ -200,5 +202,17 @@ export default function BillingNotificationsPage({ apiRequest, notify }) {
           </article>)}
       </section>}
     </>}
+  </section>;
+}
+
+export default function BillingNotificationsPage(props) {
+  const [section, setSection] = React.useState("billing");
+  return <section className="page communication-page">
+    <div className="page__header"><p className="eyebrow">Comunicação</p><h1>Avisos por e-mail</h1></div>
+    <AdminTabs id="communication" label="Tipos de avisos" value={section} onChange={setSection}
+      tabs={[{ value: "billing", label: "Vencimentos" }, { value: "wishlist", label: "Lista de desejos" }, { value: "premium-emails", label: "E-mails Premium" }]} />
+    <div id={`communication-panel-${section}`} role="tabpanel" aria-labelledby={`communication-tab-${section}`}>
+      {section === "billing" ? <ExpirationNotifications {...props} /> : <PremiumInterestsPanel {...props} mode={section} />}
+    </div>
   </section>;
 }

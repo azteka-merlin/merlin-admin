@@ -2275,6 +2275,7 @@ function App() {
               accessOuroEnabled: payload.accessOuroEnabled,
               featured: payload.featured,
               enabled: payload.enabled,
+              comingSoon: payload.comingSoon,
             }
           })
         : await apiRequest("/panel-api/premium/games", {
@@ -2303,6 +2304,22 @@ function App() {
     return runBusyAction(`release-premium-activation-${activationId}`, async () => {
       await apiRequest(`/panel-api/premium/activations/${activationId}/release`, { method: "POST", mutate: true });
       await loadPremiumActivations();
+    });
+  }
+
+  async function handleRetryPremiumActivation(activationId, confirmedFailure = false) {
+    return runBusyAction(`retry-premium-activation-${activationId}`, async () => {
+      const response = await apiRequest(`/panel-api/premium/activations/${activationId}/retry`, {
+        method: "POST", mutate: true, body: confirmedFailure ? { confirmedFailure: true } : {}
+      });
+      if (response?.retry) {
+        setPremiumActivations((current) => current.map((activation) => activation.id === activationId
+          ? { ...activation, retry: response.retry }
+          : activation));
+      }
+      // The grant is confirmed even if refreshing the full history loses connection.
+      await loadPremiumActivations().catch(() => {});
+      return response?.retry || null;
     });
   }
 
@@ -2637,6 +2654,7 @@ function App() {
             setStatusFilter={setPremiumActivationStatusFilter}
             loadActivations={loadPremiumActivations}
             releaseActivation={handleReleasePremiumActivation}
+            retryActivation={handleRetryPremiumActivation}
             busyAction={busyAction}
             notify={setToast}
           />

@@ -1,102 +1,7 @@
 ﻿import React, { useMemo, useRef, useState } from "react";
 import Modal from "../components/Modal";
 
-function createEmptyPremiumDraft() {
-  return {
-    mode: "create",
-    appId: "",
-    name: "",
-    coverUrl: "",
-    archiveKey: "",
-    installSubpath: "",
-    activationType: "steam_ticket",
-    launchExecutablePath: "",
-    activationLimit: "5",
-    activationCooldownDays: "",
-    accessBronzeEnabled: false,
-    accessPrataEnabled: false,
-    accessOuroEnabled: true,
-    featured: false,
-    enabled: false,
-  };
-}
-
-function createPremiumDraft(entry) {
-  if (!entry) {
-    return createEmptyPremiumDraft();
-  }
-
-  return {
-    mode: "edit",
-    appId: entry.appId,
-    name: entry.name || "",
-    coverUrl: entry.coverUrl || "",
-    archiveKey: entry.archiveKey || "",
-    installSubpath: entry.installSubpath || "",
-    activationType: entry.activationType || "steam_ticket",
-    launchExecutablePath: entry.launchExecutablePath || "",
-    activationLimit: String(entry.activationLimit || 5),
-    activationCooldownDays: entry.activationCooldownHours ? String(entry.activationCooldownHours / 24) : "",
-    accessBronzeEnabled: Boolean(entry.accessBronzeEnabled),
-    accessPrataEnabled: Boolean(entry.accessPrataEnabled),
-    accessOuroEnabled: entry.accessOuroEnabled !== false,
-    featured: Boolean(entry.featured),
-    enabled: Boolean(entry.enabled),
-  };
-}
-
-function normalizePremiumPayload(draft) {
-  const appId = String(draft.appId || "").trim();
-  if (!/^\d+$/.test(appId)) {
-    throw new Error("Informe um appId numerico valido.");
-  }
-
-  const activationLimit = Number(draft.activationLimit || 5);
-  if (!Number.isInteger(activationLimit) || activationLimit <= 0) {
-    throw new Error("Informe um limite de ativacoes valido.");
-  }
-
-  const activationCooldownDaysRaw = String(draft.activationCooldownDays || "").trim();
-  const activationCooldownDays = activationCooldownDaysRaw ? Number(activationCooldownDaysRaw) : null;
-  if (activationCooldownDays !== null && (!Number.isInteger(activationCooldownDays) || activationCooldownDays < 1)) {
-    throw new Error("Informe um cooldown de pelo menos 1 dia.");
-  }
-
-  const payload = {
-    appId,
-    activationLimit,
-    activationCooldownHours: activationCooldownDays === null ? null : activationCooldownDays * 24,
-    accessBronzeEnabled: Boolean(draft.accessBronzeEnabled),
-    accessPrataEnabled: Boolean(draft.accessPrataEnabled),
-    accessOuroEnabled: draft.accessOuroEnabled !== false,
-    featured: Boolean(draft.featured),
-    enabled: Boolean(draft.enabled),
-  };
-
-  const name = String(draft.name || "").trim();
-  const coverUrl = String(draft.coverUrl || "").trim();
-  const archiveKey = String(draft.archiveKey || "").trim();
-  const installSubpath = String(draft.installSubpath || "").trim();
-  const activationType = draft.activationType === "third_party" ? "third_party" : "steam_ticket";
-  const launchExecutablePath = String(draft.launchExecutablePath || "").trim();
-
-  if (activationType === "third_party" && !launchExecutablePath) {
-    throw new Error("Informe o executavel para ativacoes third-party.");
-  }
-
-  if (name) payload.name = name;
-  if (coverUrl) payload.coverUrl = coverUrl;
-  if (archiveKey) payload.archiveKey = archiveKey;
-  payload.activationType = activationType;
-  payload.launchExecutablePath = activationType === "third_party" ? launchExecutablePath : null;
-  if (draft.mode === "edit") {
-    payload.installSubpath = installSubpath || null;
-  } else if (installSubpath) {
-    payload.installSubpath = installSubpath;
-  }
-
-  return payload;
-}
+import { createEmptyPremiumDraft, createPremiumDraft, normalizePremiumPayload } from "../lib/premium-admin";
 
 export default function PremiumPage({
   premiumGames,
@@ -333,6 +238,7 @@ export default function PremiumPage({
                         <span className={`badge ${entry.enabled ? "badge--emerald" : "badge--muted"}`}>
                           {entry.enabled ? "Ativo" : "Oculto"}
                         </span>
+                        {entry.comingSoon && <span className="badge badge--info">Em breve · Lista de desejos</span>}
                         {entry.featured && <span className="badge badge--info">Destaque</span>}
                       </dd>
                     </div>
@@ -371,7 +277,7 @@ export default function PremiumPage({
                 Cancelar
               </button>
               <button className="button button--primary" onClick={handleSave} disabled={createBusy || uploadBusy}>
-                {createBusy ? "Salvando..." : draft.mode === "edit" ? "Salvar premium" : "Criar premium"}
+                {createBusy ? "Salvando..." : draft.wasComingSoon && !draft.comingSoon && draft.enabled ? "Salvar e avisar interessados" : draft.mode === "edit" ? "Salvar premium" : "Criar premium"}
               </button>
             </>
           }
@@ -404,12 +310,18 @@ export default function PremiumPage({
                   <span><strong>Exibir na aba Premium</strong><small>Deixa o jogo visível para os usuários elegíveis.</small></span>
                   <input type="checkbox" checked={draft.enabled} onChange={(event) => setDraft((current) => ({ ...current, enabled: event.target.checked }))} />
                 </label>
+                <label className="premium-toggle-card">
+                  <span><strong>Em breve / Lista de desejos</strong><small>Recebe interessados, sem liberar ativações. Desmarque quando estiver disponível.</small></span>
+                  <input type="checkbox" checked={draft.comingSoon} onChange={(event) => setDraft((current) => ({ ...current, comingSoon: event.target.checked }))} />
+                </label>
                 <label className="premium-toggle-card premium-toggle-card--featured">
                   <span><strong>Destacar no topo</strong><small>Destaques aparecem primeiro; o último marcado fica acima dos demais.</small></span>
                   <input type="checkbox" checked={draft.featured} onChange={(event) => setDraft((current) => ({ ...current, featured: event.target.checked }))} />
                 </label>
               </div>
             </section>
+
+            {draft.wasComingSoon && !draft.comingSoon && draft.enabled && <p className="premium-publish-note" role="note">Ao salvar como disponível, todos os interessados receberão um e-mail com os planos liberados naquele momento, mesmo quem ainda não tem acesso pelo próprio plano.</p>}
 
             <section className="premium-editor__section">
               <div className="premium-editor__section-heading">

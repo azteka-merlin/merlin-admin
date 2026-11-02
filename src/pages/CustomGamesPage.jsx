@@ -75,6 +75,37 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
   const [search, setSearch] = useState("");
   const [publishSelection, setPublishSelection] = useState([]);
   const [publishing, setPublishing] = useState(false);
+  const [tab, setTab] = useState("catalog");
+  const [rankingDays, setRankingDays] = useState(30);
+  const [rankingSort, setRankingSort] = useState("started");
+  const [ranking, setRanking] = useState(null);
+  const [rankingError, setRankingError] = useState("");
+  const [rankingPeriod, setRankingPeriod] = useState("30");
+  const [rankingCustomDays, setRankingCustomDays] = useState("30");
+  const [selectedGame, setSelectedGame] = useState(null);
+  const [people, setPeople] = useState(null);
+  const [peoplePage, setPeoplePage] = useState(1);
+  const [peopleError, setPeopleError] = useState("");
+  useEffect(() => {
+    if (tab !== "ranking") return;
+    let active = true;
+    setRanking(null);
+    setRankingError("");
+    apiRequest(`/panel-api/custom-games/download-ranking?days=${rankingDays}`)
+      .then(result => { if (active) setRanking(result.games || []); })
+      .catch(error => { if (active) setRankingError(error.message || "Não foi possível carregar o ranking."); });
+    return () => { active = false; };
+  }, [tab, rankingDays]);
+  useEffect(() => {
+    if (tab !== "ranking" || !selectedGame) return;
+    let active = true;
+    setPeople(null);
+    setPeopleError("");
+    apiRequest(`/panel-api/custom-games/${encodeURIComponent(selectedGame)}/downloads?days=${rankingDays}&page=${peoplePage}`)
+      .then(result => { if (active) setPeople(result); })
+      .catch(error => { if (active) setPeopleError(error.message || "Não foi possível carregar os clientes."); });
+    return () => { active = false; };
+  }, [tab, selectedGame, rankingDays, peoplePage]);
   const imageUrl = useMemo(() => {
     if (!draft) return "";
     if (draft.image) return URL.createObjectURL(draft.image);
@@ -196,6 +227,11 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
     if (draft.published && !gameName) return notify("Informe o nome do jogo antes de publicar.");
     if (draft.published && !draft.image && !draft.imageVersion) return notify("Escolha uma imagem para o card antes de publicar.");
     const pending = draft.packageType === "folder" ? await loadUploadCheckpoint(draft.gameId) : null;
+    if (draft.packageType === "folder" && draft.folderFiles.length > 200000) {
+      const message = `A pasta contém ${draft.folderFiles.length.toLocaleString("pt-BR")} arquivos. O limite é de 200.000 arquivos.`;
+      setUploadError(message);
+      return notify(message);
+    }
     const usingExistingPackage = (draft.originalPackageType === draft.packageType && Boolean(draft.archiveKey)) || Boolean(pending?.manifestKey);
     if (draft.published && draft.packageType === "zip" && !draft.zip && !usingExistingPackage) return notify("Escolha o ZIP do jogo antes de publicar.");
     if (draft.published && draft.packageType === "folder" && !draft.folderFiles.length && !usingExistingPackage) return notify("Escolha uma pasta do jogo antes de publicar.");
@@ -276,10 +312,11 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
           originalPackageType: current.packageType, zip: null, folderFiles: [],
         } : current);
       }
+      const currentCheckpoint = draft.packageType === "folder" ? await loadUploadCheckpoint(draft.gameId) : null;
       const message = controller.signal.aborted
         ? uploadedPackage?.key ? "O ZIP enviado foi preservado nesta edição para tentar salvar novamente."
           : "Upload cancelado. Os arquivos temporários foram descartados."
-        : `${error.message || "Não foi possível salvar o jogo."} ${draft.packageType === "folder" ? "O progresso foi preservado. Selecione a mesma pasta e salve para continuar." : stagedPackages.current.has(draft.gameId) ? "O ZIP enviado foi preservado nesta edição para tentar novamente." : ""}`.trim();
+        : `${error.message || "Não foi possível salvar o jogo."} ${draft.packageType === "folder" && currentCheckpoint ? "Há um envio pendente. Selecione a mesma pasta para continuar." : draft.packageType === "zip" && stagedPackages.current.has(draft.gameId) ? "O ZIP enviado foi preservado nesta edição para tentar novamente." : ""}`.trim();
       setUploadError(message);
       notify(message);
     }
@@ -377,9 +414,22 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
   return <section className="page page--custom-games">
     <div className="page__header page__header--split">
       <div><p className="eyebrow">Launcher</p><h1>Baixe e Jogue</h1><p>Catálogo de jogos em ZIP ou pasta, instalados pelo Merlin em uma unidade escolhida pelo cliente.</p></div>
-      <div className="page__actions">{readyToPublish.length > 0 && <button className="button button--primary" onClick={() => setPublishSelection(readyToPublish.map(game => game.id))}>Publicar prontos ({readyToPublish.length})</button>}<button className="button button--ghost" onClick={() => load()} disabled={loading}>Atualizar</button><button className="button button--primary" onClick={() => { setUploadError(""); setDraft(makeDraft(null)); }}>+ Novo jogo</button></div>
+      {tab === "catalog" && <div className="page__actions">{readyToPublish.length > 0 && <button className="button button--primary" onClick={() => setPublishSelection(readyToPublish.map(game => game.id))}>Publicar prontos ({readyToPublish.length})</button>}<button className="button button--ghost" onClick={() => load()} disabled={loading}>Atualizar</button><button className="button button--primary" onClick={() => { setUploadError(""); setDraft(makeDraft(null)); }}>+ Novo jogo</button></div>}
     </div>
-    <section className="panel">
+    <div className="billing-mail-tabs finance-tabs" role="tablist" aria-label="Seções de Baixe e Jogue">
+      <button type="button" id="custom-games-catalog-tab" role="tab" aria-controls="custom-games-catalog-panel" aria-selected={tab === "catalog"} className={tab === "catalog" ? "is-active" : ""} onClick={() => setTab("catalog")}>Cadastro de jogos</button>
+      <button type="button" id="custom-games-ranking-tab" role="tab" aria-controls="custom-games-ranking-panel" aria-selected={tab === "ranking"} className={tab === "ranking" ? "is-active" : ""} onClick={() => setTab("ranking")}>Ranking</button>
+    </div>
+    {tab === "ranking" && <section className="panel finance-panel" id="custom-games-ranking-panel" role="tabpanel" aria-labelledby="custom-games-ranking-tab">
+      <div className="section-heading"><div><p className="eyebrow">Downloads</p><h2>Ranking de jogos</h2></div></div>
+      <div className="report-filters"><label className="field-shell"><span>Período</span><select value={rankingPeriod} onChange={e => { const value = e.target.value; setRankingPeriod(value); if (value !== "custom") { setRankingDays(Number(value)); setPeoplePage(1); } }}><option value="7">Últimos 7 dias</option><option value="30">Últimos 30 dias</option><option value="90">Últimos 90 dias</option><option value="365">Último ano</option><option value="1095">Últimos 3 anos</option><option value="custom">Escolher dias</option></select></label>
+      {rankingPeriod === "custom" && <form className="finance-toolbar" onSubmit={e => { e.preventDefault(); setRankingDays(Number(rankingCustomDays)); setPeoplePage(1); }}><label className="field-shell"><span>Quantos dias?</span><input type="number" min="1" max="1095" required value={rankingCustomDays} onChange={e => setRankingCustomDays(e.target.value)} /></label><button className="button button--ghost button--sm">Aplicar</button></form>}
+      <label className="field-shell"><span>Ordenar por</span><select value={rankingSort} onChange={e => setRankingSort(e.target.value)}><option value="started">Mais iniciados</option><option value="licenses">Mais licenças</option><option value="completed">Mais concluídos</option></select></label></div>
+      <p className="finance-note">Últimos {rankingDays} dias · Clique em um jogo para ver quem baixou.</p>
+      <details className="finance-note"><summary>Como contamos?</summary>Contamos cada início, inclusive tentativas repetidas. A mesma licença pode ter tentado mais de uma vez. Conclusões só são registradas desde 1º de novembro de 2026; os registros anteriores não informam se o download terminou.</details>
+      {rankingError ? <p role="alert">{rankingError}</p> : ranking === null ? <p>Carregando ranking…</p> : ranking.length === 0 ? <p>Nenhum download iniciado no período.</p> : <div className="ranking-list">{[...ranking].sort((a, b) => b[rankingSort] - a[rankingSort] || a.name.localeCompare(b.name)).map((game, index) => <article className="finance-license ranking-item" key={game.game_id}><strong>{index + 1}. {game.name}</strong><span>{game.started} downloads iniciados · {game.licenses} licenças</span><button type="button" className="button button--ghost button--sm" aria-expanded={selectedGame === game.game_id} onClick={() => { setSelectedGame(selectedGame === game.game_id ? null : game.game_id); setPeoplePage(1); }}>{selectedGame === game.game_id ? "Ocultar clientes" : "Ver quem baixou"}</button>{selectedGame === game.game_id && <div>{peopleError ? <p role="alert">{peopleError}</p> : !people ? <p>Carregando clientes…</p> : <><div className="finance-license-list">{people.people.map(person => <div key={person.license_id}><strong>{person.name}</strong> <small>· Licença #{person.license_id} · {person.started === 1 ? "1 início" : `${person.started} inícios (repetiu ${person.started - 1}x)`}{person.completed > 0 ? ` · ${person.completed} concluído(s)` : ""}</small></div>)}</div>{(peoplePage > 1 || people.hasMore) && <div className="page__actions"><button type="button" className="button button--ghost button--sm" disabled={peoplePage === 1} onClick={() => setPeoplePage(page => page - 1)}>Anterior</button><span>Página {peoplePage}</span><button type="button" className="button button--ghost button--sm" disabled={!people.hasMore} onClick={() => setPeoplePage(page => page + 1)}>Próxima</button></div>}</>}</div>}</article>)}</div>}
+    </section>}
+    {tab === "catalog" && <section className="panel" id="custom-games-catalog-panel" role="tabpanel" aria-labelledby="custom-games-catalog-tab">
       <label className="field"><span>Buscar jogo</span><input type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Nome do jogo" /></label>
       {loading ? <div className="empty-state"><h3>Carregando jogos…</h3></div> : shown.length ? <div className="custom-games-admin-grid">{shown.map(game =>
         <article className="custom-games-admin-card" key={game.id}>
@@ -387,7 +437,7 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
           <div><h2>{game.name || game.pendingPackage?.name || "Rascunho sem nome"}</h2><p>{game.archiveKey && !game.archiveKey.startsWith("draft/") ? `${prettySize(game.archiveSize)} · ${game.packageType === "folder" ? "Pasta" : "ZIP"}` : "Pacote ainda não publicado"} · {game.executablePath ? "Botão Jogar ativo" : "Sem botão Jogar"}</p><p>{game.origin === "port" ? "Port" : "Nativo"}</p><div className="custom-games-admin-badges"><span className={`badge ${game.published ? "badge--emerald" : "badge--muted"}`}>{game.published ? "Publicado" : "Rascunho"}</span>{game.pendingPackage && <span className={`badge ${game.pendingPackage.indexStatus === "ready" ? "badge--emerald" : game.pendingPackage.indexStatus === "failed" ? "badge--warning" : "badge--muted"}`}>{game.pendingPackage.indexStatus === "ready" ? game.pendingPackage.publishRequested ? "Pronto para publicar" : "ZIP pronto · rascunho" : game.pendingPackage.indexStatus === "failed" ? "Falha na indexação" : "Indexando"}</span>}</div>{game.pendingPackage && <p className="custom-games-admin-pending-note">{game.pendingPackage.indexStatus === "failed" ? game.pendingPackage.error : game.pendingPackage.indexStatus === "ready" ? `Novo ZIP validado · ${prettySize(game.pendingPackage.archiveSize)}. A versão atual permanece disponível até publicar.` : `Preparando o índice do novo ZIP${game.pendingPackage.totalFiles ? ` · ${game.pendingPackage.processedFiles}/${game.pendingPackage.totalFiles} arquivos` : ""}. Pode fechar esta página.`}</p>}</div>
           <div className="custom-games-admin-actions"><button className="button button--ghost button--sm" onClick={() => { setUploadError(""); setDraft(makeDraft(game)); }}>Editar</button>{game.pendingPackage?.indexStatus === "ready" && game.pendingPackage.publishRequested && <button className="button button--primary button--sm" onClick={() => setPublishSelection([game.id])}>Publicar</button>}{game.pendingPackage && <button className="button button--ghost button--sm" onClick={() => discardStaged(game)}>Descartar ZIP</button>}<button className="button button--danger button--soft button--sm" onClick={() => remove(game)}>Excluir</button></div>
         </article>)}</div> : <div className="empty-state"><h3>Nenhum jogo cadastrado</h3><p>Crie um jogo para começar.</p></div>}
-    </section>
+    </section>}
     {publishSelection.length > 0 && <Modal title={publishSelection.length === 1 ? "Publicar jogo" : `Publicar ${publishSelection.length} jogos`} subtitle="Confira os pacotes preparados antes de disponibilizá-los no Launcher." onClose={() => { if (!publishing) setPublishSelection([]); }} closeDisabled={publishing} actions={<><button className="button button--ghost" disabled={publishing} onClick={() => setPublishSelection([])}>Cancelar</button><button className="button button--primary" disabled={publishing} onClick={publishReady}>{publishing ? "Publicando…" : "Confirmar publicação"}</button></>}>
       <div className="custom-games-admin-publish-list"><p>A versão atual continua disponível até você confirmar. Após publicar, o Launcher verá o novo pacote:</p><ul>{publishSelection.map(id => { const game = games.find(item => item.id === id); return <li key={id}>{game?.pendingPackage?.name || game?.name || "Rascunho sem nome"} · ZIP {prettySize(game?.pendingPackage?.archiveSize)}</li>; })}</ul></div>
     </Modal>}

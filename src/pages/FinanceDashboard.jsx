@@ -28,16 +28,37 @@ function Metric({ label, value, note, onClick }) {
 }
 
 export function FinanceOverview({ dashboard, loading, error, periodDays, setPeriodDays, refresh, showSubscribers }) {
+  const [customDays, setCustomDays] = React.useState(String(periodDays));
+  const [periodChoice, setPeriodChoice] = React.useState([30, 90, 365, 1095].includes(periodDays) ? String(periodDays) : "custom");
+  const [tier, setTier] = React.useState("all");
   const summary = dashboard?.summary;
+  const receipts = dashboard?.tierReceipts || [];
+  const selectedReceipts = receipts.filter(row => tier === "all" ? row.tier !== "unknown" : row.tier === tier);
+  const selectedTotal = selectedReceipts.reduce((sum, row) => sum + Number(row.amount_cents || 0), 0);
+  const selectedCount = selectedReceipts.reduce((sum, row) => sum + Number(row.payment_count || 0), 0);
+  const unknownReceipts = receipts.find(row => row.tier === "unknown");
+  const activePayers = (dashboard?.payers || []).filter(payer => payer.category !== "attention" && payer.hasPositivePayment && (tier === "all" || payer.tier === tier)).length;
+  const snapshots = (dashboard?.monthlySubscriberSnapshots || []).filter(row => tier === "all" || row.tier === tier);
+  const snapshotDays = snapshots.length ? Math.min(...snapshots.map(row => Number(row.days))) : 0;
+  const monthlyAverage = snapshotDays ? snapshots.reduce((sum, row) => sum + Number(row.subscriber_days), 0) / snapshotDays : null;
   return <div className="finance-content" id="payments-summary-panel" role="tabpanel" aria-labelledby="payments-summary-tab">
-    <div className="finance-toolbar">
-      <label className="field-shell"><span>Recebimento</span><select value={periodDays} onChange={(event) => setPeriodDays(Number(event.target.value))}><option value={30}>Últimos 30 dias</option><option value={90}>Últimos 90 dias</option><option value={365}>Últimos 12 meses</option></select></label>
+    <div className="finance-toolbar report-filters">
+      <label className="field-shell"><span>Período</span><select value={periodChoice} onChange={event => { const value = event.target.value; setPeriodChoice(value); if (value !== "custom") setPeriodDays(Number(value)); }}><option value="30">Últimos 30 dias</option><option value="90">Últimos 90 dias</option><option value="365">Último ano</option><option value="1095">Últimos 3 anos</option><option value="custom">Escolher dias</option></select></label>
+      {periodChoice === "custom" && <form className="finance-toolbar" onSubmit={event => { event.preventDefault(); const days = Number(customDays); if (Number.isInteger(days) && days >= 1 && days <= 1095) setPeriodDays(days); }}><label className="field-shell"><span>Quantos dias?</span><input type="number" min="1" max="1095" required value={customDays} onChange={event => setCustomDays(event.target.value)} /></label><button className="button button--ghost button--sm" type="submit">Aplicar</button></form>}
+      <label className="field-shell"><span>Plano</span><select value={tier} onChange={event => setTier(event.target.value)}><option value="all">Todos os planos</option><option value="bronze">Bronze</option><option value="prata">Prata</option><option value="ouro">Ouro</option></select></label>
       <button className="button button--ghost button--sm" onClick={refresh} disabled={loading}>{loading ? "Atualizando..." : "Atualizar dados"}</button>
     </div>
     {error && <div className="billing-mail-error" role="alert">{error}</div>}
     {!dashboard && loading ? <div className="empty-state"><h3>Carregando resumo</h3><p>Consultando licenças e pagamentos confirmados.</p></div> : dashboard && <>
       <p className="finance-asof">Dados de {formatDateTimeBrt(dashboard.generatedAt)} · contagens de licenças, não de pessoas únicas</p>
       {dashboard.reconciliation?.unmatchedPaidCheckouts > 0 && <div className="billing-mail-error" role="status">Atenção: {dashboard.reconciliation.unmatchedPaidCheckouts} checkout(s) Stripe marcado(s) como pago(s) neste período não têm lançamento correspondente em pagamentos. O valor recebido abaixo pode estar incompleto; confira Transações antes de usá-lo como fechamento.</div>}
+      <section className="panel finance-panel">
+        <div className="section-heading"><h2>Resumo</h2><span className="finance-note">Últimos {periodDays} dias</span></div>
+        <div className="finance-forecast report-summary"><div><span>Faturamento</span><strong>{money(selectedTotal)}</strong><small>{selectedCount} pagamentos</small></div><div><span>Pagantes ativos hoje</span><strong>{activePayers}</strong><small>Licenças pagas</small></div><div><span>Média de assinantes no mês</span><strong>{monthlyAverage === null ? "Sem dados ainda" : monthlyAverage.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}</strong><small>{snapshotDays ? `${snapshotDays} dia(s) registrado(s) neste mês` : "Primeira contagem pendente"}</small></div></div>
+        {unknownReceipts && <p className="finance-note">{unknownReceipts.payment_count} pagamento(s) sem plano identificado ({money(Number(unknownReceipts.amount_cents))}) ficaram fora do faturamento por plano.</p>}
+        <details className="finance-note"><summary>Como são calculados?</summary>O faturamento considera pagamentos confirmados, sem descontar taxas. A média usa a contagem diária de assinaturas pagas ativas neste mês. Gratuitos, testes e vitalícios não entram na média. O histórico começou a ser registrado em novembro de 2026.</details>
+      </section>
+      <details className="panel finance-panel"><summary>Mais detalhes financeiros</summary>
       <div className="stats-grid finance-stats">
         <Metric label="Pagantes ativos" value={summary.paidActive} note={`de ${summary.activeAccess} licenças com acesso válido`} onClick={() => showSubscribers("paid")} />
         <Metric label="Cartão automático" value={summary.cardAutomatic} note="Assinaturas que seguem renovando" onClick={() => showSubscribers("card_auto")} />
@@ -94,6 +115,7 @@ export function FinanceOverview({ dashboard, loading, error, periodDays, setPeri
         </div>
         <p className="finance-note">O valor mensal, semestral ou anual representa o total pago por planos daquela periodicidade na data de cada pagamento — não uma média mensal. Vitalícios/avulsos ficam à parte. Valores brutos registrados como pagos; não representam lucro líquido nem descontam taxas dos provedores. Registros reembolsados são excluídos.</p>
       </section>
+      </details>
     </>}
   </div>;
 }
@@ -136,7 +158,7 @@ export function FinanceLifecycle({ dashboard, loading, error, refresh, periodDay
   const periodLabel = periodDays === 365 ? "12 meses" : `${periodDays} dias`;
   return <div className="finance-content" id="payments-lifecycle-panel" role="tabpanel" aria-labelledby="payments-lifecycle-tab">
     <div className="finance-toolbar">
-      <label className="field-shell"><span>Janela para churn e retorno</span><select value={periodDays} onChange={(event) => setPeriodDays(Number(event.target.value))}><option value={30}>Últimos 30 dias</option><option value={90}>Últimos 90 dias</option><option value={365}>Últimos 12 meses</option></select></label>
+      <label className="field-shell"><span>Janela para churn e retorno</span><select value={periodDays} onChange={(event) => setPeriodDays(Number(event.target.value))}>{![30, 90, 365].includes(periodDays) && <option value={periodDays}>Últimos {periodDays} dias</option>}<option value={30}>Últimos 30 dias</option><option value={90}>Últimos 90 dias</option><option value={365}>Últimos 12 meses</option></select></label>
       <button className="button button--ghost button--sm" onClick={refresh} disabled={loading}>{loading ? "Atualizando..." : "Atualizar dados"}</button>
     </div>
     {error && <div className="billing-mail-error" role="alert">{error}</div>}
