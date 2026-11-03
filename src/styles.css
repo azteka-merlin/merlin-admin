@@ -5935,3 +5935,27 @@ h3 {
 .premium-retry-confirm input { flex: 0 0 auto; margin-top: 4px; }
 .premium-activation__actions { gap: 10px; flex-wrap: wrap; }
 @media (max-width: 600px) { .premium-activation__actions .button { flex: 1 1 auto; } }
+
+/* On-demand email quota, kept out of the notification lists. */
+.communication-page__heading { align-items: center; position: relative; }
+.email-quota { position: static; flex: 0 0 auto; }
+.email-quota__panel { position: absolute; right: 0; top: calc(100% + 8px); z-index: 30; width: min(480px, calc(100vw - 48px)); padding: 16px; border: 1px solid var(--line-strong); border-radius: 14px; background: #141420; box-shadow: 0 14px 40px rgba(0,0,0,.3); }
+.email-quota__heading, .email-quota__provider-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.email-quota__heading { margin-bottom: 12px; }
+.email-quota__heading > strong { font-size: .9rem; }
+.email-quota__providers { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.email-quota__provider { min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 10px; }
+.email-quota__provider-title { flex-wrap: wrap; }
+.email-quota__provider-title > strong { font-size: .85rem; }
+.email-quota__provider-title > small, .email-quota__hint, .email-quota__row dt { color: var(--muted); font-size: .75rem; line-height: 1.5; }
+.email-quota__provider dl { margin: 12px 0; display: grid; gap: 12px; }
+.email-quota__row dd { margin: 2px 0 0; }
+.email-quota__row dd strong { display: block; font-size: .85rem; font-weight: 600; }
+.email-quota__row dd small { display: block; margin-top: 3px; font-size: .72rem; color: var(--muted); }
+.email-quota__provider > a { color: var(--muted); font-size: .72rem; }
+.email-quota__provider > a:hover { color: var(--text); }
+.email-quota__hint { margin: 10px 0 0; }
+.email-quota__error { color: #ffb0b8; font-size: .8rem; line-height: 1.5; margin-bottom: 12px; }
+@media (max-width: 540px) { .email-quota__providers { grid-template-columns: 1fr; } }
+
+.email-quota__heading > .button { width: auto; flex: 0 0 auto; }

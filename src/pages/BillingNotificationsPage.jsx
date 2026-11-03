@@ -1,12 +1,13 @@
 import React from "react";
 import PremiumInterestsPanel from "./PremiumInterestsPanel";
 import AdminTabs from "../components/AdminTabs";
+import EmailQuotaControl from "../components/EmailQuotaControl";
 
 const ZONE = "America/Sao_Paulo";
 const STATUS = {
   scheduled: ["Programado", "info"],
   pending: ["Em processamento", "warning"],
-  sent: ["Aceito pelo Resend", "success"],
+  sent: ["Aceito pelo provedor", "success"],
   failed: ["Falhou", "danger"],
   missing: ["Sem registro", "danger"],
   covered: ["Envio de hoje dispensado", "muted"],
@@ -131,7 +132,7 @@ function ExpirationNotifications({ apiRequest, notify }) {
       <div>
         <p className="eyebrow">Comunicação de cobrança</p>
         <h2>Vencimentos</h2>
-        <p>Veja quem deve receber, o motivo e o resultado de cada tentativa. Horários de Brasília. “Aceito” confirma o envio ao Resend, não a entrega na caixa de entrada.</p>
+        <p>Veja quem deve receber, o motivo e o resultado de cada tentativa. Horários de Brasília. “Aceito” confirma o envio ao provedor, não a entrega na caixa de entrada.</p>
       </div>
       <button className="button button--ghost" onClick={() => refresh()} disabled={loading}>
         {loading ? "Atualizando..." : "Atualizar"}
@@ -151,7 +152,7 @@ function ExpirationNotifications({ apiRequest, notify }) {
     {error && <div className="billing-mail-error" role="alert">{error}</div>}
     <div className="billing-mail-stats">
       <div className="stat-card"><span>Previstos no dia</span><strong>{schedule.length}</strong><small>09h e 19h</small></div>
-      <div className="stat-card"><span>Aceitos pelo Resend</span><strong>{sent}</strong><small>Tentativas concluídas</small></div>
+      <div className="stat-card"><span>Aceitos pelo provedor</span><strong>{sent}</strong><small>Tentativas concluídas</small></div>
       <div className="stat-card"><span>Programados</span><strong>{pending}</strong><small>Aguardando horário ou processamento</small></div>
       <div className="stat-card"><span>Falhas / sem registro</span><strong>{failed}</strong><small>Precisam de atenção</small></div>
     </div>
@@ -175,7 +176,7 @@ function ExpirationNotifications({ apiRequest, notify }) {
               {item.sentAt && <span>Enviado às {formatTime(item.sentAt)}</span>}
               {item.status === "failed" && <button className="button button--primary button--sm" disabled={retrying === item.notificationId} onClick={() => retry(item)}>{retrying === item.notificationId ? "Reenviando..." : "Reenviar"}</button>}
             </div>
-            {item.status === "covered" && <p className="billing-mail-covered-note">Nenhum e-mail será enviado neste horário: um aviso deste vencimento já foi aceito pelo Resend em {formatDate(item.previousSentAt)}, às {formatTime(item.previousSentAt)}.{item.nextScheduledAt ? ` Próximo aviso previsto: ${formatDate(item.nextScheduledAt)}, às ${formatTime(item.nextScheduledAt)}, se não houver renovação.` : ""}</p>}
+            {item.status === "covered" && <p className="billing-mail-covered-note">Nenhum e-mail será enviado neste horário: um aviso deste vencimento já foi aceito pelo provedor em {formatDate(item.previousSentAt)}, às {formatTime(item.previousSentAt)}.{item.nextScheduledAt ? ` Próximo aviso previsto: ${formatDate(item.nextScheduledAt)}, às ${formatTime(item.nextScheduledAt)}, se não houver renovação.` : ""}</p>}
             {item.status === "failed" && latestFailure.get(item.notificationId) && <details className="billing-mail-error-detail"><summary>Ver motivo técnico da falha</summary><code>{latestFailure.get(item.notificationId)}</code></details>}
           </article>)}
       </section>}
@@ -208,7 +209,7 @@ function ExpirationNotifications({ apiRequest, notify }) {
 export default function BillingNotificationsPage(props) {
   const [section, setSection] = React.useState("billing");
   return <section className="page communication-page">
-    <div className="page__header"><p className="eyebrow">Comunicação</p><h1>Avisos por e-mail</h1></div>
+    <div className="page__header page__header--split communication-page__heading"><div><p className="eyebrow">Comunicação</p><h1>Avisos por e-mail</h1></div><EmailQuotaControl apiRequest={props.apiRequest} /></div>
     <AdminTabs id="communication" label="Tipos de avisos" value={section} onChange={setSection}
       tabs={[{ value: "billing", label: "Vencimentos" }, { value: "wishlist", label: "Lista de desejos" }, { value: "premium-emails", label: "E-mails Premium" }]} />
     <div id={`communication-panel-${section}`} role="tabpanel" aria-labelledby={`communication-tab-${section}`}>
