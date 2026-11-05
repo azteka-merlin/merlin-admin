@@ -39,7 +39,7 @@ export default function SettingsPage({
   const publishingUpdate = busyAction === "publish-merlin-update";
   const savingManifestSourceSettings = busyAction === "save-manifest-source-settings";
   const savingLauncherUpdatePolicySettings = busyAction === "save-launcher-update-policy-settings";
-  const [primarySource, setPrimarySource] = React.useState("depotbox");
+  const [primarySource, setPrimarySource] = React.useState("hubcap");
   const [automaticUpdatesEnabled, setAutomaticUpdatesEnabled] = React.useState(true);
   const [voteSummary, setVoteSummary] = React.useState(null);
   const [loadingVoteSummary, setLoadingVoteSummary] = React.useState(true);
@@ -89,7 +89,7 @@ export default function SettingsPage({
 
   React.useEffect(() => {
     const configuredSource = manifestSourceSettings?.primarySource;
-    setPrimarySource(["depotbox", "ryuu", "steam-api"].includes(configuredSource) ? configuredSource : "depotbox");
+    setPrimarySource(["hubcap", "depotbox", "ryuu", "steam-api"].includes(configuredSource) ? configuredSource : "hubcap");
   }, [manifestSourceSettings?.primarySource]);
 
   React.useEffect(() => {
@@ -140,6 +140,24 @@ export default function SettingsPage({
         </p>
 
         <div className="toggle-grid">
+          <label className="toggle-field">
+            <input type="radio" name="manifest-primary-source" value="hubcap"
+              checked={primarySource === "hubcap"}
+              disabled={loadingManifestSourceSettings || savingManifestSourceSettings}
+              onChange={() => setPrimarySource("hubcap")} />
+            <div>
+              <strong>Hubcap primeiro</strong>
+              <span>Consulta a Hubcap antes do Ryuu e das demais fontes.</span>
+              {manifestSourceSettings?.hubcapCircuit?.status === "open" ? (
+                <span className="badge badge--warning" role="status">Circuito ativo — Hubcap pausada por cota</span>
+              ) : manifestSourceSettings?.hubcapCircuit?.status === "closed" ? (
+                <span className="badge badge--success" role="status">Circuito inativo</span>
+              ) : manifestSourceSettings?.hubcapCircuit?.status === "unconfigured" ? (
+                <span className="badge badge--muted" role="status">Chave não configurada</span>
+              ) : <span className="badge badge--muted" role="status">Estado do circuito indisponível</span>}
+            </div>
+          </label>
+
           <label className="toggle-field">
             <input
               type="radio"

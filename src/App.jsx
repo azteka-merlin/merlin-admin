@@ -169,7 +169,7 @@ function App() {
   const [paymentEvents, setPaymentEvents] = React.useState([]);
   const [publicFeedbacks, setPublicFeedbacks] = React.useState([]);
   const [merlinUpdate, setMerlinUpdate] = React.useState(null);
-  const [manifestSourceSettings, setManifestSourceSettings] = React.useState({ primarySource: "depotbox", updatedAt: null });
+  const [manifestSourceSettings, setManifestSourceSettings] = React.useState({ primarySource: "hubcap", updatedAt: null });
   const [catalogEnrichmentStatus, setCatalogEnrichmentStatus] = React.useState({ totalGames: 0, withReleaseDate: 0, withoutReleaseDate: 0, pending: 0, processing: 0, retry: 0, paused: 0, failed: 0, queuePaused: false, lastActivityAt: null });
   const [catalogQueue, setCatalogQueue] = React.useState({ status: "missing", page: 1, limit: 50, total: 0, items: [] });
   const [launcherUpdatePolicySettings, setLauncherUpdatePolicySettings] = React.useState({ automaticUpdatesEnabled: true, updatedAt: null });
@@ -520,7 +520,7 @@ function App() {
       setPaymentEvents([]);
       setPublicFeedbacks([]);
       setMerlinUpdate(null);
-      setManifestSourceSettings({ primarySource: "depotbox", updatedAt: null });
+      setManifestSourceSettings({ primarySource: "hubcap", updatedAt: null });
       setLauncherUpdatePolicySettings({ automaticUpdatesEnabled: true, updatedAt: null });
       setPublicSignup({
         settings: { enabled: false, durationAmount: 30, durationUnit: "days", isLifetime: false, description: "" },
@@ -1189,7 +1189,7 @@ function App() {
     setLoadingManifestSourceSettings(true);
     try {
       const payload = await apiRequest("/panel-api/manifest-source-settings");
-      setManifestSourceSettings(payload.settings || { primarySource: "depotbox", updatedAt: null });
+      setManifestSourceSettings(payload.settings || { primarySource: "hubcap", updatedAt: null });
     } catch (error) {
       setToast(error.message);
     } finally {

@@ -5959,3 +5959,11 @@ h3 {
 @media (max-width: 540px) { .email-quota__providers { grid-template-columns: 1fr; } }
 
 .email-quota__heading > .button { width: auto; flex: 0 0 auto; }
+
+/* Keep the quota cards in the page flow on phones and narrow tablets. */
+@media (max-width: 700px) {
+  .communication-page__heading { flex-wrap: wrap; align-items: flex-start; }
+  .communication-page__heading .email-quota { flex: 1 1 100%; width: 100%; min-width: 0; }
+  .email-quota__panel { position: static; width: 100%; margin-top: 12px; box-shadow: none; }
+  .email-quota__providers { grid-template-columns: 1fr; }
+}
