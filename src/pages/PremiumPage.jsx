@@ -9,6 +9,7 @@ export default function PremiumPage({
   premiumSearch,
   setPremiumSearch,
   loadPremiumGames,
+  loadPremiumSlots,
   savePremiumGame,
   deletePremiumGame,
   uploadPremiumArchive,
@@ -27,6 +28,22 @@ export default function PremiumPage({
   const [earlyAccessSearch, setEarlyAccessSearch] = useState("");
   const [loadingEarlyAccess, setLoadingEarlyAccess] = useState(false);
   const fileInputRef = useRef(null);
+  const [slotTarget, setSlotTarget] = useState(null);
+  const [slotData, setSlotData] = useState(null);
+  const [slotLoading, setSlotLoading] = useState(false);
+  const [slotError, setSlotError] = useState("");
+  const slotRequest = useRef(0);
+  async function openSlots(entry) {
+    const request = ++slotRequest.current;
+    setSlotTarget(entry); setSlotData(null); setSlotError(""); setSlotLoading(true); setActiveModal("slots");
+    try { const result = await loadPremiumSlots(entry.appId); if (request === slotRequest.current) setSlotData(result); }
+    catch { if (request === slotRequest.current) setSlotError("Não foi possível consultar as vagas."); }
+    finally { if (request === slotRequest.current) setSlotLoading(false); }
+  }
+  function closeSlots() { slotRequest.current += 1; setActiveModal(null); }
+  const slotLabels = { active: "Ativada", reserved: "Reservada", processing: "Em processamento",
+    retry_available: "Nova tentativa reservada", retry_processing: "Nova tentativa em processamento", retry_review: "Em análise pelo suporte" };
+  const formatSlotTime = (value) => value ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(value)) : "Sem previsão";
 
   const query = premiumSearch.trim().toLowerCase();
   const filteredGames = useMemo(
@@ -218,6 +235,7 @@ export default function PremiumPage({
                   </div>
 
                   <div className="override-actions premium-card__actions">
+                    <button className="button button--ghost button--sm" onClick={() => openSlots(entry)}>Ver vagas</button>
                     <button className="button button--ghost button--sm" onClick={() => openEarlyAccessModal(entry)}>
                       Antecipado{entry.earlyAccessCount ? ` (${entry.earlyAccessCount})` : ""}
                     </button>
@@ -263,6 +281,17 @@ export default function PremiumPage({
           </div>
         )}
       </section>
+
+      {activeModal === "slots" && <Modal className="modal--premium-slots" title="Vagas de ativação" subtitle={`${slotTarget?.name || slotTarget?.appId} · horários de Brasília`}
+        onClose={closeSlots} actions={<><button className="button button--ghost" onClick={() => openSlots(slotTarget)} disabled={slotLoading}>Atualizar</button><button className="button button--primary" onClick={closeSlots}>Fechar</button></>}>
+        {slotLoading ? <p role="status">Consultando vagas...</p> : slotError ? <p role="alert">{slotError}</p> : slotData && <div className="premium-slots">
+          <p><strong>{slotData.available}</strong> disponíveis de {slotData.total} · {slotData.occupied} ocupadas</p>
+          {slotData.entries.length ? <ul className="premium-slots__list">{slotData.entries.map((slot, index) => <li key={index}>
+            <strong>{slotLabels[slot.status] || "Ocupada"}</strong><span>{slot.availableAt ? `Liberação prevista: ${formatSlotTime(slot.availableAt)}` : "Liberação sem previsão; acompanha o suporte"}</span>
+          </li>)}</ul> : <p>Nenhuma vaga ocupada no momento.</p>}
+          <p className="premium-slots__note">As vagas são compartilhadas; horários são previsões e podem mudar durante a ativação ou análise do suporte.</p>
+        </div>}
+      </Modal>}
 
       {activeModal === "upsert" && (
         <Modal

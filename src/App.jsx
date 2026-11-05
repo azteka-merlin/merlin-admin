@@ -2629,6 +2629,7 @@ function App() {
             premiumSearch={premiumSearch}
             setPremiumSearch={setPremiumSearch}
             loadPremiumGames={loadPremiumGames}
+            loadPremiumSlots={async (appId) => (await apiRequest(`/panel-api/premium/games/${encodeURIComponent(appId)}/slots`)).slots}
             savePremiumGame={handleSavePremiumGame}
             deletePremiumGame={handleDeletePremiumGame}
             uploadPremiumArchive={handlePremiumArchiveUpload}
