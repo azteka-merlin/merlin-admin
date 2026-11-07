@@ -26,7 +26,7 @@ export default function CatalogQueuePage(props) {
   return <section className="page">
     <AdminTabs id="game-queue" label="Filas de jogos" value={section} onChange={setSection} tabs={[{value:'dates',label:'Datas de lançamento'},{value:'fixes',label:'Importar correções'}]}/>
     <div role="tabpanel" id={`game-queue-panel-${section}`} aria-labelledby={`game-queue-tab-${section}`}>
-      {section==='dates'?<CatalogDatesQueue {...props}/>:<FixImportsPanel apiRequest={props.apiRequest} notify={props.notify}/>}
+      {section==='dates'?<CatalogDatesQueue {...props}/>:<FixImportsPanel apiRequest={props.apiRequest} apiUpload={props.apiUpload} notify={props.notify}/>}
     </div>
   </section>;
 }

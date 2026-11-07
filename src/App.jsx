@@ -486,9 +486,9 @@ function App() {
   }, [filteredLicenses, selectedId]);
 
   async function apiRequest(path, options = {}) {
-    const { method = "GET", body, mutate = false, ignoreUnauthorized = false, signal } = options;
+    const { method = "GET", body, mutate = false, ignoreUnauthorized = false, signal, headers: extraHeaders = {}, rawResponse = false } = options;
     const isFormData = body instanceof FormData;
-    const headers = { Accept: "application/json" };
+    const headers = { Accept: "application/json", ...extraHeaders };
 
     if (body !== undefined && !isFormData) headers["Content-Type"] = "application/json";
     if (mutate && csrfToken) headers["X-CSRF-Token"] = csrfToken;
@@ -552,7 +552,7 @@ function App() {
       setDetailOpen(false);
       setActiveModal(null);
       navigateToLogin({ replace: true, reload: true });
-      throw new Error(payload?.error || "Sessão expirada. Faça login novamente.");
+      throw Object.assign(new Error(payload?.error || "Sessão expirada. Faça login novamente."), { status: 401 });
     }
 
     if (!response.ok) {
@@ -561,6 +561,7 @@ function App() {
       });
     }
 
+    if (rawResponse) return response;
     return payload;
   }
 
@@ -670,11 +671,11 @@ function App() {
       setDetailOpen(false);
       setActiveModal(null);
       navigateToLogin({ replace: true, reload: true });
-      throw new Error(payload?.error || "Sessão expirada. Faça login novamente.");
+      throw Object.assign(new Error(payload?.error || "Sessão expirada. Faça login novamente."), { status: 401 });
     }
 
     if (!response.ok) {
-      throw new Error(payload?.error || "Não foi possível concluir a solicitação.");
+      throw Object.assign(new Error(payload?.error || "Não foi possível concluir a solicitação."), { status: response.status });
     }
 
     return payload;
@@ -2778,6 +2779,7 @@ function App() {
         {view === "catalog-queue" && (
           <CatalogQueuePage
             apiRequest={apiRequest}
+            apiUpload={apiUpload}
             notify={setToast}
             summary={catalogEnrichmentStatus}
             queue={catalogQueue}
