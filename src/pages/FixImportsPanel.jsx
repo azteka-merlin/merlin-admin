@@ -37,12 +37,15 @@ export default function FixImportsPanel({apiRequest,notify}) {
   const totalPages=Math.max(1,Math.ceil(jobs.length/limit));
   const currentPage=Math.min(page,totalPages),shown=jobs.slice((currentPage-1)*limit,currentPage*limit);
   const canQueue=tab==='missing'||tab==='failed';
+  const canReset=['processing','queued','failed'].includes(tab);
+  const canSelect=canQueue||canReset;
   const allSelected=shown.length>0&&shown.every(job=>selected.has(job.app_id));
   async function act(action,ids) {
     setBusy(action);
     try {
       const result=await request.current(`${ROOT}/${action}`,{method:'POST',mutate:true,body:ids?{appIds:ids}: {}});
       if(action==='scan')notify(`${result.discovered||0} novos jogos encontrados. Selecione quais colocar na fila.`);
+      else if(action==='reset')notify(`${result.reset||0} jogos voltaram para Não baixados.${result.unchanged?` ${result.unchanged} não foram alterados porque já estavam finalizando ou em outro estado.`:''}`);
       else notify(`${result.queued||0} jogos colocados na fila.`);
       if(mounted.current){setSelected(new Set());await load();}
     }catch(cause){notify(cause.message||'Não foi possível atualizar a fila.');}
@@ -70,21 +73,22 @@ export default function FixImportsPanel({apiRequest,notify}) {
         <label className="field-shell field-shell--search"><span>Buscar jogo</span><input type="search" value={search} onChange={event=>setSearch(event.target.value)} placeholder="Nome ou App ID"/></label>
         <label className="field"><span>Por página</span><select value={limit} onChange={event=>setLimit(Number(event.target.value))}>{[25,50,100,200].map(value=><option key={value} value={value}>{value}</option>)}</select></label>
         {canQueue&&<button className="button button--primary" disabled={!selected.size||selected.size>200||!!busy||!!error} onClick={()=>void act('enqueue',[...selected])}>{busy==='enqueue'?'Adicionando…':`${tab==='failed'?'Tentar novamente':'Colocar na fila'}${selected.size?` (${selected.size})`:''}`}</button>}
+        {canReset&&<button className="button button--ghost" disabled={!selected.size||selected.size>200||!!busy||!!error} onClick={()=>void act('reset',[...selected])}>{busy==='reset'?'Atualizando…':`Voltar para Não baixados${selected.size?` (${selected.size})`:''}`}</button>}
       </div>
       {selected.size>200&&<p className="custom-game-indexing__error" role="alert">Selecione até 200 jogos por vez.</p>}
       {active>0&&<p className="field-grid__note">O processamento continua com esta página fechada. Os dados são atualizados a cada 5 segundos enquanto há tarefas na fila.</p>}
       {loading&&!snapshot?<div className="empty-state"><h3>Consultando fixes…</h3></div>:!shown.length?<div className="empty-state"><h3>Nenhum jogo nesta seleção</h3><p>{snapshot?.jobs?.length?'Escolha outra aba ou ajuste a busca.':'Use Consultar catálogo da Ryuu para listar os jogos disponíveis, sem iniciar downloads.'}</p></div>:
         <div className="table-shell custom-game-indexing__table-wrap"><table className="custom-game-indexing__table"><thead><tr>
-          {canQueue&&<th><input type="checkbox" aria-label="Selecionar jogos desta página" checked={allSelected} onChange={togglePage}/></th>}
+          {canSelect&&<th><input type="checkbox" aria-label="Selecionar jogos desta página" checked={allSelected} onChange={togglePage}/></th>}
           <th>Ordem</th><th>Jogo</th><th>Arquivo</th><th>Andamento</th><th>Atualizado</th><th>Ação</th>
         </tr></thead><tbody>{shown.map(job=><tr key={job.app_id}>
-          {canQueue&&<td><input type="checkbox" aria-label={`Selecionar ${job.name}`} checked={selected.has(job.app_id)} onChange={()=>toggle(job.app_id)}/></td>}
+          {canSelect&&<td><input type="checkbox" aria-label={`Selecionar ${job.name}`} checked={selected.has(job.app_id)} onChange={()=>toggle(job.app_id)}/></td>}
           <td>{job.position}</td><td><strong>{job.name}</strong><small>App ID {job.app_id}</small></td><td>{job.filename}<small>{size(job.total_bytes)}</small></td>
           <td><span className={`badge badge--${job.status==='migrated'?'success':job.status==='failed'?'danger':job.status==='processing'?'warning':'muted'}`}>{PHASES[job.phase]||PHASES[job.status]}</span>
             {job.status==='processing'&&<progress aria-label={`Download de ${job.name}`} max="100" {...(job.total_bytes>0?{value:Math.min(100,job.processed_bytes/job.total_bytes*100)}:{})}/>}
             {job.processed_bytes>0&&<small>{size(job.processed_bytes)} / {size(job.total_bytes)}</small>}
             {job.error&&<p className="custom-game-indexing__error">{job.error}</p>}<small>{job.attempts} {job.attempts===1?'tentativa':'tentativas'}</small></td>
-          <td>{formatDateTimeBrt(job.updated_at)}</td><td>{canQueue?<button className="button button--ghost button--sm" disabled={!!busy||!!error} onClick={()=>void act('enqueue',[job.app_id])}>{tab==='failed'?'Tentar novamente':'Colocar na fila'}</button>:'—'}</td>
+          <td>{formatDateTimeBrt(job.updated_at)}</td><td>{canQueue?<button className="button button--ghost button--sm" disabled={!!busy||!!error} onClick={()=>void act('enqueue',[job.app_id])}>{tab==='failed'?'Tentar novamente':'Colocar na fila'}</button>:canReset?<button className="button button--ghost button--sm" disabled={!!busy||!!error} onClick={()=>void act('reset',[job.app_id])}>Voltar para Não baixados</button>:'—'}</td>
         </tr>)}</tbody></table></div>}
       <div className="page__actions"><button className="button button--ghost button--sm" disabled={currentPage<=1} onClick={()=>setPage(currentPage-1)}>Anterior</button><span>Página {currentPage} de {totalPages} · {jobs.length} jogos</span><button className="button button--ghost button--sm" disabled={currentPage>=totalPages} onClick={()=>setPage(currentPage+1)}>Próxima</button></div>
       </div>
