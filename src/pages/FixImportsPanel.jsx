@@ -7,6 +7,8 @@ const ROOT='/panel-api/fix-import';
 const SESSION_KEY='merlin.fix-import.local-lease';
 const CLEANUP_KEY='merlin.fix-import.pending-cleanup';
 const MAX_BYTES=2*1024*1024*1024;
+const LOCAL_IO_TIMEOUT_MS=60_000;
+const LOCAL_IO_CLEANUP_TIMEOUT_MS=5_000;
 const TABS=[{key:'missing',label:'Não baixados'},{key:'processing',label:'Baixando'},
   {key:'queued',label:'Aguardando'},{key:'migrated',label:'Migrados'},
   {key:'failed',label:'Falhou'},{key:'skipped',label:'Ignorados'}];
@@ -44,6 +46,30 @@ function rememberCleanup(appId,digest){
   } catch {}
 }
 function gameFolder(job){return `${job.app_id} - ${safeName(job.name,`Jogo ${job.app_id}`)}`;}
+
+function awaitLocalIo(operation,stage,abort){
+  let timer;
+  const timeout=new Promise((_,reject)=>{
+    timer=window.setTimeout(()=>{
+      abort.abort();
+      const error=new Error(`${stage} ficou 60 segundos sem avançar.`);
+      error.code='LOCAL_IO_TIMEOUT';
+      reject(error);
+    },LOCAL_IO_TIMEOUT_MS);
+  });
+  return Promise.race([Promise.resolve(operation),timeout]).finally(()=>window.clearTimeout(timer));
+}
+
+async function settleLocalIoCleanup(operations){
+  if(!operations.length)return;
+  let timer;
+  try{
+    await Promise.race([
+      Promise.allSettled(operations),
+      new Promise(resolve=>{timer=window.setTimeout(resolve,LOCAL_IO_CLEANUP_TIMEOUT_MS);})
+    ]);
+  }finally{window.clearTimeout(timer);}
+}
 
 export default function FixImportsPanel({apiRequest,apiUpload,notify}) {
   const [snapshot,setSnapshot]=useState(null),[tab,setTab]=useState('missing');
@@ -161,14 +187,11 @@ export default function FixImportsPanel({apiRequest,apiUpload,notify}) {
   async function downloadArchive(job,path,token,gameDir,filename,show) {
     show('local_downloading',0,0);
     const started=performance.now(), abort=new AbortController();
-    let timeout, reader, writer;
-    const renewTimeout=()=>{
-      clearTimeout(timeout);
-      timeout=setTimeout(()=>abort.abort(),60_000);
-    };
-    renewTimeout();
+    let reader, writer;
     try {
-      const response=await request.current(`${path}/source`,{headers:{'X-Fix-Import-Lease':token},rawResponse:true,signal:abort.signal});
+      const response=await awaitLocalIo(
+        request.current(`${path}/source`,{headers:{'X-Fix-Import-Lease':token},rawResponse:true,signal:abort.signal}),
+        'A resposta da Ryuu',abort);
       if(!response.body)throw new Error('A resposta da Ryuu veio vazia.');
       reader=response.body.getReader();
       const declared=Number(response.headers.get('content-length')||0);
@@ -178,15 +201,14 @@ export default function FixImportsPanel({apiRequest,apiUpload,notify}) {
       let bytes=0,lastReport=performance.now(),lastUi=0;
       const header=new Uint8Array(8);
       while(true) {
-        renewTimeout();
-        const {done,value}=await reader.read();
+        const {done,value}=await awaitLocalIo(reader.read(),'O recebimento do arquivo',abort);
         if(done)break;
         if(bytes<8)header.set(value.subarray(0,8-bytes),bytes);
         bytes+=value.byteLength;
         if(bytes>MAX_BYTES)throw new Error('O arquivo ultrapassa o limite de 2 GiB.');
         if(bytes>=8&&!validArchiveHeader(header,filename))throw new Error('A Ryuu não retornou um ZIP ou RAR válido.');
         digest.update(value);
-        await writer.write(value);
+        await awaitLocalIo(writer.write(value),'A gravação do arquivo no PC',abort);
         const now=performance.now();
         if(now-lastUi>=200){
           show('local_downloading',bytes,declared,{speed:bytes/Math.max(0.001,(now-started)/1000)});
@@ -198,16 +220,18 @@ export default function FixImportsPanel({apiRequest,apiUpload,notify}) {
         }
       }
       if(bytes<8||(declared&&bytes!==declared))throw new Error('O download terminou com o arquivo incompleto.');
-      await writer.close();
+      await awaitLocalIo(writer.close(),'A finalização do arquivo no PC',abort);
       return {file:await handle.getFile(),digest:toHex(digest.digest()),downloadMs:Math.round(performance.now()-started)};
     } catch(error) {
-      await reader?.cancel().catch(()=>{});
-      await writer?.abort().catch(()=>{});
-      if(abort.signal.aborted)throw new Error('O download ficou 60 segundos sem receber dados.');
+      const cleanup=[];
+      if(reader)cleanup.push(Promise.resolve().then(()=>reader.cancel()).catch(()=>{}));
+      if(writer)cleanup.push(Promise.resolve().then(()=>writer.abort()).catch(()=>{}));
+      await settleLocalIoCleanup(cleanup);
+      if(error?.code==='LOCAL_IO_TIMEOUT')throw error;
+      if(abort.signal.aborted)throw new Error('O download foi interrompido antes de concluir.');
       throw error;
     } finally {
-      clearTimeout(timeout);
-      reader?.releaseLock();
+      try{reader?.releaseLock();}catch{}
     }
   }
 
