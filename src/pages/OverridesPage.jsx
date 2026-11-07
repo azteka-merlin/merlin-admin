@@ -18,6 +18,7 @@ export default function OverridesPage({
       entry.name || "",
       entry.adminNote || "",
       entry.hidden ? "oculto" : "exibido",
+      entry.migrated ? "migrado revisar" : "",
       entry.manifestOverride?.file || "",
       entry.fixOverride?.file || "",
       entry.fixOverride?.filename || ""
@@ -72,6 +73,7 @@ export default function OverridesPage({
                     <p className="eyebrow">App ID</p>
                     <h2>{entry.appId}</h2>
                     <p className="override-card__value" title={entry.name || "--"}>{entry.name || "--"}</p>
+                    {entry.migrated && <span className="badge badge--warning" title="Importado automaticamente. Abra o cadastro e salve para marcar como revisado.">Migrado · revisar</span>}
                     {entry.appId === "4407750" && (
                       <span className="badge badge--warning override-special-badge">Token de licença</span>
                     )}

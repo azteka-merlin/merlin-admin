@@ -1,5 +1,7 @@
 import React from "react";
 import { formatDateTime } from "../lib/admin-ui";
+import AdminTabs from '../components/AdminTabs';
+import FixImportsPanel from './FixImportsPanel';
 
 const tabs = [
   { key: "missing", label: "Sem data", countKey: "withoutReleaseDate", description: "Todos os jogos que ainda não possuem data de lançamento." },
@@ -19,7 +21,17 @@ function confirmAction(action, count) {
   return window.confirm(`${label[0].toUpperCase()}${label.slice(1)} ${count === 1 ? "este jogo" : `${count} jogos`}?`);
 }
 
-export default function CatalogQueuePage({ summary, queue, loading, actionBusy, onLoad, onTogglePause, onJobAction, onBulkAction }) {
+export default function CatalogQueuePage(props) {
+  const [section,setSection]=React.useState('dates');
+  return <section className="page">
+    <AdminTabs id="game-queue" label="Filas de jogos" value={section} onChange={setSection} tabs={[{value:'dates',label:'Datas de lançamento'},{value:'fixes',label:'Importar correções'}]}/>
+    <div role="tabpanel" id={`game-queue-panel-${section}`} aria-labelledby={`game-queue-tab-${section}`}>
+      {section==='dates'?<CatalogDatesQueue {...props}/>:<FixImportsPanel apiRequest={props.apiRequest} notify={props.notify}/>}
+    </div>
+  </section>;
+}
+
+function CatalogDatesQueue({ summary, queue, loading, actionBusy, onLoad, onTogglePause, onJobAction, onBulkAction }) {
   const [tab, setTab] = React.useState("missing");
   const [selected, setSelected] = React.useState(() => new Set());
   const activeTab = tabs.find((item) => item.key === tab) || tabs[0];

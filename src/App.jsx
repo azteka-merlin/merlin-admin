@@ -60,6 +60,7 @@ function mapOverridesDocument(overridesMap) {
       coverUrl: entry.coverUrl || "",
       adminNote: entry.adminNote || "",
       hidden: Boolean(entry.hidden),
+      migrated: entry.migrated === true,
       manifestOverride: entry.manifestOverride || null,
       fixOverride: entry.fixOverride || null
     }))
@@ -2776,6 +2777,8 @@ function App() {
         )}
         {view === "catalog-queue" && (
           <CatalogQueuePage
+            apiRequest={apiRequest}
+            notify={setToast}
             summary={catalogEnrichmentStatus}
             queue={catalogQueue}
             loading={loadingCatalogQueue || loadingCatalogEnrichmentStatus}
