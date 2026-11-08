@@ -1,8 +1,17 @@
 import React from "react";
 import { actionLabel, actionTone, appStats, describeAuditLog, formatDateTime, initials } from "../lib/admin-ui";
 
-export default function OverviewPage({ licenses, auditLogs, navigate, openModal, loadLicenses, loadAuditLogs, refreshingOverview }) {
+export default function OverviewPage({ licenses, auditLogs, navigate, openModal, loadLicenses, loadAuditLogs, refreshingOverview, apiRequest }) {
   const recentLogs = [...auditLogs].sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt)).slice(0, 5);
+  const [serviceStatus, setServiceStatus] = React.useState(null);
+  const [statusError, setStatusError] = React.useState('');
+  const [loadingStatus, setLoadingStatus] = React.useState(false);
+  async function loadServiceStatus() {
+    setLoadingStatus(true); setStatusError('');
+    try { setServiceStatus(await apiRequest('/panel-api/service-status')); }
+    catch { setStatusError('Não foi possível consultar o monitor.'); }
+    finally { setLoadingStatus(false); }
+  }
 
   return (
     <section className="page">
@@ -13,6 +22,25 @@ export default function OverviewPage({ licenses, auditLogs, navigate, openModal,
           <p className="page__meta">{formatDateTime(new Date().toISOString())}</p>
         </div>
       </div>
+
+      <section className="panel">
+        <div className="section-heading"><div><p className="eyebrow">Disponibilidade</p><h2>Status dos serviços</h2></div>
+          <button className="button button--ghost button--sm" onClick={loadServiceStatus} disabled={loadingStatus}>{loadingStatus ? 'Consultando...' : 'Consultar status'}</button>
+        </div>
+        {statusError && <p role="alert">{statusError}</p>}
+        {serviceStatus?.enabled === false && <p>Monitor desativado.</p>}
+        {serviceStatus?.schemaVersion === 1 && <div>
+          <p>{serviceStatus.incidents?.length ? `${serviceStatus.incidents.length} incidente(s) confirmado(s)` : 'Nenhum incidente confirmado; dados insuficientes não representam disponibilidade comprovada.'}</p>
+          {serviceStatus.suspiciousGames > 0 && <p>Adicionar jogos: falhas operacionais recentes em {serviceStatus.suspiciousGames} jogo(s); ainda sem confirmação de impacto geral.</p>}
+          {serviceStatus.suspiciousCorrections > 0 && <p>Correções: falhas recentes em {serviceStatus.suspiciousCorrections} jogo(s); relatos diretos do Launcher são apenas indícios.</p>}
+          {serviceStatus.catalogSuspicions > 0 && <p>Catálogo da Ryuu: {serviceStatus.catalogSuspicions} falha(s) recente(s) na consulta; aguardando confirmação quando ainda não houver incidente.</p>}
+          {serviceStatus.catalog?.latest && <p>Última consulta de Correções: Ryuu {serviceStatus.catalog.latest.available ? 'disponível' : 'indisponível'} ({serviceStatus.catalog.latest.remoteCount} itens); {serviceStatus.catalog.latest.overrideCount} override(s) ativos; {formatDateTime(new Date(serviceStatus.catalog.latest.at).toISOString())}.</p>}
+          {serviceStatus.catalog?.lastHealth && <p>Ryuu /health após falha do catálogo: {serviceStatus.catalog.lastHealth.result} · {formatDateTime(new Date(serviceStatus.catalog.lastHealth.at).toISOString())}.</p>}
+          {(serviceStatus.incidents || []).map(incident => <p key={incident.id}>{incident.feature === 'corrections' ? 'Correções' : 'Adicionar jogos'}: limitação desde {formatDateTime(incident.startedAt)}</p>)}
+          {Object.values(serviceStatus.diagnostics || {}).map(check => <p key={check.source}>{check.source}: {check.result} · {formatDateTime(check.checkedAt)} · {check.responseMs} ms{check.lastValidAt ? ` · última resposta válida: ${formatDateTime(check.lastValidAt)}` : ''}</p>)}
+          {(serviceStatus.history || []).slice(-3).reverse().map(event => <p key={event.revision}>{event.feature === 'corrections' ? 'Correções' : 'Adicionar jogos'} · {event.action === 'expired_unknown' ? 'estado desconhecido' : event.action === 'recovered_probable' ? 'recuperação provável' : event.action === 'recovered_observed' ? 'recuperação observada' : 'incidente iniciado'} · {formatDateTime(event.at)}</p>)}
+        </div>}
+      </section>
 
       <div className="stats-grid">
         {appStats(licenses).map((card) => (

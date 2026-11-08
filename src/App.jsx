@@ -5,6 +5,7 @@ import LoadingScreen from "./components/LoadingScreen";
 import LoginScreen from "./components/LoginScreen";
 import ActivityPage from "./pages/ActivityPage";
 import AlertsPage from "./pages/AlertsPage";
+import ServiceIncidentsPage from "./pages/ServiceIncidentsPage";
 import UsageBiPage from "./pages/UsageBiPage";
 import AnnouncementsPage from "./pages/AnnouncementsPage";
 import HomePage from "./pages/HomePage";
@@ -2559,6 +2560,7 @@ function App() {
       >
         {view === "overview" && (
           <OverviewPage
+            apiRequest={apiRequest}
             licenses={licenses}
             auditLogs={auditLogs}
             navigate={navigate}
@@ -2570,6 +2572,9 @@ function App() {
         )}
         {view === "alerts" && (
           <AlertsPage apiRequest={apiRequest} notify={setToast} />
+        )}
+        {view === "service-incidents" && (
+          <ServiceIncidentsPage apiRequest={apiRequest} notify={setToast} />
         )}
         {view === "licenses" && (
           <LicensesPage

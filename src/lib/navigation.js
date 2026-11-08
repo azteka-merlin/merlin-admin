@@ -3,6 +3,7 @@ export const PAGE_SIZE = 7;
 export const VIEW_PATHS = {
   overview: "/overview",
   alerts: "/alerts",
+  "service-incidents": "/service-incidents",
   licenses: "/licenses",
   usage: "/usage",
   activity: "/activity",
@@ -28,6 +29,7 @@ export const VIEW_PATHS = {
 export function getViewFromPath(pathname) {
   if (pathname === "/overview") return "overview";
   if (pathname === "/alerts") return "alerts";
+  if (pathname === "/service-incidents") return "service-incidents";
   if (pathname === "/licenses") return "licenses";
   if (pathname === "/usage") return "usage";
   if (pathname === "/activity") return "activity";
