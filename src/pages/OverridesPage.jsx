@@ -10,8 +10,11 @@ export default function OverridesPage({
   openOverrideEditModal,
   openOverrideDeleteModal
 }) {
+  const [migrationFilter, setMigrationFilter] = React.useState("all");
   const query = overrideSearch.trim().toLowerCase();
   const filteredOverrides = overrides.filter((entry) => {
+    if (migrationFilter === "pending-review" && !entry.migrated) return false;
+    if (migrationFilter === "reviewed" && entry.migrated) return false;
     if (!query) return true;
     return [
       entry.appId,
@@ -51,6 +54,14 @@ export default function OverridesPage({
               onChange={(event) => setOverrideSearch(event.target.value)}
               placeholder="Buscar por appId, arquivo ou nome do jogo..."
             />
+          </label>
+          <label className="field-shell">
+            <span>Status da migração</span>
+            <select value={migrationFilter} onChange={(event) => setMigrationFilter(event.target.value)}>
+              <option value="all">Todos os overrides</option>
+              <option value="pending-review">Migrados · revisar</option>
+              <option value="reviewed">Revisados / manuais</option>
+            </select>
           </label>
         </div>
 
