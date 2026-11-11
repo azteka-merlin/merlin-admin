@@ -86,7 +86,7 @@ export default function OverridesPage({
                     <p className="override-card__value" title={entry.name || "--"}>{entry.name || "--"}</p>
                     {entry.migrated && <span className="badge badge--warning" title="Importado automaticamente. Abra o cadastro e salve para marcar como revisado.">Migrado · revisar</span>}
                     {entry.appId === "4407750" && (
-                      <span className="badge badge--warning override-special-badge">Token de licença</span>
+                      <span className="badge badge--warning override-special-badge">{entry.specialCorrectionEnabled === false ? "Instalação comum" : "Token de licença"}</span>
                     )}
                   </div>
                   <div className="override-actions">

@@ -553,12 +553,19 @@ export default function LicenseModals({
             </label>
 
             {String(formState.overrideAppId || "").trim() === "4407750" && (
+              <label className="toggle-field">
+                <input type="checkbox" checked={formState.overrideSpecialCorrectionEnabled}
+                  onChange={(event) => setFormState((current) => ({ ...current, overrideSpecialCorrectionEnabled: event.target.checked }))} />
+                <div><strong>Usar token de licença</strong><span>Desative para instalar o ZIP normalmente, sem preparar token.</span></div>
+              </label>
+            )}
+
+            {String(formState.overrideAppId || "").trim() === "4407750" && formState.overrideSpecialCorrectionEnabled && (
               <div className="notice notice--warning override-special-notice" role="note">
                 <strong>Correção com token de licença</strong>
                 <span>
-                  O ZIP deve conter exatamente um <code>token.ini</code> e um <code>anadius.cfg</code>,
-                  cada um com o placeholder <code>RETORNO_TOKEN_MERLIN</code>. O launcher 1.6.8 ou mais
-                  recente prepara esses arquivos durante “Baixar e instalar”.
+                  O ZIP deve conter um <code>anadius.cfg</code> com o placeholder <code>RETORNO_TOKEN_MERLIN</code>.
+                  O launcher 1.6.8 ou mais recente prepara esse arquivo durante “Baixar e instalar”.
                 </span>
               </div>
             )}

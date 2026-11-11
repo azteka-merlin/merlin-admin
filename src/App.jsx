@@ -49,7 +49,8 @@ function createEmptyOverrideForm() {
     overrideFixFile: "",
     overrideFilename: "",
     overrideSize: "",
-    overrideAdminNote: ""
+    overrideAdminNote: "",
+    overrideSpecialCorrectionEnabled: true
   };
 }
 
@@ -60,6 +61,7 @@ function mapOverridesDocument(overridesMap) {
       name: entry.name || entry.fixOverride?.gameName || "",
       coverUrl: entry.coverUrl || "",
       adminNote: entry.adminNote || "",
+      specialCorrectionEnabled: entry.specialCorrectionEnabled !== false,
       hidden: Boolean(entry.hidden),
       migrated: entry.migrated === true,
       manifestOverride: entry.manifestOverride || null,
@@ -85,7 +87,8 @@ function createOverrideForm(entry) {
     overrideFixFile: entry.fixOverride?.file || "",
     overrideFilename: entry.fixOverride?.filename || "",
     overrideSize: entry.fixOverride?.size || "",
-    overrideAdminNote: entry.adminNote || ""
+    overrideAdminNote: entry.adminNote || "",
+    overrideSpecialCorrectionEnabled: entry.specialCorrectionEnabled !== false
   };
 }
 
@@ -105,6 +108,7 @@ function buildOverridePayload(formState) {
     name,
     ...(formState.overrideCoverUrl.trim() ? { coverUrl: formState.overrideCoverUrl.trim() } : {}),
     hidden: Boolean(formState.overrideHidden),
+    ...(appId === "4407750" ? { specialCorrectionEnabled: Boolean(formState.overrideSpecialCorrectionEnabled) } : {}),
     ...(formState.overrideAdminNote.trim() ? { adminNote: formState.overrideAdminNote.trim() } : {})
   };
 
