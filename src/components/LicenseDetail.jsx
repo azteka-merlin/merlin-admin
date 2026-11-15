@@ -70,6 +70,7 @@ export default function LicenseDetail({ license, premiumCycleSummary, expiration
           <>
             <DetailField label="Vencimento" value={formatDate(license.expiresAt)} />
             <DetailField label="Contato" value={formatContact(contact, contactType)} />
+            {contactType === "email" && license.phone && <DetailField label="Telefone" value={license.phone} />}
             <DetailField label="Recuperacao" value={license.hasRecoveryPin ? "Senha configurada" : "Sem senha"} />
           </>
         )}
