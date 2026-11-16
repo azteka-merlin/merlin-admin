@@ -227,8 +227,8 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
     if (draft.published && !gameName) return notify("Informe o nome do jogo antes de publicar.");
     if (draft.published && !draft.image && !draft.imageVersion) return notify("Escolha uma imagem para o card antes de publicar.");
     const pending = draft.packageType === "folder" ? await loadUploadCheckpoint(draft.gameId) : null;
-    if (draft.packageType === "folder" && draft.folderFiles.length > 200000) {
-      const message = `A pasta contém ${draft.folderFiles.length.toLocaleString("pt-BR")} arquivos. O limite é de 200.000 arquivos.`;
+    if (draft.packageType === "folder" && draft.folderFiles.length > 500000) {
+      const message = `A pasta contém ${draft.folderFiles.length.toLocaleString("pt-BR")} arquivos. O limite é de 500.000 arquivos.`;
       setUploadError(message);
       return notify(message);
     }

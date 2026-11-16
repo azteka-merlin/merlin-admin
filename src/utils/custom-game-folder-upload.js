@@ -15,7 +15,7 @@ const pause = (milliseconds, signal) => new Promise((resolve, reject) => {
 
 export function folderDescriptors(files) {
   if (!files.length) throw new Error("A pasta selecionada não contém arquivos. Escolha a pasta que contém os arquivos do jogo.");
-  if (files.length > 200000) throw new Error(`A pasta contém ${files.length.toLocaleString("pt-BR")} arquivos. O limite é de 200.000 arquivos.`);
+  if (files.length > 500000) throw new Error(`A pasta contém ${files.length.toLocaleString("pt-BR")} arquivos. O limite é de 500.000 arquivos.`);
   const root = String(files[0].webkitRelativePath || "").split("/")[0];
   const descriptors = files.map(file => {
     const relative = String(file.webkitRelativePath || file.name).replace(/\\/g, "/");

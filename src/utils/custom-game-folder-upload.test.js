@@ -67,7 +67,7 @@ const prepareBundle = (entries, options) => createFolderBundle(entries, options.
 
 test("folder selection explains an empty folder and reports the actual count above the limit", () => {
   assert.throws(() => folderDescriptors([]), /não contém arquivos/);
-  assert.throws(() => folderDescriptors(new Array(200001)), /200\.001 arquivos.*limite é de 200\.000/);
+  assert.throws(() => folderDescriptors(new Array(500001)), /500\.001 arquivos.*limite é de 500\.000/);
 });
 
 test("folder upload retries a lost completion response without sending the object again", async () => {
@@ -172,11 +172,11 @@ test("folder validation accepts a 30,000-file game manifest", () => {
   assert.equal(folderDescriptors(entries).length, 30_000);
 });
 
-test("folder selection accepts exactly 200,000 distinct files and rejects 200,001", () => {
-  const files = Array.from({ length: 200000 }, (_, index) => ({
+test("folder selection accepts exactly 500,000 distinct files and rejects 500,001", () => {
+  const files = Array.from({ length: 500000 }, (_, index) => ({
     name: index + ".bin", webkitRelativePath: "Game/data/" + index + ".bin", size: 1
   }));
-  assert.equal(folderDescriptors(files).length, 200000);
+  assert.equal(folderDescriptors(files).length, 500000);
   assert.throws(() => folderDescriptors([...files, { name: "extra.bin", webkitRelativePath: "Game/extra.bin", size: 1 }]),
-    /200\.001 arquivos.*limite é de 200\.000/);
+    /500\.001 arquivos.*limite é de 500\.000/);
 });
