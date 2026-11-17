@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createFolderUploadPlan, prepareFolderBundleInWorker, runFolderUploadPipeline } from "./folder-upload-engine.js";
+import { createFolderUploadPlan, createFolderUploadPlanAsync, prepareFolderBundleInWorker, runFolderUploadPipeline } from "./folder-upload-engine.js";
 
 const MiB = 1024 ** 2;
 const tick = () => new Promise(resolve => setImmediate(resolve));
@@ -23,6 +23,18 @@ test("upload plan is deterministic across selection order and changes when sourc
   const changed = createFolderUploadPlan(descriptors.map(entry => entry.path === "a.bin"
     ? { ...entry, file: { ...entry.file, lastModified: 5 } } : entry));
   assert.notEqual(changed.fingerprint, plan.fingerprint);
+});
+
+test("asynchronous upload planning preserves the exact fingerprint and bundle layout", async () => {
+  const descriptors = Array.from({ length: 240 }, (_, index) => ({
+    path: `folder/${String(index).padStart(3, "0")}.bin`,
+    file: { size: (index % 7 + 1) * MiB, lastModified: index + 1 },
+  }));
+  const expected = createFolderUploadPlan(descriptors);
+  const actual = await createFolderUploadPlanAsync(descriptors.toReversed());
+  assert.equal(actual.fingerprint, expected.fingerprint);
+  assert.deepEqual(actual.units.map(unit => [unit.kind, unit.bytes, unit.entries.map(entry => entry.path)]),
+    expected.units.map(unit => [unit.kind, unit.bytes, unit.entries.map(entry => entry.path)]));
 });
 
 test("pipeline overlaps preparation and direct upload, limits memory and checkpoints before sending", async () => {

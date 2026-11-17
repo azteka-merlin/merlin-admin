@@ -5783,6 +5783,9 @@ h3 {
 .custom-games-admin-preview > div { position: absolute; inset: 0; background-size: cover; background-repeat: no-repeat; }
 .custom-games-admin-progress { display: grid; gap: 5px; color: #d6c0ff; }
 .custom-games-admin-progress progress { width: 100%; accent-color: #9b4cf6; }
+.custom-games-folder-scan { display: flex; align-items: center; gap: 12px; }
+.custom-games-folder-scan progress { flex: 1; min-width: 80px; accent-color: #9b4cf6; }
+.custom-games-folder-scan .button { flex: 0 0 auto; }
 .custom-games-admin-progress__meter { display: grid; gap: 3px; color: var(--muted); font-size: .8rem; }
 .custom-games-admin-progress__heading,
 .custom-games-admin-progress__details { display: flex; align-items: center; justify-content: space-between; gap: 12px; }

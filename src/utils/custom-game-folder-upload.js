@@ -1,8 +1,9 @@
-import { createFolderUploadPlan, runFolderUploadPipeline } from "./folder-upload-engine.js";
+import { createFolderUploadPlanAsync, runFolderUploadPipeline } from "./folder-upload-engine.js";
 import { loadUploadCheckpoint, saveUploadCheckpoint, deleteUploadCheckpoint,
   loadUploadUnitCheckpoints, saveUploadUnitCheckpoint, storageAvailable } from "./custom-game-upload-store.js";
 import { createTransferLimiter, readFileForUpload, uploadSignedPart } from "./custom-game-transfer.js";
 import { createFolderUploadProgress } from "./folder-upload-progress.js";
+import { folderMetadataBatches } from "./folder-metadata-batches.js";
 
 const ROOT = "/panel-api/custom-games/upload";
 const canceled = () => new Error("Upload canceled");
@@ -16,9 +17,10 @@ const pause = (milliseconds, signal) => new Promise((resolve, reject) => {
 export function folderDescriptors(files) {
   if (!files.length) throw new Error("A pasta selecionada não contém arquivos. Escolha a pasta que contém os arquivos do jogo.");
   if (files.length > 500000) throw new Error(`A pasta contém ${files.length.toLocaleString("pt-BR")} arquivos. O limite é de 500.000 arquivos.`);
-  const root = String(files[0].webkitRelativePath || "").split("/")[0];
-  const descriptors = files.map(file => {
-    const relative = String(file.webkitRelativePath || file.name).replace(/\\/g, "/");
+  const root = String(files[0].merlinRelativePath || files[0].webkitRelativePath || "").split("/")[0];
+  let total = 0;
+  const descriptors = Array.from(files, file => {
+    const relative = String(file.merlinRelativePath || file.webkitRelativePath || file.name).replace(/\\/g, "/");
     const path = root && relative.startsWith(`${root}/`) ? relative.slice(root.length + 1) : relative;
     if (!path || path.length > 500 || path.split("/").length > 32 || path.split("/").some(part =>
       !part || part === "." || part === ".." || /[<>:"|?*\x00-\x1f]/.test(part) || /[. ]$/.test(part) ||
@@ -26,9 +28,9 @@ export function folderDescriptors(files) {
       throw new Error(`Caminho inválido na pasta: ${relative}`);
     }
     if (!Number.isSafeInteger(file.size) || file.size < 0 || file.size > 30 * 1024 ** 3) throw new Error(`Tamanho inválido: ${relative}`);
+    total += file.size;
     return { file, path };
   });
-  const total = descriptors.reduce((sum, entry) => sum + entry.file.size, 0);
   if (!total || total > 200 * 1024 ** 3) throw new Error("A pasta precisa conter dados e não pode ultrapassar 200 GiB.");
   const paths = new Set();
   for (const { path } of descriptors) {
@@ -43,13 +45,82 @@ export function folderDescriptors(files) {
   return descriptors;
 }
 
+export async function folderDescriptorsAsync(files, { signal, onProgress } = {}) {
+  if (!files.length) throw new Error("A pasta selecionada não contém arquivos. Escolha a pasta que contém os arquivos do jogo.");
+  if (files.length > 500000) throw new Error(`A pasta contém ${files.length.toLocaleString("pt-BR")} arquivos. O limite é de 500.000 arquivos.`);
+  const root = String(files[0].merlinRelativePath || files[0].webkitRelativePath || "").split("/")[0];
+  const descriptors = new Array(files.length);
+  const paths = new Set();
+  let total = 0;
+  const yieldToUi = () => new Promise(resolve => setTimeout(resolve, 0));
+  for (let start = 0; start < files.length; start += 5000) {
+    if (signal?.aborted) throw canceled();
+    const end = Math.min(files.length, start + 5000);
+    for (let index = start; index < end; index++) {
+      const file = files[index];
+      const relative = String(file.merlinRelativePath || file.webkitRelativePath || file.name).replace(/\\/g, "/");
+      const path = root && relative.startsWith(`${root}/`) ? relative.slice(root.length + 1) : relative;
+      if (!path || path.length > 500 || path.split("/").length > 32 || path.split("/").some(part =>
+        !part || part === "." || part === ".." || /[<>:"|?*\x00-\x1f]/.test(part) || /[. ]$/.test(part) ||
+        /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)/i.test(part) || part.toLowerCase() === ".merlin-install.json")) {
+        throw new Error(`Caminho inválido na pasta: ${relative}`);
+      }
+      if (!Number.isSafeInteger(file.size) || file.size < 0 || file.size > 30 * 1024 ** 3) throw new Error(`Tamanho inválido: ${relative}`);
+      total += file.size;
+      const normalized = path.toLowerCase();
+      if (paths.has(normalized)) throw new Error(`Caminho duplicado: ${path}`);
+      paths.add(normalized);
+      descriptors[index] = { file, path };
+    }
+    onProgress?.({ done: end, count: files.length, phase: "validating" });
+    if (end < files.length) await yieldToUi();
+  }
+  if (!total || total > 200 * 1024 ** 3) throw new Error("A pasta precisa conter dados e não pode ultrapassar 200 GiB.");
+  for (let start = 0; start < descriptors.length; start += 5000) {
+    if (signal?.aborted) throw canceled();
+    const end = Math.min(descriptors.length, start + 5000);
+    for (let index = start; index < end; index++) {
+      const parts = descriptors[index].path.toLowerCase().split("/");
+      for (let part = 1; part < parts.length; part++) {
+        if (paths.has(parts.slice(0, part).join("/"))) throw new Error(`Conflito entre arquivo e pasta: ${descriptors[index].path}`);
+      }
+    }
+    onProgress?.({ done: end, count: descriptors.length, phase: "validating" });
+    if (end < descriptors.length) await yieldToUi();
+  }
+  return descriptors;
+}
+
 export async function discardFolderUpload(gameId, apiRequest) {
   return withUploadLock(gameId, () => discardFolderUploadUnlocked(gameId, apiRequest));
 }
 async function discardFolderUploadUnlocked(gameId, apiRequest) {
   const stored = await loadUploadCheckpoint(gameId);
   if (stored?.serverSessionId) {
-    await apiRequest(`${ROOT}/sessions/${stored.serverSessionId}/cancel`, { method: "POST", mutate: true });
+    try {
+      await apiRequest(`${ROOT}/sessions/${stored.serverSessionId}/cancel`, { method: "POST", mutate: true });
+    } catch (error) {
+      // A server-side recovery may already have removed an orphaned session.
+      // In that case, clear this tab's durable checkpoint instead of keeping
+      // the user stuck behind a fingerprint mismatch that can no longer resume.
+      if (error?.status === 404 && /sessão de upload não encontrada/i.test(error?.message || "")) {
+        await deleteUploadCheckpoint(gameId);
+        return;
+      }
+      if (!/finalizad|finalizando/i.test(error?.message || "")) throw error;
+      let session = await apiRequest(`${ROOT}/sessions/${stored.serverSessionId}`);
+      for (let attempt = 0; session.status === "finalizing" && attempt < 10; attempt++) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        session = await apiRequest(`${ROOT}/sessions/${stored.serverSessionId}`);
+      }
+      if (session.status === "finalized" && session.manifestKey) {
+        // The session finished after the cancel request. The API checks that
+        // no game/version references this manifest before deleting its files.
+        await apiRequest(`${ROOT}/discard`, { method: "POST", mutate: true, body: { key: session.manifestKey } });
+      } else if (session.status !== "cancelled") {
+        throw new Error("O pacote ainda está sendo finalizado. Aguarde alguns segundos e descarte o envio novamente.");
+      }
+    }
   }
   await deleteUploadCheckpoint(gameId);
 }
@@ -67,11 +138,27 @@ function withUploadLock(gameId, action) {
 export async function runCustomGameFolderUpload({ files, gameId, signal, apiRequest, apiUpload, onProgress, onSession,
   prepareBundle, readFile = readFileForUpload, signedUpload = uploadSignedPart }) {
   const execute = async () => {
-    const descriptors = folderDescriptors(files);
-    const plan = createFolderUploadPlan(descriptors);
+    onProgress?.({ folder: true, preparingPlan: true, label: "Lendo e conferindo a pasta", bytes: 0, total: 0,
+      done: 0, count: files.length, preparedFiles: 0, speed: 0, averageSpeed: 0, etaSeconds: null });
+    const descriptors = await folderDescriptorsAsync(files, { signal,
+      onProgress: progress => onProgress?.({ folder: true, preparingPlan: true,
+        label: progress.phase === "validating" ? "Lendo e conferindo a pasta" : "Preparando o envio",
+        bytes: 0, total: 0, done: progress.done, count: progress.count, preparedFiles: 0, speed: 0, averageSpeed: 0, etaSeconds: null }) });
+    const plan = await createFolderUploadPlanAsync(descriptors, { signal,
+      onProgress: progress => onProgress?.({ folder: true, preparingPlan: true, label: "Preparando o envio",
+        bytes: 0, total: 0, done: progress.done, count: progress.count, preparedFiles: 0, speed: 0, averageSpeed: 0, etaSeconds: null }) });
     let checkpoint = await loadUploadCheckpoint(gameId);
     if (checkpoint && (checkpoint.fingerprint !== plan.fingerprint || checkpoint.planVersion !== plan.version)) {
-      throw new Error("A pasta mudou desde o envio anterior. Descarte o envio pendente antes de selecionar outra pasta.");
+      if (checkpoint.serverSessionId) {
+        try {
+          await apiRequest(`${ROOT}/sessions/${checkpoint.serverSessionId}`);
+        } catch (error) {
+          if (error?.status !== 404 || !/sessão de upload não encontrada/i.test(error?.message || "")) throw error;
+          await deleteUploadCheckpoint(gameId);
+          checkpoint = null;
+        }
+      }
+      if (checkpoint) throw new Error("A pasta mudou desde o envio anterior. Descarte o envio pendente antes de selecionar outra pasta.");
     }
     checkpoint ||= { fingerprint: plan.fingerprint, planVersion: plan.version, manifestId: crypto.randomUUID() };
     const session = await apiRequest(`${ROOT}/sessions`, { method: "POST", mutate: true,
@@ -153,7 +240,11 @@ export async function runCustomGameFolderUpload({ files, gameId, signal, apiRequ
           report(true);
         },
         uploadUnit: async (unit, prepared, _index, taskSignal) => {
-          const blob = prepared?.blob || unit.entries[0].file;
+          const source = unit.entries[0].file;
+          const blob = prepared?.blob || (source.handle ? await source.handle.getFile() : source);
+          if (!prepared?.blob && source.handle && (blob.size !== source.size || blob.lastModified !== source.lastModified)) {
+            throw new Error(`O arquivo mudou durante a leitura: ${unit.entries[0].path}. Selecione a pasta novamente.`);
+          }
           const saved = unitCheckpoints[unit.id] || {};
           const started = await retry(() => apiRequest(`${sessionRoot}/objects/initiate`, { method: "POST", mutate: true,
             body: { clientId: unit.id, filename: blob.name || "merlin-bundle.zip", sizeBytes: blob.size, sha256: saved.sha256 }, signal: taskSignal }), taskSignal);
@@ -261,14 +352,35 @@ export async function runCustomGameFolderUpload({ files, gameId, signal, apiRequ
       if (signal?.aborted) throw canceled();
       clearInterval(timer);
       report(true, { label: "Conferindo arquivos enviados", finalizing: true, etaSeconds: null, etaHint: null });
-      const entries = plan.units.map(unit => {
-        const saved = unitCheckpoints[unit.id];
-        if (!saved?.result || !saved.metadata) throw new Error("Ainda existem arquivos sem confirmação de envio.");
-        return { ...saved.metadata, key: saved.result.key };
-      });
-      const manifest = await retry(() => apiRequest(`${ROOT}/folder/complete`, { method: "POST", mutate: true, signal,
-        body: { gameId, sessionId: session.sessionId, manifestId: checkpoint.manifestId,
-          files: entries.filter(e => e.kind === "file"), bundles: entries.filter(e => e.kind === "bundle") } }), signal);
+      let batchCount = 0;
+      const metadataBatches = folderMetadataBatches(plan.units, unitCheckpoints, checkpoint.manifestId);
+      let metadataFailure = null;
+      const uploadMetadataBatches = async () => {
+        while (!metadataFailure) {
+          const next = metadataBatches.next();
+          if (next.done) return;
+          const index = batchCount++;
+          try {
+            // Batches are immutable and index-addressed, so a small fixed
+            // concurrency reduces round trips without retaining all metadata.
+            // Replaying a sealed batch repairs a missing object on resume.
+            await retry(() => apiRequest(`${sessionRoot}/metadata/batches/${index}`, { method: "POST", mutate: true, signal,
+              body: { manifestId: checkpoint.manifestId, entries: next.value } }), signal);
+            report(true, { label: `Conferindo arquivos enviados · lote ${batchCount}`, finalizing: true, etaSeconds: null });
+          } catch (error) {
+            metadataFailure ||= error;
+            return;
+          }
+        }
+      };
+      await Promise.all(Array.from({ length: 4 }, () => uploadMetadataBatches()));
+      if (metadataFailure) throw metadataFailure;
+      let manifest;
+      do {
+        manifest = await retry(() => apiRequest(`${sessionRoot}/metadata/complete`, { method: "POST", mutate: true, signal,
+          body: { manifestId: checkpoint.manifestId, batchCount } }), signal);
+      } while (manifest.status === "processing");
+      if (!manifest.key || !Number.isSafeInteger(manifest.sizeBytes)) throw new Error("A finalização do pacote não foi confirmada.");
       checkpoint.manifestKey = manifest.key;
       checkpoint.totalSizeBytes = manifest.sizeBytes;
       metrics.elapsedMs = performance.now() - uploadStartedAt;

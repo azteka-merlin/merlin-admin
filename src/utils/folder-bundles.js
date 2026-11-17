@@ -79,12 +79,17 @@ export async function createFolderBundle(entries, signal, { onProgress, prefetch
         const file = entries[index].file;
         if (file.size > 2 * 1024 ** 2 || ahead.has(index)) continue;
         // Capture failures immediately, including promises not consumed after abort.
-        ahead.set(index, file.arrayBuffer().then(value => ({ value }), error => ({ error })));
+        ahead.set(index, (file.handle ? file.handle.getFile() : Promise.resolve(file))
+          .then(source => source.arrayBuffer()).then(value => ({ value }), error => ({ error })));
       }
     };
     prefetch(0);
     for (let index = 0; index < entries.length; index++) {
-      const { file, path } = entries[index];
+      const { file: fileRef, path } = entries[index];
+      const file = fileRef.handle ? await fileRef.handle.getFile() : fileRef;
+      if (fileRef.handle && (file.size !== fileRef.size || file.lastModified !== fileRef.lastModified)) {
+        throw new Error(`O arquivo mudou durante a leitura: ${path}. Selecione a pasta novamente.`);
+      }
       const fileStartedAt = clock();
       abortIfNeeded();
       const member = new ZipPassThrough(path);

@@ -11,18 +11,42 @@ const now = () => globalThis.performance?.now() ?? Date.now();
 export function createFolderUploadPlan(descriptors) {
   const sorted = [...descriptors].sort((a, b) => b.file.size - a.file.size || (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
   const plan = planFolderBundles(sorted);
+  const digest = sha256.create();
+  digest.update(new TextEncoder().encode(`merlin-folder-plan:${FOLDER_UPLOAD_PLAN_VERSION}\n`));
+  for (const { path, file } of sorted) {
+    digest.update(new TextEncoder().encode(`${JSON.stringify([path, file.size, Number(file.lastModified) || 0])}\n`));
+  }
+  return finishFolderUploadPlan(plan, hex(digest.digest()));
+}
+
+export async function createFolderUploadPlanAsync(descriptors, { signal, onProgress } = {}) {
+  const yieldToUi = () => new Promise(resolve => setTimeout(resolve, 0));
+  if (signal?.aborted) throw abortError();
+  const sorted = [...descriptors].sort((a, b) => b.file.size - a.file.size || (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+  const plan = planFolderBundles(sorted);
+  const digest = sha256.create();
+  digest.update(new TextEncoder().encode(`merlin-folder-plan:${FOLDER_UPLOAD_PLAN_VERSION}\n`));
+  for (let start = 0; start < sorted.length; start += 5000) {
+    if (signal?.aborted) throw abortError();
+    const end = Math.min(sorted.length, start + 5000);
+    for (let index = start; index < end; index++) {
+      const { path, file } = sorted[index];
+      digest.update(new TextEncoder().encode(`${JSON.stringify([path, file.size, Number(file.lastModified) || 0])}\n`));
+    }
+    onProgress?.({ done: end, count: sorted.length });
+    if (end < sorted.length) await yieldToUi();
+  }
+  return finishFolderUploadPlan(plan, hex(digest.digest()));
+}
+
+function finishFolderUploadPlan(plan, fingerprint) {
   const units = [
     ...plan.direct.map(entry => ({ kind: "file", entries: [entry], bytes: entry.file.size, estimatedPreparedBytes: 0 })),
     ...plan.bundles.map(entries => ({ kind: "bundle", entries,
       bytes: entries.reduce((total, entry) => total + entry.file.size, 0),
       estimatedPreparedBytes: entries.reduce((total, entry) => total + entry.file.size + BUNDLE_ENTRY_OVERHEAD_BYTES, 0) })),
   ].map((unit, index) => ({ ...unit, index, id: `v${FOLDER_UPLOAD_PLAN_VERSION}:${index}` }));
-  const digest = sha256.create();
-  digest.update(new TextEncoder().encode(`merlin-folder-plan:${FOLDER_UPLOAD_PLAN_VERSION}\n`));
-  for (const { path, file } of sorted) {
-    digest.update(new TextEncoder().encode(`${JSON.stringify([path, file.size, Number(file.lastModified) || 0])}\n`));
-  }
-  return { ...plan, units, fingerprint: hex(digest.digest()), version: FOLDER_UPLOAD_PLAN_VERSION };
+  return { ...plan, units, fingerprint, version: FOLDER_UPLOAD_PLAN_VERSION };
 }
 
 export function prepareFolderBundleInWorker(entries, { signal, onProgress } = {}) {

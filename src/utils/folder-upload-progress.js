@@ -7,10 +7,21 @@ export function createFolderUploadProgress(units, now = () => performance.now())
   const count = units.reduce((sum, unit) => sum + unit.entries.length, 0);
   const sent = new Map();
   const prepared = new Map();
+  const unitStats = new Map(units.filter(unit => unit.kind === "bundle").map(unit => {
+    let smallFiles = 0; let smallBytes = 0; let largeFiles = 0; let largeBytes = 0;
+    for (const entry of unit.entries) {
+      if (entry.file.size < 1024 ** 2) { smallFiles++; smallBytes += entry.file.size; }
+      else { largeFiles++; largeBytes += entry.file.size; }
+    }
+    return [unit.id, { smallFiles, smallBytes, largeFiles, largeBytes }];
+  }));
   const completed = new Set();
   const preparationSamples = [];
   const networkSamples = [];
-  let lastBytes = 0;
+  let sentBytes = 0;
+  let previousBytes = 0;
+  let preparedFilesTotal = 0;
+  let doneFiles = 0;
   let actualBytes = 0;
   let initialBytes = 0;
   let transport = "proxy";
@@ -19,30 +30,41 @@ export function createFolderUploadProgress(units, now = () => performance.now())
     baseline(unit, bytes) {
       const value = Math.max(0, Math.min(unit.bytes, bytes));
       const difference = value - (sent.get(unit.id) || 0);
-      sent.set(unit.id, value); initialBytes += difference; lastBytes += difference;
+      sent.set(unit.id, value); initialBytes += difference; sentBytes += difference;
     },
-    restore(unit) { sent.set(unit.id, unit.bytes); prepared.set(unit.id, { bytes: unit.bytes, files: unit.entries.length }); completed.add(unit.id); initialBytes += unit.bytes; lastBytes += unit.bytes; },
-    sent(unit, bytes) { sent.set(unit.id, Math.max(0, Math.min(unit.bytes, bytes))); },
-    prepared(unit, bytes, files) { prepared.set(unit.id, { bytes, files }); },
+    restore(unit) { sent.set(unit.id, unit.bytes); prepared.set(unit.id, { bytes: unit.bytes, files: unit.entries.length }); completed.add(unit.id); doneFiles += unit.entries.length; preparedFilesTotal += unit.entries.length; initialBytes += unit.bytes; sentBytes += unit.bytes; },
+    sent(unit, bytes) {
+      const value = Math.max(0, Math.min(unit.bytes, bytes));
+      sentBytes += value - (sent.get(unit.id) || 0);
+      sent.set(unit.id, value);
+    },
+    prepared(unit, bytes, files) {
+      const previous = prepared.get(unit.id);
+      preparedFilesTotal += files - (previous?.files || 0);
+      prepared.set(unit.id, { bytes, files });
+    },
     timing(unit, timing) {
       if (Number.isFinite(timing?.durationMs) && timing.durationMs > 0) preparationSamples.push({ unit, timing });
     },
-    complete(unit) { completed.add(unit.id); sent.set(unit.id, unit.bytes); prepared.set(unit.id, { bytes: unit.bytes, files: unit.entries.length }); },
+    complete(unit) {
+      if (!completed.has(unit.id)) doneFiles += unit.entries.length;
+      completed.add(unit.id);
+      this.sent(unit, unit.bytes);
+      this.prepared(unit, unit.bytes, unit.entries.length);
+    },
     snapshot(extra = {}) {
       const time = now();
-      const bytes = [...sent.values()].reduce((sum, value) => sum + value, 0);
-      actualBytes += Math.max(0, bytes - lastBytes);
-      lastBytes = bytes;
+      const bytes = sentBytes;
+      actualBytes += Math.max(0, bytes - previousBytes);
+      previousBytes = bytes;
       networkSamples.push({ time, bytes: actualBytes });
       while (networkSamples.length > 2 && networkSamples[1].time < time - 30000) networkSamples.shift();
       const elapsed = (time - startedAt) / 1000;
       const recent = networkSamples[0];
       const windowSeconds = (time - recent.time) / 1000;
       const speed = windowSeconds >= 2 ? Math.max(0, actualBytes - recent.bytes) / windowSeconds : 0;
-      const preparedFiles = [...prepared.values()].reduce((sum, value) => sum + value.files, 0);
-      const done = units.filter(unit => completed.has(unit.id)).reduce((sum, unit) => sum + unit.entries.length, 0);
-      const pending = units.filter(unit => !completed.has(unit.id));
-      const prepPending = pending.filter(unit => (prepared.get(unit.id)?.files || 0) < unit.entries.length && unit.kind === "bundle");
+      const preparedFiles = preparedFilesTotal;
+      const done = doneFiles;
       // Estimate each category from measured per-file timings; fall back to no
       // ETA until this upload has sampled the kind of work that remains.
       const categories = [{ files: 0, bytes: 0, duration: 0 }, { files: 0, bytes: 0, duration: 0 }];
@@ -55,13 +77,24 @@ export function createFolderUploadProgress(units, now = () => performance.now())
       }
       let prepSeconds = 0;
       let calibrated = true;
+      const remaining = [{ files: 0, bytes: 0 }, { files: 0, bytes: 0 }];
+      for (const unit of units) {
+        const stats = unitStats.get(unit.id);
+        if (!stats || completed.has(unit.id)) continue;
+        const preparedCount = prepared.get(unit.id)?.files || 0;
+        const largeRemaining = Math.max(0, stats.largeFiles - preparedCount);
+        const smallRemaining = Math.max(0, stats.smallFiles - Math.max(0, preparedCount - stats.largeFiles));
+        remaining[1].files += largeRemaining;
+        remaining[1].bytes += stats.largeFiles ? stats.largeBytes * largeRemaining / stats.largeFiles : 0;
+        remaining[0].files += smallRemaining;
+        remaining[0].bytes += stats.smallFiles ? stats.smallBytes * smallRemaining / stats.smallFiles : 0;
+      }
       for (const [index, category] of categories.entries()) {
-        const entries = prepPending.flatMap(unit => unit.entries.slice(prepared.get(unit.id)?.files || 0)).filter(entry => (entry.file.size < 1024 ** 2 ? 0 : 1) === index);
-        if (!entries.length) continue;
+        const pending = remaining[index];
+        if (!pending.files) continue;
         if (!category.files || !category.duration) { calibrated = false; continue; }
-        const remainingBytes = entries.reduce((sum, entry) => sum + entry.file.size, 0);
-        const fileEstimate = entries.length * category.duration / category.files;
-        const byteEstimate = category.bytes ? remainingBytes * category.duration / category.bytes : 0;
+        const fileEstimate = pending.files * category.duration / category.files;
+        const byteEstimate = category.bytes ? pending.bytes * category.duration / category.bytes : 0;
         prepSeconds += Math.max(fileEstimate, byteEstimate) / 1000 / 2;
       }
       const etaSeconds = elapsed >= 15 && calibrated && speed > 0 ? Math.max((total - bytes) / speed, prepSeconds) : null;

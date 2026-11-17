@@ -43,6 +43,22 @@ test("creates stored ZIP and per-file checksums without changing folder paths", 
   assert.equal((await createFolderBundle(entries)).sha256, bundle.sha256);
 });
 
+test("reads directory handles lazily and rejects files changed after selection", async () => {
+  const source = Object.assign(new Blob(["handle-content"]), { name: "save.txt", lastModified: 17 });
+  let reads = 0;
+  const entry = { path: "Data/save.txt", file: { name: source.name, size: source.size,
+    lastModified: source.lastModified, handle: { getFile: async () => { reads++; return source; } } } };
+  const bundle = await createFolderBundle([entry]);
+  const unpacked = unzipSync(new Uint8Array(await bundle.blob.arrayBuffer()));
+  assert.equal(new TextDecoder().decode(unpacked[entry.path]), "handle-content");
+  assert.ok(reads >= 2);
+
+  entry.file.handle.getFile = async () => Object.assign(new Blob(["different"]), {
+    name: source.name, lastModified: source.lastModified + 1,
+  });
+  await assert.rejects(createFolderBundle([entry]), /O arquivo mudou durante a leitura/);
+});
+
 test("prefetch preserves content, order and hashes for medium and multi-read files", async () => {
   const entries = [
     { path: "medium.bin", file: new Blob([new Uint8Array(2 * 1024 ** 2).fill(37)]) },
