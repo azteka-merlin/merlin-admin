@@ -574,14 +574,24 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
             <strong>{uploadProgress.canceling ? "Cancelando upload…" : uploadProgress.label}</strong>
             <button type="button" className="button button--danger button--soft button--sm" onClick={cancelUpload} disabled={uploadProgress.canceling || uploadProgress.finalizing}>{uploadProgress.indexing ? "Parar espera" : "Cancelar upload"}</button>
           </div>
-          {uploadProgress.preparingPlan ? <div className="custom-games-admin-progress__meter">
+          {uploadProgress.metadataPhase ? <div className="custom-games-admin-progress__meter">
+            <span>
+              {uploadProgress.metadataBatchesCompleted}
+              {uploadProgress.metadataBatchTotal ? ` de ${uploadProgress.metadataBatchTotal}` : ""}
+              {uploadProgress.metadataPhase === "processing" ? " lotes conferidos" : " lotes enviados"}
+              {uploadProgress.metadataBatchTotal ? ` · ${Math.max(0, uploadProgress.metadataBatchTotal - uploadProgress.metadataBatchesCompleted)} restantes` : ""}
+            </span>
+            <progress aria-label={uploadProgress.label} max={uploadProgress.metadataBatchTotal || 1}
+              value={uploadProgress.metadataBatchTotal ? uploadProgress.metadataBatchesCompleted : undefined} />
+            <small>Os arquivos já foram enviados. O Merlin confere a lista antes de disponibilizar o jogo.</small>
+          </div> : uploadProgress.preparingPlan ? <div className="custom-games-admin-progress__meter">
             <span>{uploadProgress.label}: {uploadProgress.done || 0} de {uploadProgress.count || 0} arquivos</span>
             <progress max={uploadProgress.count || 1} value={uploadProgress.done || 0} />
           </div> : <div className="custom-games-admin-progress__meter">
             <span>{uploadProgress.indexing ? "Índice preparado" : "Dados enviados"}: {prettySize(uploadProgress.bytes)} de {prettySize(uploadProgress.total)} · {prettyPercent(uploadProgress.bytes, uploadProgress.total)}</span>
             <progress max={uploadProgress.total} value={uploadProgress.bytes} />
           </div>}
-          {uploadProgress.folder && !uploadProgress.preparingPlan && <>
+          {uploadProgress.folder && !uploadProgress.preparingPlan && !uploadProgress.metadataPhase && <>
             <div className="custom-games-admin-progress__meter">
               <span>Arquivos preparados: {uploadProgress.preparedFiles || 0} de {uploadProgress.count}</span>
               <progress max={uploadProgress.count} value={uploadProgress.preparedFiles || 0} />
@@ -589,7 +599,7 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
             <small>Arquivos confirmados: {uploadProgress.done} de {uploadProgress.count} · Pacotes e arquivos enviados: {uploadProgress.confirmedObjects || 0}/{uploadProgress.totalObjects || 0}</small>
           </>}
           {uploadProgress.indexing && uploadProgress.count > 0 && <small>Arquivos indexados: {uploadProgress.done} de {uploadProgress.count}</small>}
-          {!uploadProgress.indexing && <>
+          {!uploadProgress.indexing && !uploadProgress.metadataPhase && <>
           <div className="custom-games-admin-progress__details">
             <span>Velocidade atual: {prettyRate(uploadProgress.speed)}</span>
             <span>{uploadProgress.finalizing ? "Conferindo arquivos…" : uploadProgress.etaHint || `Restante estimado: ≈ ${prettyDuration(uploadProgress.etaSeconds)}`}</span>

@@ -351,14 +351,22 @@ export async function runCustomGameFolderUpload({ files, gameId, signal, apiRequ
       });
       if (signal?.aborted) throw canceled();
       clearInterval(timer);
-      report(true, { label: "Conferindo arquivos enviados", finalizing: true, etaSeconds: null, etaHint: null });
+      let metadataBatchesCompleted = 0;
+      let metadataBatchTotal = null;
+      report(true, { label: "Enviando a lista de arquivos", finalizing: true, metadataPhase: "sending",
+        metadataBatchesCompleted, metadataBatchTotal, etaSeconds: null, etaHint: null });
       let batchCount = 0;
       const metadataBatches = folderMetadataBatches(plan.units, unitCheckpoints, checkpoint.manifestId);
       let metadataFailure = null;
       const uploadMetadataBatches = async () => {
         while (!metadataFailure) {
           const next = metadataBatches.next();
-          if (next.done) return;
+          if (next.done) {
+            metadataBatchTotal = batchCount;
+            report(true, { label: "Enviando a lista de arquivos", finalizing: true, metadataPhase: "sending",
+              metadataBatchesCompleted, metadataBatchTotal, etaSeconds: null, etaHint: null });
+            return;
+          }
           const index = batchCount++;
           try {
             // Batches are immutable and index-addressed, so a small fixed
@@ -366,7 +374,9 @@ export async function runCustomGameFolderUpload({ files, gameId, signal, apiRequ
             // Replaying a sealed batch repairs a missing object on resume.
             await retry(() => apiRequest(`${sessionRoot}/metadata/batches/${index}`, { method: "POST", mutate: true, signal,
               body: { manifestId: checkpoint.manifestId, entries: next.value } }), signal);
-            report(true, { label: `Conferindo arquivos enviados · lote ${batchCount}`, finalizing: true, etaSeconds: null });
+            metadataBatchesCompleted++;
+            report(true, { label: "Enviando a lista de arquivos", finalizing: true, metadataPhase: "sending",
+              metadataBatchesCompleted, metadataBatchTotal, etaSeconds: null, etaHint: null });
           } catch (error) {
             metadataFailure ||= error;
             return;
@@ -375,10 +385,16 @@ export async function runCustomGameFolderUpload({ files, gameId, signal, apiRequ
       };
       await Promise.all(Array.from({ length: 4 }, () => uploadMetadataBatches()));
       if (metadataFailure) throw metadataFailure;
+      report(true, { label: "Conferindo e montando o índice do jogo", finalizing: true, metadataPhase: "processing",
+        metadataBatchesCompleted: 0, metadataBatchTotal: batchCount, etaSeconds: null, etaHint: null });
       let manifest;
       do {
         manifest = await retry(() => apiRequest(`${sessionRoot}/metadata/complete`, { method: "POST", mutate: true, signal,
           body: { manifestId: checkpoint.manifestId, batchCount } }), signal);
+        const completed = manifest.status === "processing" ? manifest.processedBatches : batchCount;
+        report(true, { label: manifest.status === "processing" ? "Conferindo e montando o índice do jogo" : "Índice do jogo pronto",
+          finalizing: true, metadataPhase: "processing", metadataBatchesCompleted: completed,
+          metadataBatchTotal: manifest.batchCount || batchCount, etaSeconds: null, etaHint: null });
       } while (manifest.status === "processing");
       if (!manifest.key || !Number.isSafeInteger(manifest.sizeBytes)) throw new Error("A finalização do pacote não foi confirmada.");
       checkpoint.manifestKey = manifest.key;
