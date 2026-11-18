@@ -1,5 +1,6 @@
 import { sha256 } from "@noble/hashes/sha2.js";
 import { BUNDLE_ENTRY_OVERHEAD_BYTES, BUNDLE_MAX_BYTES, planFolderBundles } from "./folder-bundles.js";
+import { compareFolderEntries, createFolderInventoryDigest } from "./folder-inventory.js";
 
 export const FOLDER_UPLOAD_PLAN_VERSION = 2;
 const hex = bytes => Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
@@ -9,7 +10,7 @@ const now = () => globalThis.performance?.now() ?? Date.now();
 // Sort without locale-sensitive comparison, keeping package bytes and indexes
 // identical after a reload or selection in a different filesystem order.
 export function createFolderUploadPlan(descriptors) {
-  const sorted = [...descriptors].sort((a, b) => b.file.size - a.file.size || (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+  const sorted = [...descriptors].sort(compareFolderEntries);
   const plan = planFolderBundles(sorted);
   const digest = sha256.create();
   digest.update(new TextEncoder().encode(`merlin-folder-plan:${FOLDER_UPLOAD_PLAN_VERSION}\n`));
@@ -19,24 +20,36 @@ export function createFolderUploadPlan(descriptors) {
   return finishFolderUploadPlan(plan, hex(digest.digest()));
 }
 
-export async function createFolderUploadPlanAsync(descriptors, { signal, onProgress } = {}) {
+export async function createFolderUploadPlanAsync(descriptors, { signal, onProgress, expectedInventory } = {}) {
   const yieldToUi = () => new Promise(resolve => setTimeout(resolve, 0));
   if (signal?.aborted) throw abortError();
-  const sorted = [...descriptors].sort((a, b) => b.file.size - a.file.size || (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
-  const plan = planFolderBundles(sorted);
+  if (expectedInventory && descriptors.length !== expectedInventory.fileCount) {
+    throw new Error(`O navegador encontrou ${descriptors.length.toLocaleString("pt-BR")} de ${expectedInventory.fileCount.toLocaleString("pt-BR")} arquivos. Confira a pasta ou envie o jogo como ZIP.`);
+  }
+  const sorted = [...descriptors].sort(compareFolderEntries);
   const digest = sha256.create();
-  digest.update(new TextEncoder().encode(`merlin-folder-plan:${FOLDER_UPLOAD_PLAN_VERSION}\n`));
+  const encoder = new TextEncoder();
+  digest.update(encoder.encode(`merlin-folder-plan:${FOLDER_UPLOAD_PLAN_VERSION}\n`));
+  const inventoryDigest = expectedInventory ? createFolderInventoryDigest() : null;
+  let inventoryBytes = 0;
   for (let start = 0; start < sorted.length; start += 5000) {
     if (signal?.aborted) throw abortError();
     const end = Math.min(sorted.length, start + 5000);
     for (let index = start; index < end; index++) {
       const { path, file } = sorted[index];
-      digest.update(new TextEncoder().encode(`${JSON.stringify([path, file.size, Number(file.lastModified) || 0])}\n`));
+      digest.update(encoder.encode(`${JSON.stringify([path, file.size, Number(file.lastModified) || 0])}\n`));
+      if (inventoryDigest) {
+        inventoryDigest.add(path, file.size);
+        inventoryBytes += file.size;
+      }
     }
     onProgress?.({ done: end, count: sorted.length });
     if (end < sorted.length) await yieldToUi();
   }
-  return finishFolderUploadPlan(plan, hex(digest.digest()));
+  if (inventoryDigest && (inventoryBytes !== expectedInventory.totalSizeBytes || inventoryDigest.finish() !== expectedInventory.sha256)) {
+    throw new Error("Os arquivos selecionados não correspondem ao inventário. Confira se a pasta mudou ou envie o jogo como ZIP.");
+  }
+  return finishFolderUploadPlan(planFolderBundles(sorted), hex(digest.digest()));
 }
 
 function finishFolderUploadPlan(plan, fingerprint) {

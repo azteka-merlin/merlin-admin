@@ -3,6 +3,7 @@ import Modal from "../components/Modal";
 import { runCustomGameFolderUpload, discardFolderUpload } from "../utils/custom-game-folder-upload";
 import { loadUploadCheckpoint, deleteUploadCheckpoint, listUploadCheckpoints } from "../utils/custom-game-upload-store";
 import { customGameMetadata, appendCustomGameMetadata } from "../utils/custom-game-metadata";
+import { parseFolderInventory } from "../utils/folder-inventory";
 
 const EMPTY = {
   id: null, name: "", adminNote: "", adminNotes: { en: "", es: "", fr: "", de: "" }, executablePath: "",
@@ -73,6 +74,7 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
   const folderFilesByGame = useRef(new Map());
   const folderScanByGame = useRef(new Map());
   const [folderSelection, setFolderSelection] = useState(null);
+  const [folderInventory, setFolderInventory] = useState(null);
   const [pendingUploads, setPendingUploads] = useState([]);
   const stagedPackages = useRef(new Map());
   const [search, setSearch] = useState("");
@@ -205,8 +207,9 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
     } finally { setUploadProgress(null); }
   }
 
-  async function uploadFolder(files, gameId, signal) {
+  async function uploadFolder(files, gameId, signal, expectedInventory) {
     return runCustomGameFolderUpload({ files, gameId, signal, apiRequest, apiUpload,
+      expectedInventory,
       onProgress: setUploadProgress,
       onSession: () => { void refreshPendingUploads(); },
     });
@@ -223,6 +226,7 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
     if (uploadController.current) return;
     const selectedFolderFiles = folderFilesByGame.current.get(draft.gameId) || null;
     const selectedFolderCount = selectedFolderFiles?.length || 0;
+    const expectedInventory = folderInventory?.gameId === draft.gameId ? folderInventory.value : null;
     setUploadError("");
     if (draft.pendingPackage && draft.packageType !== "zip") {
       return notify("Descarte o ZIP pendente antes de trocar o formato do pacote.");
@@ -236,6 +240,16 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
       const message = `A pasta contém ${selectedFolderCount.toLocaleString("pt-BR")} arquivos. O limite é de 500.000 arquivos.`;
       setUploadError(message);
       return notify(message);
+    }
+    if (draft.packageType === "folder" && selectedFolderCount) {
+      const message = !expectedInventory ? "Selecione o inventário da pasta ou envie o jogo como ZIP."
+        : selectedFolderCount !== expectedInventory.fileCount
+          ? `O navegador encontrou ${selectedFolderCount.toLocaleString("pt-BR")} de ${expectedInventory.fileCount.toLocaleString("pt-BR")} arquivos. Confira a pasta ou envie o jogo como ZIP.`
+          : "";
+      if (message) {
+        setUploadError(message);
+        return notify(message);
+      }
     }
     const usingExistingPackage = (draft.originalPackageType === draft.packageType && Boolean(draft.archiveKey)) || Boolean(pending?.manifestKey);
     if (draft.published && draft.packageType === "zip" && !draft.zip && !usingExistingPackage) return notify("Escolha o ZIP do jogo antes de publicar.");
@@ -276,7 +290,9 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
         setDraft(current => current ? { ...current, id: draft.gameId } : current);
       }
       if (draft.packageType === "zip" && draft.zip) uploadedPackage = { key: await uploadZip(draft.zip, draft.gameId, controller.signal), sizeBytes: draft.zip.size };
-      if (draft.packageType === "folder" && selectedFolderCount) uploadedPackage = await uploadFolder(selectedFolderFiles, draft.gameId, controller.signal);
+      if (draft.packageType === "folder" && selectedFolderCount) {
+        uploadedPackage = await uploadFolder(selectedFolderFiles, draft.gameId, controller.signal, expectedInventory);
+      }
       if (draft.packageType === "folder" && !selectedFolderCount) {
         const stored = await loadUploadCheckpoint(draft.gameId);
         if (stored?.manifestKey) uploadedPackage = { key: stored.manifestKey, sizeBytes: stored.totalSizeBytes };
@@ -307,6 +323,7 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
       folderFilesByGame.current.delete(draft.gameId);
       folderScanByGame.current.delete(draft.gameId);
       setFolderSelection(current => current?.gameId === draft.gameId ? null : current);
+      setFolderInventory(current => current?.gameId === draft.gameId ? null : current);
       stagedPackages.current.delete(draft.gameId);
       setDraft(null);
       notify(stageZip ? draft.published ? "ZIP salvo. A indexação começou; publique quando estiver pronto."
@@ -351,6 +368,7 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
     folderFilesByGame.current.delete(draft.gameId);
     folderScanByGame.current.delete(draft.gameId);
     setFolderSelection(current => current?.gameId === draft.gameId ? null : current);
+    setFolderInventory(current => current?.gameId === draft.gameId ? null : current);
     setDraft(null);
     await refreshPendingUploads();
   }
@@ -475,6 +493,16 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
     setFolderSelection(current => current?.gameId === gameId ? null : current);
   }
 
+  async function selectFolderInventory(file, gameId) {
+    if (!file) return setFolderInventory(null);
+    try {
+      if (file.size > 4096) throw new Error("O inventário deve ter até 4 KB.");
+      setFolderInventory({ gameId, value: parseFolderInventory(JSON.parse(await file.text())) });
+    } catch (error) {
+      setFolderInventory({ gameId, error: error instanceof SyntaxError ? "O arquivo de inventário não é um JSON válido." : error.message });
+    }
+  }
+
   async function remove(game) {
     if (!window.confirm(`Excluir “${game.name || "Rascunho sem nome"}” e seu pacote do bucket?`)) return;
     try {
@@ -525,6 +553,7 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
   } : {};
   const pendingUpload = draft && pendingUploads.find(upload => upload.gameId === draft.gameId);
   const currentFolderSelection = draft && folderSelection?.gameId === draft.gameId ? folderSelection : null;
+  const currentFolderInventory = draft && folderInventory?.gameId === draft.gameId ? folderInventory : null;
 
   return <section className="page page--custom-games">
     <div className="page__header page__header--split">
@@ -569,6 +598,15 @@ export default function CustomGamesPage({ apiRequest, apiUpload, notify }) {
         <label className="field"><span>Executável relativo à pasta do jogo (opcional)</span><input placeholder="Game/Game.exe" value={draft.executablePath} onChange={e => setDraft({ ...draft, executablePath: e.target.value })} /><small>Sem esse caminho, o Launcher não exibirá Jogar.</small></label>
         <fieldset className="custom-games-package-options"><legend>Formato do pacote</legend><label className={`custom-games-package-option${draft.packageType === "zip" ? " is-selected" : ""}`}><input type="radio" name="customGamePackageType" checked={draft.packageType === "zip"} onChange={() => setDraft(current => ({ ...current, packageType: "zip" }))} /><span><strong>Arquivo ZIP</strong><small>Até 100 GiB · o Launcher descompacta após baixar</small></span></label><label className={`custom-games-package-option${draft.packageType === "folder" ? " is-selected" : ""}`}><input type="radio" name="customGamePackageType" checked={draft.packageType === "folder"} onChange={() => setDraft(current => ({ ...current, packageType: "folder" }))} /><span><strong>Pasta do jogo</strong><small>Até 200 GiB · arquivos agrupados em pacotes de até 200 MiB</small></span></label></fieldset>
         {draft.packageType === "zip" ? <label className="field"><span>ZIP do jogo</span><input type="file" accept=".zip,application/zip" onChange={e => setDraft(current => ({ ...current, zip: e.target.files?.[0] || null }))} />{(draft.zip || (draft.originalPackageType === "zip" && draft.archiveKey)) && <small>{draft.zip ? `${draft.zip.name} · ${prettySize(draft.zip.size)}` : `ZIP atual · ${prettySize(draft.archiveSize)}`}</small>}</label> : <div className="field"><span>Pasta do jogo</span>{typeof window.showDirectoryPicker === "function" ? <button type="button" className="button button--ghost" onClick={() => void chooseGameFolder(draft.gameId)} disabled={busy || currentFolderSelection?.scanning}>Escolher pasta</button> : <input type="file" webkitdirectory="" directory="" multiple onChange={event => selectGameFolder(event, draft.gameId)} />}<small>{currentFolderSelection ? currentFolderSelection.error || `${currentFolderSelection.directoryName ? `${currentFolderSelection.directoryName} · ` : ""}${currentFolderSelection.count.toLocaleString("pt-BR")} arquivos${currentFolderSelection.scanning ? " · lendo pasta…" : currentFolderSelection.totalBytes != null ? ` · ${prettySize(currentFolderSelection.totalBytes)}` : ""}` : draft.originalPackageType === "folder" && draft.archiveKey ? `Pasta atual · ${prettySize(draft.archiveSize)}` : "Selecione a pasta que contém os arquivos do jogo. O diretório escolhido vira a raiz da instalação."}</small>{currentFolderSelection?.scanning && <div className="custom-games-folder-scan" role="status"><progress aria-label="Lendo os arquivos da pasta" /><button type="button" className="button button--ghost button--sm" onClick={() => cancelFolderScan(draft.gameId)}>Cancelar leitura</button></div>}</div>}
+        {draft.packageType === "folder" && currentFolderSelection?.count > 0 && !currentFolderSelection.scanning && !currentFolderSelection.error &&
+          <label className="field">
+            <span>Inventário da pasta</span>
+            <input type="file" accept=".json,application/json" disabled={busy}
+              onChange={event => void selectFolderInventory(event.currentTarget.files?.[0], draft.gameId)} />
+            {currentFolderInventory?.error ? <small role="alert">{currentFolderInventory.error}</small>
+              : currentFolderInventory?.value ? <small>{currentFolderInventory.value.fileCount.toLocaleString("pt-BR")} arquivos na pasta original.</small>
+              : <small>Gere o inventário no projeto Admin com <code>npm run folder:inventory -- "caminho da pasta"</code>. Ele confere os arquivos que o navegador recebeu. Você também pode enviar um ZIP.</small>}
+          </label>}
         {uploadProgress && <div className="custom-games-admin-progress" role="status">
           <div className="custom-games-admin-progress__heading">
             <strong>{uploadProgress.canceling ? "Cancelando upload…" : uploadProgress.label}</strong>

@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createFolderUploadPlan, createFolderUploadPlanAsync, prepareFolderBundleInWorker, runFolderUploadPipeline } from "./folder-upload-engine.js";
+import { compareFolderEntries, createFolderInventoryDigest } from "./folder-inventory.js";
 
 const MiB = 1024 ** 2;
 const tick = () => new Promise(resolve => setImmediate(resolve));
@@ -35,6 +36,21 @@ test("asynchronous upload planning preserves the exact fingerprint and bundle la
   assert.equal(actual.fingerprint, expected.fingerprint);
   assert.deepEqual(actual.units.map(unit => [unit.kind, unit.bytes, unit.entries.map(entry => entry.path)]),
     expected.units.map(unit => [unit.kind, unit.bytes, unit.entries.map(entry => entry.path)]));
+});
+
+test("folder inventory rejects omitted files and same-size files with different paths", async () => {
+  const source = [
+    { path: "game.exe", file: { size: 2048 } },
+    { path: "setup/SDL3.dll", file: { size: 1024 } },
+  ];
+  const digest = createFolderInventoryDigest();
+  for (const { path, file } of source.toSorted(compareFolderEntries)) digest.add(path, file.size);
+  const expectedInventory = { fileCount: 2, totalSizeBytes: 3072, sha256: digest.finish() };
+  await assert.rejects(createFolderUploadPlanAsync(source.slice(0, 1), { expectedInventory }), /encontrou 1 de 2 arquivos/);
+  const differentPath = [source[0], { ...source[1], path: "setup/other.dll" }];
+  await assert.rejects(createFolderUploadPlanAsync(differentPath, { expectedInventory }), /não correspondem ao inventário/);
+  const plan = await createFolderUploadPlanAsync(source.toReversed(), { expectedInventory });
+  assert.equal(plan.fingerprint, createFolderUploadPlan(source).fingerprint);
 });
 
 test("pipeline overlaps preparation and direct upload, limits memory and checkpoints before sending", async () => {
