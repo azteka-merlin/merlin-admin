@@ -5989,3 +5989,95 @@ h3 {
   .modal--premium-slots .modal__footer .button { width: auto; flex: 1 1 0; min-width: 0; }
   .premium-slots__list li { display: grid; gap: 4px; }
 }
+
+.activity-period {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.activity-period .catalog-queue__tabs,
+.activity-calendar .catalog-queue__tabs { margin: 0; }
+
+.activity-calendar {
+  width: min(400px, calc(100% - 24px));
+  max-height: calc(100% - 24px);
+  padding: 0;
+  color: var(--text);
+  background: var(--bg-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow);
+}
+
+.activity-calendar::backdrop { background: rgba(7, 8, 18, 0.74); }
+
+.activity-calendar__body {
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+}
+
+.activity-calendar__body h2 { margin: 0 0 4px; font-size: 1.12rem; }
+.activity-calendar__body .section-heading { margin: 0; }
+.activity-calendar__month,
+.activity-calendar__actions { display: flex; align-items: center; gap: 8px; }
+.activity-calendar__month { justify-content: space-between; }
+.activity-calendar__actions { justify-content: flex-end; }
+.activity-calendar__month strong { text-transform: capitalize; }
+
+.activity-calendar__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 3px;
+}
+
+.activity-calendar__day,
+.activity-calendar__weekday { display: grid; place-items: center; min-height: 34px; }
+
+.activity-calendar__weekday { font-size: 0.72rem; color: var(--muted); }
+
+.activity-calendar__day {
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--text);
+  background: transparent;
+  font-size: 0.85rem;
+}
+
+.activity-calendar__day:hover:not(:disabled),
+.activity-calendar__day[aria-current="date"] { border-color: var(--line-strong); }
+.activity-calendar__day.is-in-range { background: rgba(159, 89, 255, 0.14); }
+.activity-calendar__day.is-selected { color: var(--text); background: #7132be; }
+.activity-calendar__day:focus-visible { outline: 2px solid var(--violet-2); }
+
+.activity-calendar__times { display: flex; justify-content: space-between; gap: 10px; }
+
+.activity-calendar__time-field {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 4px 8px 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.activity-calendar__time-field legend { font-size: 0.8rem; color: var(--muted); }
+.activity-calendar__time-field select {
+  width: 100%;
+  min-width: 0;
+  padding: 6px 3px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+@media (min-width: 1140px) {
+  .activity-filters { grid-template-columns: minmax(180px, 1.4fr) repeat(2, minmax(130px, 0.9fr)) auto; }
+}

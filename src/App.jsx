@@ -10,6 +10,7 @@ import UsageBiPage from "./pages/UsageBiPage";
 import AnnouncementsPage from "./pages/AnnouncementsPage";
 import HomePage from "./pages/HomePage";
 import CustomGamesPage from "./pages/CustomGamesPage";
+import GameImagesPage from "./pages/GameImagesPage";
 import CustomGameIndexingPage from "./pages/CustomGameIndexingPage";
 import ReleaseNotesPage from "./pages/ReleaseNotesPage";
 import PartnersPage from "./pages/PartnersPage";
@@ -162,7 +163,6 @@ function App() {
   const [detailOpen, setDetailOpen] = React.useState(false);
   const [licenses, setLicenses] = React.useState([]);
   const [auditLogs, setAuditLogs] = React.useState([]);
-  const [userActivityLogs, setUserActivityLogs] = React.useState([]);
   const [usageAnalytics, setUsageAnalytics] = React.useState(null);
   const [blockedIps, setBlockedIps] = React.useState([]);
   const [overrides, setOverrides] = React.useState([]);
@@ -207,7 +207,6 @@ function App() {
   const [billingPlanPrices, setBillingPlanPrices] = React.useState([]);
   const [loadingLicenses, setLoadingLicenses] = React.useState(false);
   const [loadingAuditLogs, setLoadingAuditLogs] = React.useState(false);
-  const [loadingUserActivityLogs, setLoadingUserActivityLogs] = React.useState(false);
   const [loadingUsageAnalytics, setLoadingUsageAnalytics] = React.useState(false);
   const [loadingBlockedIps, setLoadingBlockedIps] = React.useState(false);
   const [loadingOverrides, setLoadingOverrides] = React.useState(false);
@@ -243,9 +242,6 @@ function App() {
   const [auditSearch, setAuditSearch] = React.useState("");
   const [auditActionFilter, setAuditActionFilter] = React.useState("all");
   const [auditAdminFilter, setAuditAdminFilter] = React.useState("all");
-  const [activitySearch, setActivitySearch] = React.useState("");
-  const [activityActionFilter, setActivityActionFilter] = React.useState("all");
-  const [activityStatusFilter, setActivityStatusFilter] = React.useState("all");
   const [overrideSearch, setOverrideSearch] = React.useState("");
   const [premiumSearch, setPremiumSearch] = React.useState("");
   const [premiumActivationSearch, setPremiumActivationSearch] = React.useState("");
@@ -363,25 +359,6 @@ function App() {
       return matchesAction && matchesAdmin && matchesSearch;
     });
   }, [auditActionFilter, auditAdminFilter, auditLogs, auditSearch]);
-
-  const filteredUserActivityLogs = React.useMemo(() => {
-    const query = activitySearch.trim().toLowerCase();
-
-    return userActivityLogs.filter((log) => {
-      const matchesAction = activityActionFilter === "all" || log.action === activityActionFilter;
-      const matchesStatus = activityStatusFilter === "all" || log.status === activityStatusFilter;
-      const matchesSearch =
-        !query ||
-        log.userName.toLowerCase().includes(query) ||
-        log.licenseKey.toLowerCase().includes(query) ||
-        String(log.appId || "").toLowerCase().includes(query) ||
-        String(log.gameName || "").toLowerCase().includes(query) ||
-        String(log.ipAddress || "").toLowerCase().includes(query) ||
-        String(log.reason || "").toLowerCase().includes(query);
-
-      return matchesAction && matchesStatus && matchesSearch;
-    });
-  }, [activityActionFilter, activitySearch, activityStatusFilter, userActivityLogs]);
 
   const filteredPaymentLogs = React.useMemo(() => {
     const query = paymentSearch.trim().toLowerCase();
@@ -514,7 +491,6 @@ function App() {
       setCsrfToken("");
       setLicenses([]);
       setAuditLogs([]);
-      setUserActivityLogs([]);
       setBlockedIps([]);
       setOverrides([]);
       setPremiumGames([]);
@@ -662,7 +638,6 @@ function App() {
       setCsrfToken("");
       setLicenses([]);
       setAuditLogs([]);
-      setUserActivityLogs([]);
       setBlockedIps([]);
       setOverrides([]);
       setPremiumGames([]);
@@ -1107,18 +1082,6 @@ function App() {
       setToast(error.message);
     } finally {
       setLoadingAuditLogs(false);
-    }
-  }
-
-  async function loadUserActivityLogs() {
-    setLoadingUserActivityLogs(true);
-    try {
-      const payload = await apiRequest("/panel-api/user-activity?limit=120");
-      setUserActivityLogs(payload.logs || []);
-    } catch (error) {
-      setToast(error.message);
-    } finally {
-      setLoadingUserActivityLogs(false);
     }
   }
 
@@ -1657,7 +1620,7 @@ function App() {
       const valid = await bootSession();
       if (mounted) setBooting(false);
       if (valid && mounted) {
-        await Promise.all([loadLicenses(), loadAuditLogs(), loadUserActivityLogs()]);
+        await Promise.all([loadLicenses(), loadAuditLogs()]);
       }
     })();
 
@@ -1821,7 +1784,7 @@ function App() {
       setCsrfToken(payload.csrfToken);
       setLoginState({ username: "", password: "", rememberMe: false, error: "", submitting: false });
       navigate("overview", true);
-      await Promise.all([loadLicenses(), loadAuditLogs(), loadUserActivityLogs()]);
+      await Promise.all([loadLicenses(), loadAuditLogs()]);
     } catch (error) {
       setLoginState((current) => ({
         ...current,
@@ -1843,7 +1806,6 @@ function App() {
       setCsrfToken("");
       setLicenses([]);
       setAuditLogs([]);
-      setUserActivityLogs([]);
       setBlockedIps([]);
       setOverrides([]);
       setMerlinUpdate(null);
@@ -2656,6 +2618,7 @@ function App() {
           <CustomGamesPage apiRequest={apiRequest} apiUpload={apiUpload} notify={setToast} />
         </div>
         {view === "custom-game-indexing" && <CustomGameIndexingPage apiRequest={apiRequest} notify={setToast} />}
+        {view === "game-images" && <GameImagesPage apiRequest={apiRequest} notify={setToast} />}
         {view === "premium-activations" && (
           <PremiumActivationsPage
             activations={premiumActivations}
@@ -2741,17 +2704,7 @@ function App() {
           <BillingNotificationsPage apiRequest={apiRequest} notify={setToast} />
         )}
         {view === "activity" && (
-          <ActivityPage
-            activitySearch={activitySearch}
-            setActivitySearch={setActivitySearch}
-            activityActionFilter={activityActionFilter}
-            setActivityActionFilter={setActivityActionFilter}
-            activityStatusFilter={activityStatusFilter}
-            setActivityStatusFilter={setActivityStatusFilter}
-            loadingUserActivityLogs={loadingUserActivityLogs}
-            filteredUserActivityLogs={filteredUserActivityLogs}
-            loadUserActivityLogs={loadUserActivityLogs}
-          />
+          <ActivityPage apiRequest={apiRequest} />
         )}
         {view === "usage" && (
           <UsageBiPage

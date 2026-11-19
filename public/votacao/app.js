@@ -83,16 +83,36 @@ function renderFilters() {
   });
 }
 
+const reportedGameImages = new Set();
+
 function renderGame(game) {
   const row = el("article", "game-row");
   row.dataset.appid = game.appid;
   const image = el("img", "game-image");
-  image.src = game.image;
-  image.alt = `Capa de ${game.name}`;
+  const shared = "/api/public/game-images/" + game.appid;
+  const useShared = game.sharedCoverUrl === shared;
+  let usedFallback = !useShared;
+  image.alt = "Imagem de " + game.name;
   image.loading = "lazy";
   image.width = 138;
   image.height = 65;
-  image.addEventListener("error", () => { image.style.visibility = "hidden"; }, { once: true });
+  image.addEventListener("error", () => {
+    if (usedFallback) { image.style.visibility = "hidden"; return; }
+    usedFallback = true;
+    image.src = game.image;
+  });
+  image.addEventListener("load", () => {
+    if (!useShared || !usedFallback || reportedGameImages.has(game.appid)) return;
+    reportedGameImages.add(game.appid);
+    void fetch(shared, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sourceUrl: game.image }),
+      keepalive: true,
+    }).then(response => { if (!response.ok) reportedGameImages.delete(game.appid); })
+      .catch(() => reportedGameImages.delete(game.appid));
+  });
+  image.src = useShared ? shared : game.image;
   row.append(image);
 
   const details = el("div", "game-details");

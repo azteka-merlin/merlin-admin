@@ -9,6 +9,7 @@ export const VIEW_PATHS = {
   activity: "/activity",
   audit: "/audit",
   "catalog-queue": "/catalog-queue",
+  "game-images": "/game-images",
   settings: "/settings",
   overrides: "/overrides",
   premium: "/premium",
@@ -35,6 +36,7 @@ export function getViewFromPath(pathname) {
   if (pathname === "/activity") return "activity";
   if (pathname === "/audit") return "audit";
   if (pathname === "/catalog-queue") return "catalog-queue";
+  if (pathname === "/game-images") return "game-images";
   if (pathname === "/settings") return "settings";
   if (pathname === "/overrides") return "overrides";
   if (pathname === "/premium") return "premium";

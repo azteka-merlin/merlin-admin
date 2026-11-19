@@ -108,6 +108,9 @@ export default function AppShell({
             <button className={`nav-button ${view === "catalog-queue" ? "is-active" : ""}`} onClick={() => navigate("catalog-queue")}>
               Fila do catálogo
             </button>
+            <button className={`nav-button ${view === "game-images" ? "is-active" : ""}`} onClick={() => navigate("game-images")}>
+              Imagens dos jogos
+            </button>
             <button className={`nav-button ${view === "settings" ? "is-active" : ""}`} onClick={() => navigate("settings")}>
               Configurações
             </button>
