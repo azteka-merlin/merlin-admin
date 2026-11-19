@@ -10,7 +10,6 @@ import UsageBiPage from "./pages/UsageBiPage";
 import AnnouncementsPage from "./pages/AnnouncementsPage";
 import HomePage from "./pages/HomePage";
 import CustomGamesPage from "./pages/CustomGamesPage";
-import GameImagesPage from "./pages/GameImagesPage";
 import CustomGameIndexingPage from "./pages/CustomGameIndexingPage";
 import ReleaseNotesPage from "./pages/ReleaseNotesPage";
 import PartnersPage from "./pages/PartnersPage";
@@ -2618,7 +2617,6 @@ function App() {
           <CustomGamesPage apiRequest={apiRequest} apiUpload={apiUpload} notify={setToast} />
         </div>
         {view === "custom-game-indexing" && <CustomGameIndexingPage apiRequest={apiRequest} notify={setToast} />}
-        {view === "game-images" && <GameImagesPage apiRequest={apiRequest} notify={setToast} />}
         {view === "premium-activations" && (
           <PremiumActivationsPage
             activations={premiumActivations}
@@ -2738,8 +2736,10 @@ function App() {
             loadAuditLogs={loadAuditLogs}
           />
         )}
-        {view === "catalog-queue" && (
+        {["catalog-queue", "catalog-fix-imports", "game-images"].includes(view) && (
           <CatalogQueuePage
+            section={view}
+            onSectionChange={navigate}
             apiRequest={apiRequest}
             apiUpload={apiUpload}
             notify={setToast}

@@ -6081,3 +6081,11 @@ h3 {
 @media (min-width: 1140px) {
   .activity-filters { grid-template-columns: minmax(180px, 1.4fr) repeat(2, minmax(130px, 0.9fr)) auto; }
 }
+
+.game-images__filters,
+.game-images__footer,
+.game-images__pager { flex-wrap: wrap; }
+
+.game-images__pager { justify-content: flex-end; gap: 6px; }
+
+.game-images__page { min-width: 34px; }

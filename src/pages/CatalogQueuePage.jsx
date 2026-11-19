@@ -2,6 +2,13 @@ import React from "react";
 import { formatDateTime } from "../lib/admin-ui";
 import AdminTabs from '../components/AdminTabs';
 import FixImportsPanel from './FixImportsPanel';
+import GameImagesPage from './GameImagesPage';
+
+const queueSections = [
+  { value: "catalog-queue", label: "Datas de lançamento" },
+  { value: "catalog-fix-imports", label: "Importar correções" },
+  { value: "game-images", label: "Imagens dos jogos" },
+];
 
 const tabs = [
   { key: "missing", label: "Sem data", countKey: "withoutReleaseDate", description: "Todos os jogos que ainda não possuem data de lançamento." },
@@ -21,12 +28,13 @@ function confirmAction(action, count) {
   return window.confirm(`${label[0].toUpperCase()}${label.slice(1)} ${count === 1 ? "este jogo" : `${count} jogos`}?`);
 }
 
-export default function CatalogQueuePage(props) {
-  const [section,setSection]=React.useState('dates');
+export default function CatalogQueuePage({ section, onSectionChange, ...props }) {
   return <section className="page">
-    <AdminTabs id="game-queue" label="Filas de jogos" value={section} onChange={setSection} tabs={[{value:'dates',label:'Datas de lançamento'},{value:'fixes',label:'Importar correções'}]}/>
+    <AdminTabs id="game-queue" label="Fila do catálogo" value={section} onChange={onSectionChange} tabs={queueSections} />
     <div role="tabpanel" id={`game-queue-panel-${section}`} aria-labelledby={`game-queue-tab-${section}`}>
-      {section==='dates'?<CatalogDatesQueue {...props}/>:<FixImportsPanel apiRequest={props.apiRequest} notify={props.notify}/>}
+      {section === "catalog-queue" && <CatalogDatesQueue {...props} />}
+      {section === "catalog-fix-imports" && <FixImportsPanel apiRequest={props.apiRequest} notify={props.notify} />}
+      {section === "game-images" && <GameImagesPage apiRequest={props.apiRequest} notify={props.notify} />}
     </div>
   </section>;
 }
