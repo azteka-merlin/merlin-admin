@@ -14,12 +14,15 @@ function manifestSourceLabel(source) {
   })[source] || source || "--";
 }
 
-const TODAY = { mode: "today" };
+const LAST_24_HOURS = { mode: "last24h" };
 const LAST_WEEK = { mode: "week" };
 
-function periodLabel(period) {
-  const today = todayInBrasilia();
-  if (period.mode === "today") return formatDate(today);
+function periodLabel(period, reference) {
+  const today = todayInBrasilia(reference);
+  if (period.mode === "last24h") {
+    const { from, to } = activityBounds(period, today, reference);
+    return formatDateTimeBrt(from).replace(" BRT", "") + " a " + formatDateTimeBrt(to).replace(" BRT", "");
+  }
   if (period.mode === "week") return formatDate(addDays(today, -6)) + " a " + formatDate(today);
   if (period.mode === "range") return formatDate(period.start) + " a " + formatDate(period.end);
   const date = formatDate(period.start);
@@ -30,7 +33,8 @@ function periodLabel(period) {
 export default function ActivityPage({ apiRequest }) {
   const request = useRef(apiRequest);
   request.current = apiRequest;
-  const [period, setPeriod] = useState(TODAY);
+  const [period, setPeriod] = useState(LAST_24_HOURS);
+  const [reference, setReference] = useState(() => new Date());
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [activitySearch, setActivitySearch] = useState("");
   const [search, setSearch] = useState("");
@@ -40,12 +44,11 @@ export default function ActivityPage({ apiRequest }) {
   const [snapshot, setSnapshot] = useState(null);
   const [error, setError] = useState("");
   const [pages, setPages] = useState([null]);
-  const [revision, setRevision] = useState(0);
   const cursor = pages.at(-1);
 
   useEffect(() => {
     const controller = new AbortController();
-    const bounds = activityBounds(period);
+    const bounds = activityBounds(period, todayInBrasilia(reference), reference);
     if (!bounds) return;
     const params = new URLSearchParams({ ...bounds, limit: "25" });
     if (activityActionFilter !== "all") params.set("action", activityActionFilter);
@@ -65,16 +68,17 @@ export default function ActivityPage({ apiRequest }) {
       if (!controller.signal.aborted) setLoading(false);
     });
     return () => controller.abort();
-  }, [period, search, activityActionFilter, activityStatusFilter, cursor, revision]);
+  }, [period, reference, search, activityActionFilter, activityStatusFilter, cursor]);
 
   function pickPeriod(next) {
     setPeriod(next);
+    setReference(new Date());
     setPages([null]);
   }
 
   function refresh() {
+    setReference(new Date());
     setPages([null]);
-    setRevision(value => value + 1);
   }
 
   const filteredUserActivityLogs = snapshot?.logs || [];
@@ -93,11 +97,11 @@ export default function ActivityPage({ apiRequest }) {
       <section className="panel panel--audit">
         <div className="activity-period">
           <div className="catalog-queue__tabs" role="group" aria-label="Período da atividade">
-            <button type="button" className={"catalog-queue__tab " + (period.mode === "today" ? "is-active" : "")} aria-pressed={period.mode === "today"} onClick={() => pickPeriod(TODAY)}>Hoje</button>
+            <button type="button" className={"catalog-queue__tab " + (period.mode === "last24h" ? "is-active" : "")} aria-pressed={period.mode === "last24h"} onClick={() => pickPeriod(LAST_24_HOURS)}>Últimas 24 horas</button>
             <button type="button" className={"catalog-queue__tab " + (period.mode === "week" ? "is-active" : "")} aria-pressed={period.mode === "week"} onClick={() => pickPeriod(LAST_WEEK)}>Últimos 7 dias</button>
             <button type="button" className={"catalog-queue__tab " + (period.mode === "day" || period.mode === "range" ? "is-active" : "")} aria-haspopup="dialog" onClick={() => setCalendarOpen(true)}>Calendário</button>
           </div>
-          <span className="field-grid__note">{periodLabel(period)} · Brasília</span>
+          <span className="field-grid__note">{periodLabel(period, reference)} · Brasília</span>
         </div>
         {calendarOpen && <ActivityCalendar period={period} onApply={pickPeriod} onClose={() => setCalendarOpen(false)} />}
         <form className="filters filters--audit activity-filters" onSubmit={event => {

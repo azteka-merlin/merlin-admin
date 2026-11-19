@@ -37,7 +37,10 @@ export function formatMonth(month) {
   return monthTitle.format(new Date(month + "T00:00:00Z"));
 }
 
-export function activityBounds(period, today = todayInBrasilia()) {
+export function activityBounds(period, today = todayInBrasilia(), reference = new Date()) {
+  if (period.mode === "last24h") {
+    return { from: new Date(reference.getTime() - DAY_MS).toISOString(), to: reference.toISOString() };
+  }
   const start = period.mode === "week" ? addDays(today, -6) : period.start || today;
   const end = period.mode === "range" ? period.end : period.start || today;
   const startTime = period.startTime || "00:00";
