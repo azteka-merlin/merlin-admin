@@ -7,6 +7,9 @@ const TRIGGERS = { catalog: "Site do Merlin", launcher: "Launcher", activation: 
 const ERRORS = { dispatch_failed: "Falha ao enviar à fila", download_failed: "Origem momentaneamente indisponível", job_expired: "A tarefa expirou" };
 const REQUEUEABLE = new Set(["failed", "missing"]);
 const VALID_APP_ID = /^[1-9]\d{0,11}$/;
+const FIRST_PAGE = { cursor: null, offset: 0 };
+const ACTIVITY_POLL_MS = 3000;
+const BADGES = { processing: "warning", stored: "success", failed: "danger" };
 
 export default function GameImagesPage({ apiRequest, notify }) {
   const request = useRef(apiRequest);
@@ -14,14 +17,20 @@ export default function GameImagesPage({ apiRequest, notify }) {
   const [view, setView] = useState("queue");
   const [appId, setAppId] = useState("");
   const [filter, setFilter] = useState("");
-  const [cursors, setCursors] = useState([null]);
+  const [pages, setPages] = useState([FIRST_PAGE]);
   const [revision, setRevision] = useState(0);
   const [data, setData] = useState(null);
+  const [activity, setActivity] = useState(null);
+  const [activityError, setActivityError] = useState(false);
+  const [activityRevision, setActivityRevision] = useState(0);
+  const previousActivity = useRef(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const cursor = cursors.at(-1);
-  const rows = data?.view === view ? data.rows : [];
+  const { cursor, offset } = pages.at(-1);
+  const currentPage = data?.view === view && data.cursor === cursor && data.filter === filter ? data : null;
+  const rows = currentPage?.rows || [];
+  const metrics = activity ?? data;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -31,7 +40,7 @@ export default function GameImagesPage({ apiRequest, notify }) {
     setLoading(true);
     setError("");
     request.current(ROOT + "?" + params, { signal: controller.signal }).then((result) => {
-      if (!controller.signal.aborted) setData({ ...result, view });
+      if (!controller.signal.aborted) setData({ ...result, view, cursor, filter });
     }).catch((cause) => {
       if (!controller.signal.aborted) setError(cause.message || "Não foi possível consultar as imagens.");
     }).finally(() => {
@@ -41,14 +50,38 @@ export default function GameImagesPage({ apiRequest, notify }) {
   }, [view, cursor, filter, revision]);
 
   useEffect(() => {
-    if (!data?.enabled || loading || error || busy ||
-        !(data.backlog > 0 || data.rows.some(row => row.status === "queued" || row.status === "processing"))) return;
-    const timer = setTimeout(() => setRevision(value => value + 1), 5000);
-    return () => clearTimeout(timer);
-  }, [data, loading, error, busy]);
+    const controller = new AbortController();
+    let timer;
+    async function loadActivity() {
+      try {
+        const result = await request.current(ROOT + "/processing", { signal: controller.signal });
+        if (controller.signal.aborted) return;
+        setActivity(result);
+        setActivityError(false);
+        const key = JSON.stringify([result.backlog, result.rows.map(row => [row.appId, row.startedAt])]);
+        if (previousActivity.current && previousActivity.current !== key) setRevision(value => value + 1);
+        previousActivity.current = key;
+      } catch {
+        if (!controller.signal.aborted) setActivityError(true);
+      } finally {
+        if (!controller.signal.aborted) timer = setTimeout(poll, ACTIVITY_POLL_MS);
+      }
+    }
+    function poll() {
+      if (document.hidden) timer = setTimeout(poll, ACTIVITY_POLL_MS);
+      else void loadActivity();
+    }
+    void loadActivity();
+    return () => { controller.abort(); clearTimeout(timer); };
+  }, [activityRevision]);
+
+  function refresh() {
+    setRevision(value => value + 1);
+    setActivityRevision(value => value + 1);
+  }
 
   function selectView(nextView) {
-    setCursors([null]);
+    setPages([FIRST_PAGE]);
     setView(nextView);
   }
 
@@ -60,7 +93,7 @@ export default function GameImagesPage({ apiRequest, notify }) {
       return;
     }
     setFilter(value);
-    setCursors([null]);
+    setPages([FIRST_PAGE]);
   }
 
   async function enqueue(value) {
@@ -93,13 +126,34 @@ export default function GameImagesPage({ apiRequest, notify }) {
   return <section className="page">
     <div className="page__header page__header--split">
       <div><h1>Imagens dos jogos</h1><p className="field-grid__note">Acompanhe os downloads e consulte o acervo usado pelo site e pelo Launcher.</p></div>
-      <button className="button button--ghost" disabled={loading} onClick={() => setRevision(value => value + 1)}>{loading ? "Atualizando…" : "Atualizar"}</button>
+      <button className="button button--ghost" disabled={loading} onClick={refresh}>{loading ? "Atualizando…" : "Atualizar"}</button>
     </div>
     {data && !data.enabled && <div className="notice notice--warning">A fila de imagens está indisponível neste ambiente.</div>}
     {error && <div className="notice notice--warning" role="alert">{error}</div>}
     <div className="stats-grid catalog-queue__summary">
-      <article className="stat-card"><p>Mensagens na fila</p><strong>{data?.backlog ?? "—"}</strong><span>{data?.oldestAt ? "Mais antiga " + formatDateTimeBrt(data.oldestAt) : "Download em segundo plano"}</span></article>
+      <article className="stat-card"><p>Mensagens na fila</p><strong>{metrics?.backlog ?? "—"}</strong>{metrics?.oldestAt && <span>Mais antiga {formatDateTimeBrt(metrics.oldestAt)}</span>}</article>
     </div>
+    <section className="panel panel--audit" aria-labelledby="game-images-processing">
+      <div className="section-heading">
+        <h2 id="game-images-processing">Em processamento</h2>
+        <span className="badge badge--muted">{activity?.rows.length ?? "—"}</span>
+      </div>
+      {activityError && <p className="field-grid__note" role="status">Falha ao atualizar os downloads em andamento.</p>}
+      {activity?.rows.length ? <div className="table-shell catalog-queue__table-wrap">
+        <table className="catalog-queue__table">
+          <thead><tr><th>Jogo</th><th>Estado</th><th>Solicitado por</th><th>Início</th><th>Tentativa</th></tr></thead>
+          <tbody>{activity.rows.map(row => <tr key={row.appId}>
+            <td><div className="catalog-queue__game"><div>
+              {row.name && <strong>{row.name}</strong>}<small>AppID {row.appId}</small>
+            </div></div></td>
+            <td><span className="badge badge--warning">{STATES.processing}</span></td>
+            <td>{TRIGGERS[row.trigger] || "—"}</td>
+            <td>{formatDateTimeBrt(row.startedAt)}</td>
+            <td>{row.attempts}</td>
+          </tr>)}</tbody>
+        </table>
+      </div> : activity ? <p className="field-grid__note">Nenhuma imagem baixando agora.</p> : !activityError && <p className="field-grid__note">Consultando downloads…</p>}
+    </section>
     <section className="panel panel--audit">
       <div className="catalog-queue__tabs" role="group" aria-label="Imagens dos jogos">
         <button type="button" className={"catalog-queue__tab " + (view === "queue" ? "is-active" : "")} aria-pressed={view === "queue"} onClick={() => selectView("queue")}>Fila de imagens</button>
@@ -109,7 +163,7 @@ export default function GameImagesPage({ apiRequest, notify }) {
         <label className="field-shell"><span>AppID</span><input inputMode="numeric" maxLength={12} value={appId} onChange={event => setAppId(event.target.value)} placeholder="Buscar por AppID" /></label>
         <div className="catalog-queue__top-actions">
           <button className="button button--ghost" type="submit">Buscar</button>
-          {filter && <button className="button button--ghost" type="button" onClick={() => { setAppId(""); setFilter(""); setCursors([null]); }}>Limpar</button>}
+          {filter && <button className="button button--ghost" type="button" onClick={() => { setAppId(""); setFilter(""); setPages([FIRST_PAGE]); }}>Limpar</button>}
           <button className="button button--primary" type="button" disabled={!data?.enabled || busy || !VALID_APP_ID.test(appId.trim())} onClick={() => { void enqueue(appId); }}>Enfileirar AppID</button>
         </div>
       </form>
@@ -119,7 +173,7 @@ export default function GameImagesPage({ apiRequest, notify }) {
           <tbody>
             {rows.map(row => <tr key={row.appId}>
               <td>{row.appId}</td>
-              <td>{view === "queue" ? <><span className="badge badge--muted">{STATES[row.status] || row.status}</span>{row.error && <p className="field-grid__note">{ERRORS[row.error] || row.error}</p>}</> :
+              <td>{view === "queue" ? <><span className={"badge badge--" + (BADGES[row.status] || "muted")}>{STATES[row.status] || row.status}</span>{row.error && <p className="field-grid__note">{ERRORS[row.error] || row.error}</p>}</> :
                 <a href={"/api/public/game-images/" + row.appId} target="_blank" rel="noreferrer"><img src={"/api/public/game-images/" + row.appId} width="82" height="38" alt={"Imagem de " + row.appId} loading="lazy" style={{ objectFit: "contain" }} /></a>}</td>
               <td>{TRIGGERS[row.trigger] || "—"}</td>
               <td>{formatDateTimeBrt(row.updatedAt)}</td>
@@ -131,11 +185,17 @@ export default function GameImagesPage({ apiRequest, notify }) {
           </tbody>
         </table>
       </div>
-      <div className="catalog-queue__top-actions catalog-queue__heading">
-        <button className="button button--ghost" disabled={loading || cursors.length === 1} onClick={() => setCursors(value => value.slice(0, -1))}>Anterior</button>
-        <span aria-live="polite">Página {cursors.length}</span>
-        <button className="button button--ghost" disabled={loading || data?.view !== view || !data?.nextCursor} onClick={() => setCursors(value => [...value, data.nextCursor])}>Próxima</button>
-      </div>
+      {(rows.length > 0 || pages.length > 1 || currentPage?.nextCursor) && <div className="table-footer">
+        <span aria-live="polite">{rows.length ? "Mostrando " + (offset + 1) + " a " + (offset + rows.length) +
+          (currentPage.nextCursor ? "" : " de " + (offset + rows.length)) : "Nenhum registro nesta página"}</span>
+        <nav className="pager" aria-label="Paginação de imagens">
+          <button type="button" className="icon-button" aria-label="Página anterior" disabled={loading || pages.length === 1}
+            onClick={() => setPages(value => value.slice(0, -1))}>{"<"}</button>
+          <span className="pager__current" aria-current="page" aria-label={"Página " + pages.length}>{pages.length}</span>
+          <button type="button" className="icon-button" aria-label="Próxima página" disabled={loading || !currentPage?.nextCursor}
+            onClick={() => setPages(value => [...value, { cursor: currentPage.nextCursor, offset: offset + rows.length }])}>{">"}</button>
+        </nav>
+      </div>}
     </section>
   </section>;
 }
