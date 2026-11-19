@@ -136,7 +136,7 @@ function withUploadLock(gameId, action) {
 }
 
 export async function runCustomGameFolderUpload({ files, gameId, signal, apiRequest, apiUpload, onProgress, onSession,
-  expectedInventory, prepareBundle, readFile = readFileForUpload, signedUpload = uploadSignedPart }) {
+  prepareBundle, readFile = readFileForUpload, signedUpload = uploadSignedPart }) {
   const execute = async () => {
     onProgress?.({ folder: true, preparingPlan: true, label: "Lendo e conferindo a pasta", bytes: 0, total: 0,
       done: 0, count: files.length, preparedFiles: 0, speed: 0, averageSpeed: 0, etaSeconds: null });
@@ -144,7 +144,7 @@ export async function runCustomGameFolderUpload({ files, gameId, signal, apiRequ
       onProgress: progress => onProgress?.({ folder: true, preparingPlan: true,
         label: progress.phase === "validating" ? "Lendo e conferindo a pasta" : "Preparando o envio",
         bytes: 0, total: 0, done: progress.done, count: progress.count, preparedFiles: 0, speed: 0, averageSpeed: 0, etaSeconds: null }) });
-    const plan = await createFolderUploadPlanAsync(descriptors, { signal, expectedInventory,
+    const plan = await createFolderUploadPlanAsync(descriptors, { signal,
       onProgress: progress => onProgress?.({ folder: true, preparingPlan: true, label: "Preparando o envio",
         bytes: 0, total: 0, done: progress.done, count: progress.count, preparedFiles: 0, speed: 0, averageSpeed: 0, etaSeconds: null }) });
     let checkpoint = await loadUploadCheckpoint(gameId);
