@@ -13,6 +13,7 @@ const ERRORS = { dispatch_failed: "Falha ao enviar à fila", download_failed: "O
 const VALID_APP_ID = /^[1-9]\d{0,11}$/;
 const BADGES = { processing: "warning", stored: "success", failed: "danger" };
 const POLL_MS = 3000;
+const QUEUE_POLL_MS = 10000;
 const PAGE_SIZE = 20;
 const EMPTY = {
   queued: "Nenhuma imagem aguardando na fila.",
@@ -75,32 +76,43 @@ export default function GameImagesPage({ apiRequest, notify }) {
   useEffect(() => {
     if (dashboardView === "processing") return;
     const controller = new AbortController();
+    let timer;
     const params = new URLSearchParams({ view: dashboardView, page: String(page) });
     if (filter) params.set("appId", filter);
+    async function loadDashboard() {
+      try {
+        const result = await request.current(ROOT + "/dashboard?" + params, { signal: controller.signal });
+        if (controller.signal.aborted) return;
+        setData({ ...result, view: dashboardView, requestedPage: page, filter });
+        setError("");
+      } catch (cause) {
+        if (!controller.signal.aborted) setError(cause.message || "Não foi possível consultar as imagens.");
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+          if (dashboardView === "queued") timer = setTimeout(poll, QUEUE_POLL_MS);
+        }
+      }
+    }
+    function poll() {
+      if (document.hidden) timer = setTimeout(poll, QUEUE_POLL_MS);
+      else void loadDashboard();
+    }
     setLoading(true);
     setError("");
-    request.current(ROOT + "/dashboard?" + params, { signal: controller.signal }).then(result => {
-      if (!controller.signal.aborted) setData({ ...result, view: dashboardView, requestedPage: page, filter });
-    }).catch(cause => {
-      if (!controller.signal.aborted) setError(cause.message || "Não foi possível consultar as imagens.");
-    }).finally(() => {
-      if (!controller.signal.aborted) setLoading(false);
-    });
-    return () => controller.abort();
+    void loadDashboard();
+    return () => { controller.abort(); clearTimeout(timer); };
   }, [dashboardView, page, filter, revision]);
 
   useEffect(() => {
     const controller = new AbortController();
     let timer;
-    let first = true;
     async function loadActivity() {
       try {
         const result = await request.current(ROOT + "/processing", { signal: controller.signal });
         if (controller.signal.aborted) return;
         setActivity(result);
         setActivityError(false);
-        if (!first && view === "queued") setRevision(value => value + 1);
-        first = false;
       } catch {
         if (!controller.signal.aborted) setActivityError(true);
       } finally {
@@ -113,7 +125,7 @@ export default function GameImagesPage({ apiRequest, notify }) {
     }
     void loadActivity();
     return () => { controller.abort(); clearTimeout(timer); };
-  }, [activityRevision, view]);
+  }, [activityRevision]);
 
   function refresh() {
     setRevision(value => value + 1);
