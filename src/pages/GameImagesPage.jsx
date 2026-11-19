@@ -3,7 +3,7 @@ import { formatDateTimeBrt } from "../lib/admin-ui";
 
 const ROOT = "/panel-api/game-images";
 const STATES = { queued: "Na fila", processing: "Baixando", stored: "Salva no R2", missing: "Sem imagem", failed: "Falhou" };
-const TRIGGERS = { catalog: "Site do Merlin", launcher: "Launcher", activation: "Adicionar jogo", admin: "Admin" };
+const TRIGGERS = { catalog: "Site do Merlin", launcher: "Launcher", activation: "Adicionar jogo", admin: "Admin", import: "Importação em lote" };
 const ERRORS = { dispatch_failed: "Falha ao enviar à fila", download_failed: "Origem momentaneamente indisponível", job_expired: "A tarefa expirou" };
 const REQUEUEABLE = new Set(["failed", "missing"]);
 const VALID_APP_ID = /^[1-9]\d{0,11}$/;
@@ -31,6 +31,7 @@ export default function GameImagesPage({ apiRequest, notify }) {
   const currentPage = data?.view === view && data.cursor === cursor && data.filter === filter ? data : null;
   const rows = currentPage?.rows || [];
   const metrics = activity ?? data;
+  const bulkImport = activity?.bulkImport;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -133,6 +134,16 @@ export default function GameImagesPage({ apiRequest, notify }) {
     <div className="stats-grid catalog-queue__summary">
       <article className="stat-card"><p>Mensagens na fila</p><strong>{metrics?.backlog ?? "—"}</strong>{metrics?.oldestAt && <span>Mais antiga {formatDateTimeBrt(metrics.oldestAt)}</span>}</article>
     </div>
+    {bulkImport && <section className="panel" aria-label="Importação em lote">
+      <div className="section-heading">
+        <div>
+          <h2>Importação em lote</h2>
+          <p className="field-grid__note">{bulkImport.processed.toLocaleString("pt-BR")} de {bulkImport.total.toLocaleString("pt-BR")} AppIDs encaminhados ou já presentes</p>
+        </div>
+        <span className={"badge badge--" + (bulkImport.status === "completed" ? "success" : "warning")}>{bulkImport.status === "completed" ? "Envio concluído" : "Encaminhando à fila"}</span>
+      </div>
+      <progress aria-label="AppIDs verificados na importação" value={bulkImport.processed} max={bulkImport.total} style={{ width: "100%" }} />
+    </section>}
     <section className="panel panel--audit" aria-labelledby="game-images-processing">
       <div className="section-heading">
         <h2 id="game-images-processing">Em processamento</h2>
