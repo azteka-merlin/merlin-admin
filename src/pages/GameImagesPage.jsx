@@ -77,12 +77,14 @@ export default function GameImagesPage({ apiRequest, notify }) {
     if (dashboardView === "processing") return;
     const controller = new AbortController();
     let timer;
+    let shouldPoll = dashboardView === "queued";
     const params = new URLSearchParams({ view: dashboardView, page: String(page) });
     if (filter) params.set("appId", filter);
     async function loadDashboard() {
       try {
         const result = await request.current(ROOT + "/dashboard?" + params, { signal: controller.signal });
         if (controller.signal.aborted) return;
+        shouldPoll = dashboardView === "queued" || result.preparing === true;
         setData({ ...result, view: dashboardView, requestedPage: page, filter });
         setError("");
       } catch (cause) {
@@ -90,7 +92,7 @@ export default function GameImagesPage({ apiRequest, notify }) {
       } finally {
         if (!controller.signal.aborted) {
           setLoading(false);
-          if (dashboardView === "queued") timer = setTimeout(poll, QUEUE_POLL_MS);
+          if (shouldPoll) timer = setTimeout(poll, QUEUE_POLL_MS);
         }
       }
     }
@@ -213,6 +215,7 @@ export default function GameImagesPage({ apiRequest, notify }) {
           <button className="button button--primary" type="button" disabled={!activity?.enabled || busy || !VALID_APP_ID.test(appId.trim())} onClick={() => { void enqueue(appId); }}>Enfileirar AppID</button>
         </div>
       </form>
+      {view === "completed" && current?.updatedAt && <p className="field-grid__note">Histórico atualizado em {formatDateTimeBrt(current.updatedAt)}</p>}
       {view === "processing" && activityError && <p className="field-grid__note" role="status">Falha ao atualizar os downloads em andamento.</p>}
       {view !== "processing" && error && <div className="notice notice--warning" role="alert">{error}</div>}
       <div className="table-shell catalog-queue__table-wrap" aria-busy={initialLoading}>
@@ -233,7 +236,9 @@ export default function GameImagesPage({ apiRequest, notify }) {
                   : <button className="button button--ghost button--sm" disabled={busy || !activity?.enabled} onClick={() => { void enqueue(row.appId); }}>Tentar novamente</button>}</td>}
               </tr>;
             })}
-            {!rows.length && <tr><td colSpan={view === "completed" ? 6 : 5}>{initialLoading ? "Carregando…" : EMPTY[dashboardView]}</td></tr>}
+            {!rows.length && <tr><td colSpan={view === "completed" ? 6 : 5}>{current?.preparing
+              ? <span role="status">Preparando o histórico de imagens…</span>
+              : initialLoading ? "Carregando…" : EMPTY[dashboardView]}</td></tr>}
           </tbody>
         </table>
       </div>
