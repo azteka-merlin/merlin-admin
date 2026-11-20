@@ -63,6 +63,7 @@ export default function GameImagesPage({ apiRequest, notify }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [selectedFailures, setSelectedFailures] = useState([]);
   const dashboardView = view === "completed" ? outcome : view;
   const current = data?.view === dashboardView && data.requestedPage === page && data.filter === filter ? data : null;
   const activeRows = activity?.rows.filter(row => !filter || row.appId === filter) || [];
@@ -181,6 +182,52 @@ export default function GameImagesPage({ apiRequest, notify }) {
 
   const initialLoading = view === "processing" ? !activity && !activityError : loading && !current;
   const rows = visible?.rows || [];
+  const selectableFailures = view === "completed" && outcome === "failed"
+    ? rows.filter(row => row.status === "failed" || row.status === "missing")
+    : [];
+  const allFailuresSelected = selectableFailures.length > 0
+    && selectableFailures.every(row => selectedFailures.includes(row.appId));
+
+  useEffect(() => setSelectedFailures([]), [dashboardView, page, filter, revision]);
+
+  function togglePageFailures() {
+    const pageIds = selectableFailures.map(row => row.appId);
+    setSelectedFailures(allFailuresSelected
+      ? selectedFailures.filter(id => !pageIds.includes(id))
+      : [...new Set([...selectedFailures, ...pageIds])]);
+  }
+
+  async function retrySelectedFailures() {
+    const ids = [...selectedFailures];
+    if (!ids.length || busy) return;
+    setBusy(true);
+    let next = 0;
+    let retried = 0;
+    const retriedIds = new Set();
+    const workers = Array.from({ length: Math.min(4, ids.length) }, async () => {
+      while (next < ids.length) {
+        const id = ids[next++];
+        try {
+          const result = await request.current(ROOT + "/" + id, { method: "POST", mutate: true });
+          if (["queued", "pending", "stored"].includes(result.status)) {
+            retried++;
+            retriedIds.add(id);
+          }
+        } catch { }
+      }
+    });
+    await Promise.all(workers);
+    setData(previous => previous?.view === "failed" && previous.requestedPage === page && previous.filter === filter
+      ? { ...previous, total: Math.max(0, previous.total - retriedIds.size), rows: previous.rows.filter(row => !retriedIds.has(row.appId)) }
+      : previous);
+    setSelectedFailures(ids.filter(id => !retriedIds.has(id)));
+    setBusy(false);
+    setActivityRevision(value => value + 1);
+    notify(retried
+      ? `${retried} ${retried === 1 ? "jogo reenviado" : "jogos reenviados"} para a fila.`
+      : "Não foi possível reenviar os jogos selecionados.");
+  }
+
   return <section className="page">
     <div className="page__header page__header--split">
       <div><h1>Imagens dos jogos</h1></div>
@@ -215,17 +262,25 @@ export default function GameImagesPage({ apiRequest, notify }) {
           <button className="button button--primary" type="button" disabled={!activity?.enabled || busy || !VALID_APP_ID.test(appId.trim())} onClick={() => { void enqueue(appId); }}>Enfileirar AppID</button>
         </div>
       </form>
+      {view === "completed" && outcome === "failed" && <div className="section-heading game-images__bulk-actions">
+        <label><input type="checkbox" checked={allFailuresSelected} onChange={togglePageFailures} /> Selecionar falhas desta página</label>
+        <button className="button button--primary" type="button" disabled={!selectedFailures.length || busy || !activity?.enabled}
+          onClick={() => { void retrySelectedFailures(); }}>
+          {busy ? "Reenviando…" : `Tentar novamente${selectedFailures.length ? ` (${selectedFailures.length})` : ""}`}
+        </button>
+      </div>}
       {view === "completed" && current?.updatedAt && <p className="field-grid__note">Histórico atualizado em {formatDateTimeBrt(current.updatedAt)}</p>}
       {view === "processing" && activityError && <p className="field-grid__note" role="status">Falha ao atualizar os downloads em andamento.</p>}
       {view !== "processing" && error && <div className="notice notice--warning" role="alert">{error}</div>}
       <div className="table-shell catalog-queue__table-wrap" aria-busy={initialLoading}>
         <table className="catalog-queue__table">
-          <thead><tr><th>{view === "processing" ? "Jogo" : "AppID"}</th><th>Estado</th><th>Solicitado por</th><th>{view === "processing" ? "Início" : "Atualizado em"}</th><th>{dashboardView === "completed" ? "Tamanho" : "Tentativas"}</th>{view === "completed" && <th>Ação</th>}</tr></thead>
+          <thead><tr>{selectableFailures.length > 0 && <th><input type="checkbox" aria-label="Selecionar falhas desta página" checked={allFailuresSelected} onChange={togglePageFailures} /></th>}<th>{view === "processing" ? "Jogo" : "AppID"}</th><th>Estado</th><th>Solicitado por</th><th>{view === "processing" ? "Início" : "Atualizado em"}</th><th>{dashboardView === "completed" ? "Tamanho" : "Tentativas"}</th>{view === "completed" && <th>Ação</th>}</tr></thead>
           <tbody>
             {rows.map(row => {
               const status = view === "processing" ? "processing" : row.status;
               const image = "/api/public/game-images/" + row.appId;
               return <tr key={row.appId}>
+                {selectableFailures.length > 0 && <td><input type="checkbox" aria-label={`Selecionar AppID ${row.appId}`} checked={selectedFailures.includes(row.appId)} onChange={() => setSelectedFailures(previous => previous.includes(row.appId) ? previous.filter(id => id !== row.appId) : [...previous, row.appId])} /></td>}
                 <td>{row.name ? <><strong>{row.name}</strong><br /><small>AppID {row.appId}</small></> : row.appId}</td>
                 <td><span className={"badge badge--" + (BADGES[status] || "muted")}>{STATES[status] || status}</span>{row.error && <p className="field-grid__note">{ERRORS[row.error] || row.error}</p>}</td>
                 <td>{TRIGGERS[row.trigger] || "—"}</td>
@@ -236,7 +291,7 @@ export default function GameImagesPage({ apiRequest, notify }) {
                   : <button className="button button--ghost button--sm" disabled={busy || !activity?.enabled} onClick={() => { void enqueue(row.appId); }}>Tentar novamente</button>}</td>}
               </tr>;
             })}
-            {!rows.length && <tr><td colSpan={view === "completed" ? 6 : 5}>{current?.preparing
+            {!rows.length && <tr><td colSpan={(view === "completed" ? 6 : 5) + (selectableFailures.length > 0 ? 1 : 0)}>{current?.preparing
               ? <span role="status">Preparando o histórico de imagens…</span>
               : initialLoading ? "Carregando…" : EMPTY[dashboardView]}</td></tr>}
           </tbody>
